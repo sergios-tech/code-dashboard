@@ -1,0 +1,87 @@
+{
+  "name": "st-code",
+  "version": "0.1.0",
+  "description": "Sergio's Tech Code dashboard: a live, read-only pane with vitals, turn receipt, agents, architect consults, tools and files, trends and a session log, all from real session events. Requires Claude Code 2.1.300 or newer.",
+  "author": {
+    "name": "Sergio Jovanotti",
+    "url": "https://github.com/sergios-tech"
+  },
+  "homepage": "https://github.com/sergios-tech/sergio-tech-code-dashboard",
+  "repository": "https://github.com/sergios-tech/sergio-tech-code-dashboard",
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "claude-code-mod",
+    "claude-code-plugin",
+    "dashboard",
+    "subagents",
+    "observability",
+    "tui",
+    "oled"
+  ],
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "architectPattern": {
+      "title": "Architect pattern",
+      "description": "Regular expression (case-insensitive) for the agent types and server tools that count as the on-call architect, e.g. advisor|architect",
+      "type": "string",
+      "default": "advisor|architect"
+    },
+    "matchDescriptions": {
+      "title": "Match agent descriptions",
+      "description": "Also count an agent type as the architect when its description (not just its name) matches the pattern",
+      "type": "boolean",
+      "default": false
+    },
+    "architectLabel": {
+      "title": "Architect label",
+      "description": "Name shown for the architect role",
+      "type": "string",
+      "default": "ARCHITECT"
+    },
+    "panels": {
+      "title": "Panels",
+      "description": "Comma-separated panels in display order (compact layout): vitals, trends, turn, agents, loops, architect, tools, log. Leave one out to hide it.",
+      "type": "string",
+      "default": "vitals,trends,turn,agents,loops,architect,tools,log"
+    },
+    "layout": {
+      "title": "Layout",
+      "description": "auto: a summary of at most 8 rows when the pane sits inline above the prompt, two columns from 110 columns when docked, one column otherwise",
+      "type": "string",
+      "options": ["auto", "compact", "wide", "mini"],
+      "default": "auto"
+    },
+    "maxCards": {
+      "title": "Cards before swimlanes",
+      "description": "Agent cards drawn side by side; more agents than this switch to swimlanes (1-6)",
+      "type": "number",
+      "default": 3
+    },
+    "motion": {
+      "title": "Motion",
+      "description": "Animate the header pulse and live elements, or keep everything still",
+      "type": "string",
+      "options": ["on", "off"],
+      "default": "on"
+    },
+    "moments": {
+      "title": "Architect moments",
+      "description": "Show the inferred moment of each consult (before a plan, error repeats, before done)",
+      "type": "boolean",
+      "default": true
+    },
+    "openOnStart": {
+      "title": "Open on start",
+      "description": "Open the pane when a session starts, in terminals of at least 144 columns",
+      "type": "boolean",
+      "default": true
+    },
+    "statusLine": {
+      "title": "Status line",
+      "description": "Show context, agents, consults and denials in the status line",
+      "type": "boolean",
+      "default": true
+    }
+  }
+}

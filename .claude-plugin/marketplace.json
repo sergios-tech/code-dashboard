@@ -1,0 +1,17 @@
+{
+  "name": "sergios-tech",
+  "metadata": {
+    "description": "Plugins from Sergio's Tech."
+  },
+  "owner": {
+    "name": "Sergio's Tech",
+    "url": "https://github.com/sergios-tech"
+  },
+  "plugins": [
+    {
+      "name": "st-code",
+      "source": "./",
+      "description": "A live, read-only dashboard for your coding session in the Sergio's Tech OLED style, drawn only from real session events."
+    }
+  ]
+}
