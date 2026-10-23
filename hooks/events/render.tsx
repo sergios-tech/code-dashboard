@@ -3,20 +3,24 @@ import type { On, RenderElement } from 'claude-code'
 
 import type { Config, Panel } from '../config'
 import { PANE_ID } from '../state/atoms'
-import { loadSnapshot } from '../state/store'
+import { loadSnapshot, toggleExpanded } from '../state/store'
 import type { Draw } from '../view/draw'
 import { header } from '../view/header'
 import { buildViewModel } from '../view/model'
 import type { ViewModel } from '../view/model'
 import { COLORS } from '../view/palette'
+import { agentsPanel, loopsRow } from '../view/panels/agents'
+import type { Expand } from '../view/panels/agents'
 import { logPanel } from '../view/panels/log'
 import { turnPanel } from '../view/panels/turn'
 import { vitalsPanel } from '../view/panels/vitals'
 
 /** One panel's drawing; each panel's renderer joins here as it is added. */
-const panel = (d: Draw, vm: ViewModel, p: Panel): RenderElement | null => {
+const panel = (d: Draw, vm: ViewModel, p: Panel, expand: Expand): RenderElement | null => {
   if (p === 'vitals') return vitalsPanel(d, vm.vitals, vm.width)
   if (p === 'turn') return vm.turn ? turnPanel(d, vm.turn, vm.width) : null
+  if (p === 'agents') return vm.agents ? agentsPanel(d, vm.agents, vm.width, expand) : null
+  if (p === 'loops') return vm.loops ? loopsRow(d, vm.loops, vm.width) : null
   return p === 'log' ? logPanel(d, vm.log, vm.width) : null
 }
 
@@ -35,12 +39,14 @@ export const wireRender = (on: On, cfg: Config): void => {
     // VS Code's webview takes no client modules, whatever its element table holds.
     const hasClient = 'Client' in els && e.surface !== 'vscode'
     const d: Draw = { els, C: COLORS, hasClient, motion: cfg.motion, surface: e.surface, now }
+    // A card's hotkey opens its details under the frame, or closes them.
+    const expand: Expand = id => () => toggleExpanded($, id)
     const { Box } = els
     // The OLED black is filled in rather than left to the host's pane colour.
     return (
       <Box flexDirection="column" width={vm.width} backgroundColor={COLORS.bg}>
         {header(d, vm.header, vm.width, d.motion)}
-        {vm.panels.map(p => panel(d, vm, p))}
+        {vm.panels.map(p => panel(d, vm, p, expand))}
       </Box>
     )
   })

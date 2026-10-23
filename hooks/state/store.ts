@@ -4,6 +4,7 @@ import type { EngineInterface } from 'claude-code'
 
 import type { Activity, AgentCard, Architect, Denials, Layout, LogKind, LogLine, Loop, Main, Receipt, Roster, Speed, Trends, Turn, Usage, View } from '../../types'
 import type { Config } from '../config'
+import { addCard, applyStep, finishCard, finishLoop, stepLoop } from '../domain/agents'
 import { appendLog } from '../domain/log'
 import { statusText } from '../domain/status'
 import { receiptOf } from '../domain/turn'
@@ -242,4 +243,68 @@ export async function endTurn($: EngineInterface, o: { durationMs: number; reaso
 /** `/st-code layout`: the person's layout choice, which wins over the configured one. */
 export async function setLayout($: EngineInterface, layout: Layout): Promise<void> {
   await update($, view, v => ({ ...normalizeView(v), layout }))
+}
+
+/** Architect types remembered from the agent listing, the newest kept. */
+const ROSTER_MAX = 20
+
+/** An offered agent type that matches the architect pattern, remembered for when it is spawned. */
+export async function noteArchitectType($: EngineInterface, type: string): Promise<void> {
+  if (normalizeRoster(await read($, roster)).architectTypes.includes(type)) return
+  await update($, roster, r => {
+    const x = normalizeRoster(r)
+    return x.architectTypes.includes(type) ? x : { architectTypes: [...x.architectTypes, type].slice(-ROSTER_MAX) }
+  })
+}
+
+/** A spawned subagent's card, newest last; its id no longer counts among the other loops. */
+export async function addAgent($: EngineInterface, card: AgentCard): Promise<void> {
+  await update($, agents, list => addCard(normalizeAgents(list), card))
+  if (normalizeLoops(await read($, loops)).some(l => l.id === card.id)) {
+    await update($, loops, l => normalizeLoops(l).filter(x => x.id !== card.id))
+  }
+}
+
+/** One finished model request of a subagent, as `applyStep` takes it. */
+export type AgentStep = Parameters<typeof applyStep>[1]
+
+/**
+ * A subagent's model request ended: its card counts it, or, for a loop no card claims and that is
+ * not the architect's, the other loops do. The card after the step, or null when there is none.
+ */
+export async function noteAgentStep($: EngineInterface, id: string, step: AgentStep): Promise<AgentCard | null> {
+  const card = normalizeAgents(await read($, agents)).find(c => c.id === id)
+  if (card) {
+    await update($, agents, list => normalizeAgents(list).map(c => (c.id === id ? applyStep(c, step) : c)))
+    return applyStep(card, step)
+  }
+  if (normalizeArchitect(await read($, architect)).ids.includes(id)) return null
+  const now = await $.clock.now()
+  await update($, loops, l => stepLoop(normalizeLoops(l), id, now))
+  return null
+}
+
+/**
+ * A subagent's run ended: its card takes the status and the start of the answer, or its loop is
+ * marked done. The finished card, or null when the id has none.
+ */
+export async function finishAgent($: EngineInterface, id: string, reason: string, answer: string): Promise<AgentCard | null> {
+  const now = await $.clock.now()
+  const card = normalizeAgents(await read($, agents)).find(c => c.id === id)
+  if (card) {
+    await update($, agents, list => normalizeAgents(list).map(c => (c.id === id ? finishCard(c, reason, answer, now) : c)))
+    return finishCard(card, reason, answer, now)
+  }
+  if (normalizeLoops(await read($, loops)).some(l => l.id === id)) {
+    await update($, loops, l => finishLoop(normalizeLoops(l), id, now))
+  }
+  return null
+}
+
+/** A card's hotkey: its expanded block opens, or closes when it was the one open. */
+export async function toggleExpanded($: EngineInterface, id: string): Promise<void> {
+  await update($, view, v => {
+    const x = normalizeView(v)
+    return { ...x, expanded: x.expanded === id ? null : id }
+  })
 }
