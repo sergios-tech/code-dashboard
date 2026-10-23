@@ -1,10 +1,14 @@
 import type { Register } from 'claude-code'
 
+import { parseConfig } from './config'
+import { wireRender } from './events/render'
 import { PANE_ID, PLUGIN } from './state/atoms'
 
 const TITLE = "Sergio's Tech · Code"
 
-export const register: Register = on => {
+export const register: Register = (on, options) => {
+  const cfg = parseConfig(options)
+
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: PLUGIN,
@@ -20,8 +24,5 @@ export const register: Register = on => {
     return { text: opened.isPlaced ? "Sergio's Tech Code opened." : `Not shown yet: ${opened.reason}` }
   })
 
-  on('ui.render', { component: 'Pane', requestId: PANE_ID }, async ($, e) => {
-    const { Text } = $.ui.resolve(e)
-    return <Text bold>SERGIO'S TECH · CODE</Text>
-  })
+  wireRender(on, cfg)
 }
