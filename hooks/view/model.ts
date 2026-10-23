@@ -1,7 +1,8 @@
 // The view model: everything one frame draws, worked out from one state snapshot by a pure function,
 // so the renderers only lay it out and never read state themselves.
-import type { AgentCard, Architect, Limit, LogLine, Moment, Receipt, Speed, ToolNote } from '../../types'
+import type { AgentCard, Architect, FileRow, Limit, LogLine, Moment, Receipt, Speed, ToolNote, ToolRow } from '../../types'
 import type { Config, Panel } from '../config'
+import { hotFiles, topTools, totalCalls } from '../domain/activity'
 import { cardFit, cardTitle, isLoopActive } from '../domain/agents'
 import { consultLine, consultTimeline, hasArchitect, isAdvising } from '../domain/architect'
 import { logRows } from '../domain/log'
@@ -115,6 +116,18 @@ export type ArchitectView = {
   rows: number
 }
 
+/** The tools and files panel: the busiest tools, then the files touched most. */
+export type ToolsView = {
+  /** `N calls`. */
+  meta: string
+  /** The tools with the most calls, most first. */
+  tools: ToolRow[]
+  /** The files touched most, under a `hot files` label; none until a call has read or edited one. */
+  files: FileRow[]
+  /** Rows the panel body takes. */
+  rows: number
+}
+
 export type ViewModel = {
   width: number
   layout: 'compact' | 'wide' | 'mini'
@@ -141,6 +154,8 @@ export type ViewModel = {
   loops: LoopsView | null
   /** The architect panel, null until an architect has been spawned or consulted. */
   architect: ArchitectView | null
+  /** The tools and files panel, null until the first tool call. */
+  tools: ToolsView | null
   /** The session log; never null, since an empty log still draws as `nothing yet`. */
   log: LogView
 }
@@ -163,6 +178,8 @@ export function buildViewModel(s: Snapshot, ctx: ViewContext): ViewModel {
   const agents = agentsView(s, ctx, width)
   const loops = loopsView(s, ctx.now, width)
   const architect = architectView(s, ctx, width)
+  const layout = pickLayout(ctx.cfg.layout, s.view.layout, ctx.placement, width)
+  const tools = toolsView(s, layout)
   // The header row, then each drawn panel's gap above it and its frame's two border rows around its
   // body; the expanded agent's block sits under its frame, and the loops row is one row under a gap.
   const drawn = (p: Panel) => ctx.cfg.panels.includes(p)
@@ -172,7 +189,8 @@ export function buildViewModel(s: Snapshot, ctx: ViewContext): ViewModel {
     (turn && drawn('turn') ? 3 + turn.rows : 0) +
     (agents && drawn('agents') ? 3 + agents.rows + (agents.expanded?.rows ?? 0) : 0) +
     (loops && drawn('loops') ? 2 : 0) +
-    (architect && drawn('architect') ? 3 + architect.rows : 0)
+    (architect && drawn('architect') ? 3 + architect.rows : 0) +
+    (tools && drawn('tools') ? 3 + tools.rows : 0)
   const log = logView(s.log, ctx, used)
   // What each panel draws, null while it has nothing to show; each panel's task fills in its own.
   const content: Record<Panel, unknown> = {
@@ -182,12 +200,12 @@ export function buildViewModel(s: Snapshot, ctx: ViewContext): ViewModel {
     agents,
     loops,
     architect,
-    tools: null,
+    tools,
     log,
   }
   return {
     width,
-    layout: pickLayout(ctx.cfg.layout, s.view.layout, ctx.placement, width),
+    layout,
     panels: ctx.cfg.panels.filter(p => content[p] !== null),
     header: {
       model: s.main.model ? prettyModel(s.main.model) : '',
@@ -201,6 +219,7 @@ export function buildViewModel(s: Snapshot, ctx: ViewContext): ViewModel {
     agents,
     loops,
     architect,
+    tools,
     log,
   }
 }
@@ -325,6 +344,19 @@ function architectView(s: Snapshot, ctx: ViewContext, width: number): ArchitectV
     // The status, the timeline and the timing always; the moments and the advice when shown.
     rows: 3 + (moments ? 1 : 0) + (a.lastAdvice ? 1 : 0),
   }
+}
+
+/** Tool rows drawn: more where the wide layout gives the panel a column of its own. */
+const TOOLS_SHOWN = { compact: 4, wide: 6, mini: 4 } as const
+const FILES_SHOWN = 5
+
+/** Hidden until the first call; the `hot files` label and rows once a call has read or edited a file. */
+function toolsView(s: Snapshot, layout: ViewModel['layout']): ToolsView | null {
+  const a = s.activity
+  if (a.tools.length === 0) return null
+  const tools = topTools(a, TOOLS_SHOWN[layout])
+  const files = hotFiles(a, FILES_SHOWN)
+  return { meta: plural(totalCalls(a), 'call'), tools, files, rows: tools.length + (files.length > 0 ? 1 + files.length : 0) }
 }
 
 /**

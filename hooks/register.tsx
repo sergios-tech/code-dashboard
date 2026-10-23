@@ -8,6 +8,7 @@ import { wireCommand } from './events/command'
 import { wireMeasures } from './events/measures'
 import { wireRender } from './events/render'
 import { wireSession } from './events/session'
+import { wireTools } from './events/tools'
 import { wireTurns } from './events/turns'
 
 export const register: Register = (on, options) => {
@@ -17,6 +18,7 @@ export const register: Register = (on, options) => {
   wireTurns(on, cfg)
   wireAgents(on, cfg)
   wireArchitect(on, cfg)
+  wireTools(on, cfg)
   wireMeasures(on, cfg)
   wireRender(on, cfg)
 }

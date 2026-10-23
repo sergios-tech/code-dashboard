@@ -2,13 +2,15 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface } from 'claude-code'
 
-import type { Activity, AgentCard, Architect, Denials, Layout, LogKind, LogLine, Loop, Main, Moment, Receipt, Roster, Speed, Trends, Turn, Usage, View } from '../../types'
+import type { Activity, AgentCard, Architect, Denials, Layout, LogKind, LogLine, Loop, Main, Moment, Receipt, Roster, Speed, ToolNote, Trends, Turn, Usage, View } from '../../types'
 import type { Config } from '../config'
-import { addCard, applyStep, finishCard, finishLoop, stepLoop } from '../domain/agents'
+import { recordCall } from '../domain/activity'
+import type { Call } from '../domain/activity'
+import { addCard, applyStep, finishCard, finishLoop, noteTool, stepLoop } from '../domain/agents'
 import { IDS_MAX, SEEN_MAX, endConsult, momentOf, startConsult } from '../domain/architect'
 import { appendLog } from '../domain/log'
 import { statusText } from '../domain/status'
-import { receiptOf } from '../domain/turn'
+import { afterCall, receiptOf } from '../domain/turn'
 import { usageFrom } from '../domain/vitals'
 import { redact } from '../format/redact'
 import {
@@ -241,6 +243,27 @@ export async function endTurn($: EngineInterface, o: { durationMs: number; reaso
   await update($, main, m => ({ ...normalizeMain(m), isRunning: false }))
 }
 
+/**
+ * One tool call added to the turn's tally (edits, errors and the main loop's error streak); a call
+ * that changes none of them writes nothing, so it costs no redraw.
+ */
+export async function noteTurnCall($: EngineInterface, c: Parameters<typeof afterCall>[1]): Promise<void> {
+  const t = normalizeTurn(await read($, turn))
+  const after = afterCall(t, c)
+  if (after.edits === t.edits && after.errors === t.errors && after.errorStreak === t.errorStreak) return
+  await update($, turn, x => afterCall(normalizeTurn(x), c))
+}
+
+/** One finished tool call in the session's tool and file tallies. */
+export async function recordTool($: EngineInterface, c: Call): Promise<void> {
+  await update($, activity, a => recordCall(normalizeActivity(a), c))
+}
+
+/** One refused tool call, for the status line's `denied N`. */
+export async function countDenial($: EngineInterface): Promise<void> {
+  await update($, denials, d => ({ count: normalizeDenials(d).count + 1 }))
+}
+
 /** `/st-code layout`: the person's layout choice, which wins over the configured one. */
 export async function setLayout($: EngineInterface, layout: Layout): Promise<void> {
   await update($, view, v => ({ ...normalizeView(v), layout }))
@@ -369,6 +392,14 @@ export async function finishAgent($: EngineInterface, id: string, reason: string
     await update($, loops, l => finishLoop(normalizeLoops(l), id, now))
   }
   return null
+}
+
+/** A subagent's tool call among its card's last three; the card it was noted on, or null when the loop has none. */
+export async function noteAgentTool($: EngineInterface, id: string, note: ToolNote): Promise<AgentCard | null> {
+  const card = normalizeAgents(await read($, agents)).find(c => c.id === id)
+  if (!card) return null
+  await update($, agents, list => normalizeAgents(list).map(c => (c.id === id ? noteTool(c, note) : c)))
+  return noteTool(card, note)
 }
 
 /** A card's hotkey: its expanded block opens, or closes when it was the one open. */
