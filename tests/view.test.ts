@@ -96,7 +96,8 @@ test('the header keeps the brand and drops status words to fit', () => {
 
 test('the view model hides panels with nothing to show and reads the header from state', () => {
   const fresh = vmOf({})
-  expect([fresh.width, fresh.layout, fresh.panels, fresh.viewedAgentId]).toEqual([64, 'compact', [], null])
+  // A fresh session has nothing but the log, which draws as `nothing yet` when empty.
+  expect([fresh.width, fresh.layout, fresh.panels, fresh.viewedAgentId]).toEqual([64, 'compact', ['log'], null])
   expect(fresh.header).toEqual({ model: '', isRunning: false, isActive: false, arch: null })
   expect(vmOf({}, 28).width).toBe(40); expect(vmOf({}, 120).layout).toBe('wide'); expect(vmOf({}, 120, 'inline').layout).toBe('mini')
   expect(vmOf({ view: { expanded: null, layout: 'compact' } }, 120).layout).toBe('compact')

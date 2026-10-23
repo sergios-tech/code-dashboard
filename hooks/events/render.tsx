@@ -9,9 +9,10 @@ import { header } from '../view/header'
 import { buildViewModel } from '../view/model'
 import type { ViewModel } from '../view/model'
 import { COLORS } from '../view/palette'
+import { logPanel } from '../view/panels/log'
 
 /** One panel's drawing; each panel's renderer joins here as it is added. */
-const panel = (_d: Draw, _vm: ViewModel, _p: Panel): RenderElement | null => null
+const panel = (d: Draw, vm: ViewModel, p: Panel): RenderElement | null => (p === 'log' ? logPanel(d, vm.log, vm.width) : null)
 
 export const wireRender = (on: On, cfg: Config): void => {
   on('ui.render', { component: 'Pane', requestId: PANE_ID }, async ($, e) => {
@@ -23,6 +24,7 @@ export const wireRender = (on: On, cfg: Config): void => {
       bodyColumns: e.props.bodyColumns,
       placement: e.props.placement,
       viewedAgentId: e.props.view?.agentId ?? null,
+      bodyRows: e.props.scroll?.bodyRows ?? e.viewport?.rows,
     })
     const d: Draw = { els, C: COLORS, hasClient: 'Client' in els, motion: cfg.motion, surface: e.surface, now }
     const { Box } = els

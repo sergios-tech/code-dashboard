@@ -2,7 +2,11 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface } from 'claude-code'
 
-import type { Activity, AgentCard, Architect, Denials, LogLine, Loop, Main, Receipt, Roster, Trends, Turn, Usage, View } from '../../types'
+import type { Activity, AgentCard, Architect, Denials, Layout, LogKind, LogLine, Loop, Main, Receipt, Roster, Trends, Turn, Usage, View } from '../../types'
+import type { Config } from '../config'
+import { appendLog } from '../domain/log'
+import { statusText } from '../domain/status'
+import { redact } from '../format/redact'
 import {
   DEFAULT_ACTIVITY,
   DEFAULT_ARCHITECT,
@@ -136,4 +140,45 @@ export async function resetAll($: EngineInterface): Promise<void> {
   await update($, log, () => [])
   await update($, view, () => DEFAULT_VIEW)
   await update($, roster, () => DEFAULT_ROSTER)
+}
+
+/** One line into the session log, credentials masked, the log kept to its newest lines. */
+export async function say($: EngineInterface, who: string, text: string, kind: LogKind = 'info', agentId: string | null = null): Promise<void> {
+  const line: LogLine = { at: await $.clock.now(), who, text: redact(text), kind, agentId }
+  await update($, log, list => appendLog(normalizeLog(list), line))
+}
+
+/** The status line under the prompt, from what is stored now; none when it is switched off or has nothing to say. */
+export async function refreshStatus($: EngineInterface, cfg: Config): Promise<void> {
+  if (!cfg.statusLine) {
+    $.ui.status(undefined)
+    return
+  }
+  const [u, a, ar, d] = await Promise.all([read($, usage), read($, agents), read($, architect), read($, denials)])
+  $.ui.status(statusText({ usage: normalizeUsage(u), agents: normalizeAgents(a), architect: normalizeArchitect(ar), denials: normalizeDenials(d) }, cfg))
+}
+
+/**
+ * The host's own reading of the context, cost and rate limits, stored as the first measurement.
+ * A host without usage (headless, an SDK host, a session not yet bound) just starts without it.
+ */
+export async function takeUsageReading($: EngineInterface): Promise<void> {
+  const u = await $.session.usage().catch(() => null)
+  if (!u) return
+  await update($, usage, x => ({
+    ...normalizeUsage(x),
+    pct: u.context.percent ?? null,
+    tokens: u.context.tokens ?? null,
+    window: u.context.window,
+    costUsd: u.cost?.usd ?? null,
+    limits: u.rateLimits.map(r => {
+      const at = r.resetsAt ? Date.parse(r.resetsAt) : Number.NaN
+      return { kind: r.kind, pct: r.percentUsed, resetsAt: Number.isFinite(at) ? at : null }
+    }),
+  }))
+}
+
+/** `/st-code layout`: the person's layout choice, which wins over the configured one. */
+export async function setLayout($: EngineInterface, layout: Layout): Promise<void> {
+  await update($, view, v => ({ ...normalizeView(v), layout }))
 }
