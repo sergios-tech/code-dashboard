@@ -1,6 +1,6 @@
 // The view model: everything one frame draws, worked out from one state snapshot by a pure function,
 // so the renderers only lay it out and never read state themselves.
-import type { AgentCard, Architect, FileRow, Limit, LogLine, Moment, Receipt, Speed, ToolNote, ToolRow } from '../../types'
+import type { AgentCard, Architect, FileRow, Limit, LogLine, Moment, Receipt, Sample, Speed, ToolNote, ToolRow } from '../../types'
 import type { Config, Panel } from '../config'
 import { hotFiles, topTools, totalCalls } from '../domain/activity'
 import { cardFit, cardTitle, isLoopActive } from '../domain/agents'
@@ -128,6 +128,20 @@ export type ToolsView = {
   rows: number
 }
 
+/**
+ * The trends panel: the samples both lines are drawn from, and each line's current figure. A line is
+ * null when no sample has its figure, so a host without cost shows the context line alone.
+ */
+export type TrendsView = {
+  samples: Sample[]
+  /** The latest context fill, in percent. */
+  ctx: number | null
+  /** The latest cumulative cost, and the last turn's cost from its receipt. */
+  cost: { usd: number; delta: number | null; min: number; max: number } | null
+  /** Rows the panel body takes. */
+  rows: number
+}
+
 export type ViewModel = {
   width: number
   layout: 'compact' | 'wide' | 'mini'
@@ -156,6 +170,8 @@ export type ViewModel = {
   architect: ArchitectView | null
   /** The tools and files panel, null until the first tool call. */
   tools: ToolsView | null
+  /** The trends panel, null until there are two samples with a figure to draw. */
+  trends: TrendsView | null
   /** The session log; never null, since an empty log still draws as `nothing yet`. */
   log: LogView
 }
@@ -180,6 +196,7 @@ export function buildViewModel(s: Snapshot, ctx: ViewContext): ViewModel {
   const architect = architectView(s, ctx, width)
   const layout = pickLayout(ctx.cfg.layout, s.view.layout, ctx.placement, width)
   const tools = toolsView(s, layout)
+  const trends = trendsView(s)
   // The header row, then each drawn panel's gap above it and its frame's two border rows around its
   // body; the expanded agent's block sits under its frame, and the loops row is one row under a gap.
   const drawn = (p: Panel) => ctx.cfg.panels.includes(p)
@@ -190,12 +207,13 @@ export function buildViewModel(s: Snapshot, ctx: ViewContext): ViewModel {
     (agents && drawn('agents') ? 3 + agents.rows + (agents.expanded?.rows ?? 0) : 0) +
     (loops && drawn('loops') ? 2 : 0) +
     (architect && drawn('architect') ? 3 + architect.rows : 0) +
+    (trends && drawn('trends') ? 3 + trends.rows : 0) +
     (tools && drawn('tools') ? 3 + tools.rows : 0)
   const log = logView(s.log, ctx, used)
   // What each panel draws, null while it has nothing to show; each panel's task fills in its own.
   const content: Record<Panel, unknown> = {
     vitals,
-    trends: null,
+    trends,
     turn,
     agents,
     loops,
@@ -220,6 +238,7 @@ export function buildViewModel(s: Snapshot, ctx: ViewContext): ViewModel {
     loops,
     architect,
     tools,
+    trends,
     log,
   }
 }
@@ -357,6 +376,19 @@ function toolsView(s: Snapshot, layout: ViewModel['layout']): ToolsView | null {
   const tools = topTools(a, TOOLS_SHOWN[layout])
   const files = hotFiles(a, FILES_SHOWN)
   return { meta: plural(totalCalls(a), 'call'), tools, files, rows: tools.length + (files.length > 0 ? 1 + files.length : 0) }
+}
+
+/** Hidden below two samples; each line only while some sample has its figure. */
+function trendsView(s: Snapshot): TrendsView | null {
+  const { samples } = s.trends
+  if (samples.length < 2) return null
+  const ctxs = samples.map(x => x.ctxPct).filter((v): v is number => v !== null)
+  const costs = samples.map(x => x.costUsd).filter((v): v is number => v !== null)
+  const lastCost = costs[costs.length - 1]
+  const ctx = ctxs[ctxs.length - 1] ?? null
+  const cost = lastCost === undefined ? null : { usd: lastCost, delta: s.receipt?.costDelta ?? null, min: Math.min(...costs), max: Math.max(...costs) }
+  const rows = (ctx !== null ? 1 : 0) + (cost ? 1 : 0)
+  return rows === 0 ? null : { samples, ctx, cost, rows }
 }
 
 /**

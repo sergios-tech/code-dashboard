@@ -85,3 +85,42 @@ export const svgTimeline = (a: Architect, now: number, widthPx: number): string 
     '</svg>'
   )
 }
+
+/**
+ * A line of `values` in `color`, `widthPx` by `heightPx`, on a faint baseline. The first value sits at
+ * the left edge and the last at the right; a missing value breaks the line, and a run of one is a dot.
+ * Values are placed between `range.min` and `range.max` (default: 0 to the largest value).
+ */
+export const svgSpark = (values: (number | null)[], widthPx: number, heightPx: number, color: string, range?: { min: number; max: number }): string => {
+  const w = Math.max(MIN_PX, Math.round(Number.isFinite(widthPx) ? widthPx : 0))
+  const h = Math.max(TIMELINE_PX, Math.round(Number.isFinite(heightPx) ? heightPx : 0))
+  const list = Array.isArray(values) ? values.map(v => (typeof v === 'number' && Number.isFinite(v) ? v : null)) : []
+  const min = range?.min ?? 0
+  const max = range?.max ?? Math.max(0, ...list.filter((v): v is number => v !== null))
+  const spanX = w - 2 * PAD_PX
+  const spanY = h - 2 * PAD_PX
+  const x = (i: number) => PAD_PX + (list.length > 1 ? Math.round((i / (list.length - 1)) * spanX) : spanX)
+  const y = (v: number) => PAD_PX + Math.round((1 - (max > min ? Math.max(0, Math.min(1, (v - min) / (max - min))) : 0)) * spanY)
+  const runs: { x: number; y: number }[][] = []
+  let open: { x: number; y: number }[] | null = null
+  list.forEach((v, i) => {
+    if (v === null) {
+      open = null
+      return
+    }
+    if (!open) runs.push((open = []))
+    open.push({ x: x(i), y: y(v) })
+  })
+  const marks = runs.map(r =>
+    r.length === 1
+      ? `<circle cx="${r[0]?.x}" cy="${r[0]?.y}" r="2" fill="${color}"/>`
+      : `<polyline points="${r.map(p => `${p.x},${p.y}`).join(' ')}" fill="none" stroke="${color}" stroke-width="2"/>`,
+  )
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">` +
+    `<rect x="0" y="0" width="${w}" height="${h}" fill="${COLORS.bg}"/>` +
+    `<line x1="${PAD_PX}" y1="${h - PAD_PX}" x2="${PAD_PX + spanX}" y2="${h - PAD_PX}" stroke="${COLORS.faint}" stroke-width="1"/>` +
+    marks.join('') +
+    '</svg>'
+  )
+}

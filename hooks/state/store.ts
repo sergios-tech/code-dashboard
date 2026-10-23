@@ -10,6 +10,7 @@ import { addCard, applyStep, finishCard, finishLoop, noteTool, stepLoop } from '
 import { IDS_MAX, SEEN_MAX, endConsult, momentOf, startConsult } from '../domain/architect'
 import { appendLog } from '../domain/log'
 import { statusText } from '../domain/status'
+import { addSample, markCompaction } from '../domain/trends'
 import { afterCall, receiptOf } from '../domain/turn'
 import { usageFrom } from '../domain/vitals'
 import { redact } from '../format/redact'
@@ -191,6 +192,22 @@ export async function takeUsageReading($: EngineInterface): Promise<void> {
 /** A `session.measure` reading, stored over the last one. */
 export async function applyMeasure($: EngineInterface, reading: Parameters<typeof usageFrom>[0]): Promise<void> {
   await update($, usage, x => usageFrom(reading, normalizeUsage(x)))
+}
+
+/**
+ * The stored context and cost as one more point of the trend lines. A reading that has neither is
+ * no point: the host reported nothing to draw.
+ */
+export async function takeSample($: EngineInterface): Promise<void> {
+  const [u, now] = await Promise.all([read($, usage), $.clock.now()])
+  const x = normalizeUsage(u)
+  if (x.pct === null && x.costUsd === null) return
+  await update($, trends, t => addSample(normalizeTrends(t), { at: now, ctxPct: x.pct, costUsd: x.costUsd }))
+}
+
+/** The next trend sample is the one after a compaction. */
+export async function markTrendCompaction($: EngineInterface): Promise<void> {
+  await update($, trends, t => markCompaction(normalizeTrends(t)))
 }
 
 /** One compaction of the main conversation, counted and timed. */

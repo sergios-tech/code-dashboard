@@ -3,7 +3,7 @@
 import type { On } from 'claude-code'
 
 import type { Config } from '../config'
-import { refreshStatus, resetAll, takeUsageReading, migrate } from '../state/store'
+import { refreshStatus, resetAll, takeSample, takeUsageReading, migrate } from '../state/store'
 import { openPane, registerCommand } from './command'
 
 export const wireSession = (on: On, cfg: Config): void => {
@@ -11,6 +11,7 @@ export const wireSession = (on: On, cfg: Config): void => {
     await registerCommand($)
     await migrate($)
     await takeUsageReading($)
+    await takeSample($)
     // Opening can wait on the host's layout; the session does not wait for it.
     if (cfg.openOnStart) void openPane($).catch(() => undefined)
     await refreshStatus($, cfg)

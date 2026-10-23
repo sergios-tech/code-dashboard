@@ -14,6 +14,7 @@ import type { Expand } from '../view/panels/agents'
 import { architectPanel } from '../view/panels/architect'
 import { logPanel } from '../view/panels/log'
 import { toolsPanel } from '../view/panels/tools'
+import { trendsPanel } from '../view/panels/trends'
 import { turnPanel } from '../view/panels/turn'
 import { vitalsPanel } from '../view/panels/vitals'
 
@@ -25,6 +26,7 @@ const panel = (d: Draw, vm: ViewModel, p: Panel, expand: Expand): RenderElement 
   if (p === 'loops') return vm.loops ? loopsRow(d, vm.loops, vm.width) : null
   if (p === 'architect') return vm.architect ? architectPanel(d, vm.architect, vm.width) : null
   if (p === 'tools') return vm.tools ? toolsPanel(d, vm.tools, vm.width) : null
+  if (p === 'trends') return vm.trends ? trendsPanel(d, vm.trends, vm.width) : null
   return p === 'log' ? logPanel(d, vm.log, vm.width) : null
 }
 
