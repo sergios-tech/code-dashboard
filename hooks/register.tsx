@@ -1,7 +1,7 @@
 import type { Register } from 'claude-code'
 
-const PANE_ID = 'st-code'
-const PLUGIN = 'st-code'
+import { PANE_ID, PLUGIN } from './state/atoms'
+
 const TITLE = "Sergio's Tech · Code"
 
 export const register: Register = on => {
