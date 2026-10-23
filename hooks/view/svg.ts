@@ -1,6 +1,6 @@
 // Vector drawings for the surfaces that take `Svg` (desktop, VS Code, mobile). They use the same
 // tokens on an OLED-black rect, since the identity does not follow a light host theme. Pure.
-import type { AgentCard } from '../../types'
+import type { AgentCard, Architect } from '../../types'
 import { AGENT_GLYPH, cardTitle, fitCells, lanes } from '../domain/agents'
 import { COLORS } from './palette'
 
@@ -49,6 +49,39 @@ export const svgLanes = (cards: AgentCard[], now: number, widthPx: number): stri
     `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">` +
     `<rect x="0" y="0" width="${w}" height="${h}" fill="${COLORS.bg}"/>` +
     rows.join('') +
+    '</svg>'
+  )
+}
+
+/** The timeline's height, and the half-width of the diamond that marks a consult's start. */
+const TIMELINE_PX = 24
+const DIAMOND_PX = 5
+
+/**
+ * The consults on one timeline, `widthPx` wide, from the first consult to now: a faint rule, and per
+ * consult a bar while it ran (to now while it runs) and a diamond where it started, as `◆` and `━`
+ * draw it in the terminal.
+ */
+export const svgTimeline = (a: Architect, now: number, widthPx: number): string => {
+  const w = Math.max(MIN_PX, Math.round(Number.isFinite(widthPx) ? widthPx : 0))
+  const spanPx = w - 2 * PAD_PX
+  const first = a.consults.length > 0 ? Math.min(...a.consults.map(c => c.at)) : now
+  const span = Math.max(1, now - first)
+  const x = (t: number) => PAD_PX + Math.round(((Math.min(Math.max(t, first), first + span) - first) / span) * spanPx)
+  const mid = TIMELINE_PX / 2
+  const marks = a.consults.map(c => {
+    const from = x(c.at)
+    const d = DIAMOND_PX
+    return (
+      `<rect x="${from}" y="${mid - 2}" width="${Math.max(2, x(c.endAt ?? now) - from)}" height="4" fill="${COLORS.arch}"/>` +
+      `<polygon points="${from},${mid - d} ${from + d},${mid} ${from},${mid + d} ${from - d},${mid}" fill="${COLORS.arch}"/>`
+    )
+  })
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${TIMELINE_PX}" viewBox="0 0 ${w} ${TIMELINE_PX}">` +
+    `<rect x="0" y="0" width="${w}" height="${TIMELINE_PX}" fill="${COLORS.bg}"/>` +
+    `<line x1="${PAD_PX}" y1="${mid}" x2="${PAD_PX + spanPx}" y2="${mid}" stroke="${COLORS.faint}" stroke-width="1"/>` +
+    marks.join('') +
     '</svg>'
   )
 }

@@ -2,9 +2,10 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface } from 'claude-code'
 
-import type { Activity, AgentCard, Architect, Denials, Layout, LogKind, LogLine, Loop, Main, Receipt, Roster, Speed, Trends, Turn, Usage, View } from '../../types'
+import type { Activity, AgentCard, Architect, Denials, Layout, LogKind, LogLine, Loop, Main, Moment, Receipt, Roster, Speed, Trends, Turn, Usage, View } from '../../types'
 import type { Config } from '../config'
 import { addCard, applyStep, finishCard, finishLoop, stepLoop } from '../domain/agents'
+import { IDS_MAX, SEEN_MAX, endConsult, momentOf, startConsult } from '../domain/architect'
 import { appendLog } from '../domain/log'
 import { statusText } from '../domain/status'
 import { receiptOf } from '../domain/turn'
@@ -128,6 +129,7 @@ export async function migrate($: EngineInterface): Promise<void> {
 /**
  * `/st-code reset` and `/clear`: the session is the same, so what it spent and the trend line
  * stay; the context gauge waits for the next measurement instead of showing the pre-clear fill.
+ * The architect types offered stay too, as the agent listing is not sent again.
  */
 export async function resetAll($: EngineInterface): Promise<void> {
   const keptMain = normalizeMain(await read($, main))
@@ -142,7 +144,6 @@ export async function resetAll($: EngineInterface): Promise<void> {
   await update($, denials, () => DEFAULT_DENIALS)
   await update($, log, () => [])
   await update($, view, () => DEFAULT_VIEW)
-  await update($, roster, () => DEFAULT_ROSTER)
 }
 
 /** One line into the session log, credentials masked, the log kept to its newest lines. */
@@ -255,6 +256,75 @@ export async function noteArchitectType($: EngineInterface, type: string): Promi
     const x = normalizeRoster(r)
     return x.architectTypes.includes(type) ? x : { architectTypes: [...x.architectTypes, type].slice(-ROSTER_MAX) }
   })
+}
+
+/** Whether a type was offered as the architect's, by its name or, with `matchDescriptions`, its description. */
+export async function isOfferedArchitect($: EngineInterface, type: string): Promise<boolean> {
+  return normalizeRoster(await read($, roster)).architectTypes.includes(type)
+}
+
+/** The architect as stored now. */
+export async function readArchitect($: EngineInterface): Promise<Architect> {
+  return normalizeArchitect(await read($, architect))
+}
+
+/** Whether a loop is a spawned architect's. */
+export async function isArchitectId($: EngineInterface, id: string): Promise<boolean> {
+  return normalizeArchitect(await read($, architect)).ids.includes(id)
+}
+
+/** A spawned architect: its id is kept, so its loop is neither a card nor among the other loops. */
+export async function addArchitectId($: EngineInterface, id: string): Promise<void> {
+  await update($, architect, a => {
+    const x = normalizeArchitect(a)
+    return x.ids.includes(id) ? x : { ...x, ids: [...x.ids, id].slice(-IDS_MAX) }
+  })
+  if (normalizeLoops(await read($, loops)).some(l => l.id === id)) {
+    await update($, loops, l => normalizeLoops(l).filter(x => x.id !== id))
+  }
+}
+
+/** A server tool call remembered the first time it is read; true then, false for one read before. */
+export async function markSeen($: EngineInterface, id: string): Promise<boolean> {
+  if (normalizeArchitect(await read($, architect)).seen.includes(id)) return false
+  let isNew = false
+  await update($, architect, a => {
+    const x = normalizeArchitect(a)
+    isNew = !x.seen.includes(id)
+    return isNew ? { ...x, seen: [...x.seen, id].slice(-SEEN_MAX) } : x
+  })
+  return isNew
+}
+
+/**
+ * A consult opened now, at the moment the main turn's tally suggests; one asked before done puts
+ * the turn under review. The moment, or null when a consult of that id was already opened.
+ */
+export async function openConsult($: EngineInterface, id: string, via: string): Promise<Moment | null> {
+  const [t, a, now] = await Promise.all([read($, turn), read($, architect), $.clock.now()])
+  if (normalizeArchitect(a).consults.some(c => c.id === id)) return null
+  const moment = momentOf(normalizeTurn(t))
+  await update($, architect, x => startConsult(normalizeArchitect(x), { id, at: now, moment, via }))
+  if (moment === 'before done') await update($, turn, x => ({ ...normalizeTurn(x), isReviewing: true }))
+  return moment
+}
+
+/**
+ * The open consult of `id` (else the latest open one) ended now, its advice the last when it gave
+ * some. The turn stays under review only while a consult asked before done is still open.
+ */
+export async function closeConsult($: EngineInterface, advice: string | null, id?: string): Promise<void> {
+  const now = await $.clock.now()
+  const a = normalizeArchitect(await update($, architect, x => endConsult(normalizeArchitect(x), now, advice, id)))
+  const isReviewing = a.consults.some(c => c.endAt === null && c.moment === 'before done')
+  if (!isReviewing) await update($, turn, x => ({ ...normalizeTurn(x), isReviewing: false }))
+}
+
+/** Advice that arrived outside a consult's end; true when it differs from the last. */
+export async function storeAdvice($: EngineInterface, advice: string): Promise<boolean> {
+  if (advice === '' || normalizeArchitect(await read($, architect)).lastAdvice === advice) return false
+  await update($, architect, a => ({ ...normalizeArchitect(a), lastAdvice: advice }))
+  return true
 }
 
 /** A spawned subagent's card, newest last; its id no longer counts among the other loops. */

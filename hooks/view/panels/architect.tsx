@@ -1,0 +1,80 @@
+// The ARCHITECT panel: whether the architect is advising, its consults on one timeline, when the
+// last one ran and how long it took, the moment each is inferred at, and the advice it left. The
+// surfaces that draw vectors add the same timeline as an SVG.
+import type { RenderElement } from 'claude-code'
+
+import type { Moment } from '../../../types'
+import { fitCells } from '../../domain/agents'
+import { MOMENTS } from '../../domain/architect'
+import { plural } from '../../format/text'
+import type { Draw } from '../draw'
+import { frame } from '../frame'
+import type { ArchitectView } from '../model'
+import { svgTimeline } from '../svg'
+
+type Piece = { text: string; color: string; bold?: boolean }
+
+const cells = (s: string): number => Array.from(s).length
+const widthOf = (row: Piece[]): number => row.reduce((n, p) => n + cells(p.text), 0)
+
+/** Border and padding on each side of a row inside the frame. */
+const CHROME = 4
+/** About one terminal cell, in CSS pixels, for the width of the desktop's timeline. */
+const CELL_PX = 8
+
+const rowOf = (d: Draw, key: string, row: Piece[]): RenderElement => {
+  const { Text } = d.els
+  return (
+    <Text key={key} wrap="truncate">
+      {row.map((p, i) => (
+        <Text key={`p${i}`} color={p.color} bold={p.bold}>
+          {p.text}
+        </Text>
+      ))}
+    </Text>
+  )
+}
+
+/** The timeline in runs: consults in the architect's colour, the rule between them faint. */
+const timelineRow = (d: Draw, timeline: string): Piece[] =>
+  (timeline.match(/─+|[^─]+/g) ?? []).map(run => ({ text: run, color: run.startsWith('─') ? d.C.faint : d.C.arch }))
+
+/**
+ * `◆ before a plan  ◇ error repeats  ◇ before done  (inferred)`, the last consult's moment lit; a
+ * frame too narrow for all three keeps the lit one alone.
+ */
+const momentsRow = (d: Draw, lit: Moment | null, room: number): Piece[] => {
+  const { C } = d
+  const piece = (m: Moment): Piece => (m === lit ? { text: `◆ ${m}`, color: C.arch, bold: true } : { text: `◇ ${m}`, color: C.dim })
+  const spaced = (ps: Piece[], gap: string): Piece[] => ps.flatMap((p, i) => (i === 0 ? [p] : [{ text: gap, color: C.dim }, p]))
+  const tag: Piece = { text: '(inferred)', color: C.dim }
+  const all = [...MOMENTS.map(piece), tag]
+  const variants = [spaced(all, '  '), spaced(all, ' '), ...(lit ? [spaced([piece(lit), tag], '  ')] : [])]
+  return variants.find(v => widthOf(v) <= room) ?? variants[variants.length - 1] ?? []
+}
+
+/** The consults on one timeline as a vector drawing, for the surfaces that take `Svg`. */
+const timelineSvg = (d: Draw, v: ArchitectView, width: number): RenderElement | null => {
+  const { els } = d
+  if (d.surface === 'terminal' || !('Svg' in els)) return null
+  return <els.Svg key="architect-timeline" source={svgTimeline(v.architect, v.now, width * CELL_PX)} alt={`${plural(v.architect.consults.length, 'consult')} on one timeline`} />
+}
+
+export const architectPanel = (d: Draw, v: ArchitectView, width: number): RenderElement => {
+  const { Box } = d.els
+  const { C } = d
+  const room = Math.max(1, width - CHROME)
+  const rows: RenderElement[] = [
+    rowOf(d, 'arch-status', [v.isAdvising ? { text: '● advising', color: C.arch, bold: true } : { text: '○ on call', color: C.dim }]),
+    rowOf(d, 'arch-timeline', timelineRow(d, v.timeline)),
+    rowOf(d, 'arch-since', [{ text: v.since, color: C.dim }]),
+  ]
+  if (v.moments) rows.push(rowOf(d, 'arch-moments', momentsRow(d, v.moments.lit, room)))
+  if (v.advice) rows.push(rowOf(d, 'arch-advice', [{ text: `» ${fitCells(v.advice, room - 2)}`, color: C.arch }]))
+  return (
+    <Box key="architect" marginTop={1} flexDirection="column" width={width}>
+      {frame(d, { key: 'architect-frame', label: v.label, meta: v.meta, width, children: rows })}
+      {timelineSvg(d, v, width)}
+    </Box>
+  )
+}

@@ -1,8 +1,9 @@
 // The view model: everything one frame draws, worked out from one state snapshot by a pure function,
 // so the renderers only lay it out and never read state themselves.
-import type { AgentCard, Limit, LogLine, Receipt, Speed, ToolNote } from '../../types'
+import type { AgentCard, Architect, Limit, LogLine, Moment, Receipt, Speed, ToolNote } from '../../types'
 import type { Config, Panel } from '../config'
 import { cardFit, cardTitle, isLoopActive } from '../domain/agents'
+import { consultLine, consultTimeline, hasArchitect, isAdvising } from '../domain/architect'
 import { logRows } from '../domain/log'
 import { receiptRows } from '../domain/turn'
 import { effortLevel } from '../domain/vitals'
@@ -92,6 +93,28 @@ export type AgentsView = {
 /** The other loops row: model loops no card claims, and one dot each for the newest that fit. */
 export type LoopsView = { seen: number; active: number; dots: ('active' | 'done' | 'idle')[] }
 
+/** The architect panel: whether it is advising, its consults on one row, the last one's timing, its moments and its advice. */
+export type ArchitectView = {
+  /** The configured label, `ARCHITECT` by default. */
+  label: string
+  /** `consults N`. */
+  meta: string
+  isAdvising: boolean
+  /** The consults on one row as wide as the frame's inside. */
+  timeline: string
+  /** `consulting since HH:MM:SS`, `last 2m ago · took 14s`, or `not consulted yet`. */
+  since: string
+  /** The moment of the last consult, lit among the three; null with the moments switched off. */
+  moments: { lit: Moment | null } | null
+  /** The last advice, empty until there is some. */
+  advice: string
+  /** The stored consults, for the desktop's timeline. */
+  architect: Architect
+  now: number
+  /** Rows the panel body takes. */
+  rows: number
+}
+
 export type ViewModel = {
   width: number
   layout: 'compact' | 'wide' | 'mini'
@@ -116,6 +139,8 @@ export type ViewModel = {
   agents: AgentsView | null
   /** The other loops row, null until a loop no card claims has stepped. */
   loops: LoopsView | null
+  /** The architect panel, null until an architect has been spawned or consulted. */
+  architect: ArchitectView | null
   /** The session log; never null, since an empty log still draws as `nothing yet`. */
   log: LogView
 }
@@ -133,12 +158,11 @@ export type ViewContext = {
 export function buildViewModel(s: Snapshot, ctx: ViewContext): ViewModel {
   const width = clampWidth(ctx.bodyColumns)
   const isRunning = s.main.isRunning
-  const hasArchitect = s.architect.consults.length > 0 || s.architect.ids.length > 0
-  const isAdvising = s.architect.consults.some(c => c.endAt === null)
   const vitals = vitalsView(s, ctx.now)
   const turn = turnView(s, width)
   const agents = agentsView(s, ctx, width)
   const loops = loopsView(s, ctx.now, width)
+  const architect = architectView(s, ctx, width)
   // The header row, then each drawn panel's gap above it and its frame's two border rows around its
   // body; the expanded agent's block sits under its frame, and the loops row is one row under a gap.
   const drawn = (p: Panel) => ctx.cfg.panels.includes(p)
@@ -147,7 +171,8 @@ export function buildViewModel(s: Snapshot, ctx: ViewContext): ViewModel {
     (drawn('vitals') ? 3 + vitals.rows : 0) +
     (turn && drawn('turn') ? 3 + turn.rows : 0) +
     (agents && drawn('agents') ? 3 + agents.rows + (agents.expanded?.rows ?? 0) : 0) +
-    (loops && drawn('loops') ? 2 : 0)
+    (loops && drawn('loops') ? 2 : 0) +
+    (architect && drawn('architect') ? 3 + architect.rows : 0)
   const log = logView(s.log, ctx, used)
   // What each panel draws, null while it has nothing to show; each panel's task fills in its own.
   const content: Record<Panel, unknown> = {
@@ -156,7 +181,7 @@ export function buildViewModel(s: Snapshot, ctx: ViewContext): ViewModel {
     turn,
     agents,
     loops,
-    architect: null,
+    architect,
     tools: null,
     log,
   }
@@ -168,13 +193,14 @@ export function buildViewModel(s: Snapshot, ctx: ViewContext): ViewModel {
       model: s.main.model ? prettyModel(s.main.model) : '',
       isRunning,
       isActive: isRunning || s.agents.some(a => a.status === 'running'),
-      arch: hasArchitect ? `${ctx.cfg.architectLabel.toUpperCase()} ${isAdvising ? 'ADVISING' : 'ON CALL'}` : null,
+      arch: hasArchitect(s.architect) ? `${ctx.cfg.architectLabel.toUpperCase()} ${isAdvising(s.architect) ? 'ADVISING' : 'ON CALL'}` : null,
     },
     viewedAgentId: ctx.viewedAgentId,
     vitals,
     turn,
     agents,
     loops,
+    architect,
     log,
   }
 }
@@ -278,6 +304,27 @@ function loopsView(s: Snapshot, now: number, width: number): LoopsView | null {
   const room = width - 2 - Array.from(`LOOPS${loopsWords(list.length, active)}`).length
   const dots = room > 0 ? list.slice(-room).map((l): LoopsView['dots'][number] => (isLoopActive(l, now) ? 'active' : l.isDone ? 'done' : 'idle')) : []
   return { seen: list.length, active, dots }
+}
+
+/** Hidden until an architect has been spawned or consulted; the moments row only while they are switched on, the advice row once there is advice. */
+function architectView(s: Snapshot, ctx: ViewContext, width: number): ArchitectView | null {
+  const a = s.architect
+  if (!hasArchitect(a)) return null
+  const last = a.consults[a.consults.length - 1]
+  const moments = ctx.cfg.moments ? { lit: last?.moment ?? null } : null
+  return {
+    label: ctx.cfg.architectLabel,
+    meta: `consults ${a.consults.length}`,
+    isAdvising: isAdvising(a),
+    timeline: consultTimeline(a, ctx.now, width - FRAME_CHROME),
+    since: consultLine(a, ctx.now),
+    moments,
+    advice: a.lastAdvice,
+    architect: a,
+    now: ctx.now,
+    // The status, the timeline and the timing always; the moments and the advice when shown.
+    rows: 3 + (moments ? 1 : 0) + (a.lastAdvice ? 1 : 0),
+  }
 }
 
 /**

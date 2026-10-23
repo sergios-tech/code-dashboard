@@ -94,7 +94,7 @@ test('a store full of garbage loads as all defaults', async () => {
     })
   }
 })
-test('reset keeps cost, limits, compactions, model, mode and trends, and empties the rest', async () => {
+test('reset keeps cost, limits, compactions, model, mode, trends and the offered architect types, and empties the rest', async () => {
   const $ = memoryState()
   const sample = { at: 5, ctxPct: 40, costUsd: 1, isCompaction: false }
   await update($, main, () => ({ ...DEFAULT_MAIN, model: 'model-x', mode: 'plan', steps: 9, isRunning: true }))
@@ -103,11 +103,14 @@ test('reset keeps cost, limits, compactions, model, mode and trends, and empties
   await update($, log, () => [{ at: 1, who: 'you', text: 'hi', agentId: null, kind: 'info' as const }])
   await update($, denials, () => ({ count: 3 }))
   await update($, roster, () => ({ architectTypes: ['advisor'] }))
+  await update($, architect, () => ({ ...DEFAULT_ARCHITECT, ids: ['a1'], lastAdvice: 'Ship it' }))
   await resetAll($)
   const s = await loadSnapshot($)
   expect(s.main).toEqual({ ...DEFAULT_MAIN, model: 'model-x', mode: 'plan' })
   expect(s.usage).toEqual({ ...DEFAULT_USAGE, costUsd: 2.5, limits: [{ kind: 'five_hour', pct: 10, resetsAt: null }], compactions: 2 })
   expect(s.trends).toEqual({ samples: [sample], pendingCompaction: true })
-  expect([s.log, s.denials, s.roster]).toEqual([[], DEFAULT_DENIALS, DEFAULT_ROSTER])
+  expect([s.log, s.denials, s.architect]).toEqual([[], DEFAULT_DENIALS, DEFAULT_ARCHITECT])
+  // The agent listing is not sent again after a clear, so the types it offered are kept.
+  expect(s.roster).toEqual({ architectTypes: ['advisor'] })
   expect(await read($, main)).toEqual(s.main)
 })

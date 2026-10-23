@@ -3,6 +3,7 @@ import type { Register } from 'claude-code'
 
 import { parseConfig } from './config'
 import { wireAgents } from './events/agents'
+import { wireArchitect } from './events/architect'
 import { wireCommand } from './events/command'
 import { wireMeasures } from './events/measures'
 import { wireRender } from './events/render'
@@ -15,6 +16,7 @@ export const register: Register = (on, options) => {
   wireCommand(on, cfg)
   wireTurns(on, cfg)
   wireAgents(on, cfg)
+  wireArchitect(on, cfg)
   wireMeasures(on, cfg)
   wireRender(on, cfg)
 }
