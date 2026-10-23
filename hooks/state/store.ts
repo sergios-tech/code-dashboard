@@ -2,10 +2,12 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface } from 'claude-code'
 
-import type { Activity, AgentCard, Architect, Denials, Layout, LogKind, LogLine, Loop, Main, Receipt, Roster, Trends, Turn, Usage, View } from '../../types'
+import type { Activity, AgentCard, Architect, Denials, Layout, LogKind, LogLine, Loop, Main, Receipt, Roster, Speed, Trends, Turn, Usage, View } from '../../types'
 import type { Config } from '../config'
 import { appendLog } from '../domain/log'
 import { statusText } from '../domain/status'
+import { receiptOf } from '../domain/turn'
+import { usageFrom } from '../domain/vitals'
 import { redact } from '../format/redact'
 import {
   DEFAULT_ACTIVITY,
@@ -158,24 +160,83 @@ export async function refreshStatus($: EngineInterface, cfg: Config): Promise<vo
   $.ui.status(statusText({ usage: normalizeUsage(u), agents: normalizeAgents(a), architect: normalizeArchitect(ar), denials: normalizeDenials(d) }, cfg))
 }
 
+/** The host's own reading of the context, cost and rate limits; none where the host has no usage or throws. */
+async function readUsage($: EngineInterface) {
+  try {
+    return (await $.session.usage()) ?? null
+  } catch {
+    return null
+  }
+}
+
+/** The session's cost read fresh, not from the last measurement: a receipt subtracts two of these. */
+async function costNow($: EngineInterface): Promise<number | null> {
+  const c = (await readUsage($))?.cost?.usd
+  return typeof c === 'number' && Number.isFinite(c) ? c : null
+}
+
 /**
  * The host's own reading of the context, cost and rate limits, stored as the first measurement.
  * A host without usage (headless, an SDK host, a session not yet bound) just starts without it.
  */
 export async function takeUsageReading($: EngineInterface): Promise<void> {
-  const u = await $.session.usage().catch(() => null)
-  if (!u) return
-  await update($, usage, x => ({
-    ...normalizeUsage(x),
-    pct: u.context.percent ?? null,
-    tokens: u.context.tokens ?? null,
-    window: u.context.window,
-    costUsd: u.cost?.usd ?? null,
-    limits: u.rateLimits.map(r => {
-      const at = r.resetsAt ? Date.parse(r.resetsAt) : Number.NaN
-      return { kind: r.kind, pct: r.percentUsed, resetsAt: Number.isFinite(at) ? at : null }
-    }),
-  }))
+  const u = await readUsage($)
+  if (u) await update($, usage, x => usageFrom(u, normalizeUsage(x)))
+}
+
+/** A `session.measure` reading, stored over the last one. */
+export async function applyMeasure($: EngineInterface, reading: Parameters<typeof usageFrom>[0]): Promise<void> {
+  await update($, usage, x => usageFrom(reading, normalizeUsage(x)))
+}
+
+/** One compaction of the main conversation, counted and timed. */
+export async function noteCompaction($: EngineInterface): Promise<void> {
+  const now = await $.clock.now()
+  await update($, usage, x => {
+    const u = normalizeUsage(x)
+    return { ...u, compactions: u.compactions + 1, lastCompactAt: now }
+  })
+}
+
+/** The permission mode the main loop runs in, when the event names one. */
+export async function noteMode($: EngineInterface, mode: string | undefined): Promise<void> {
+  if (typeof mode !== 'string' || mode === '') return
+  await update($, main, m => ({ ...normalizeMain(m), mode }))
+}
+
+/** The main loop starts a turn: a fresh tally from now, with the session cost to subtract at the end. */
+export async function beginTurn($: EngineInterface): Promise<void> {
+  const [now, cost] = await Promise.all([$.clock.now(), costNow($)])
+  await update($, turn, () => ({ ...DEFAULT_TURN, startedAt: now, costAtStart: cost }))
+  await update($, main, m => ({ ...normalizeMain(m), isRunning: true }))
+}
+
+/** The main loop starts a model request: its model and effort are known now, and it counts. */
+export async function beginRequest($: EngineInterface, model: string, effort: string | number | undefined): Promise<void> {
+  await update($, main, m => {
+    const x = normalizeMain(m)
+    return {
+      ...x,
+      model: typeof model === 'string' && model !== '' ? model : x.model,
+      effort: effort === undefined ? x.effort : String(effort),
+      steps: x.steps + 1,
+    }
+  })
+}
+
+/** The speed of the main loop's last request. */
+export async function storeSpeed($: EngineInterface, speed: Speed): Promise<void> {
+  await update($, main, m => ({ ...normalizeMain(m), speed }))
+}
+
+/** The main loop's turn ended: its receipt is stored, the loop is idle and no review is under way. */
+export async function endTurn($: EngineInterface, o: { durationMs: number; reason: string }): Promise<void> {
+  const [t, cards, cost] = await Promise.all([read($, turn), read($, agents), costNow($)])
+  const tally = normalizeTurn(t)
+  const agentsSince = normalizeAgents(cards).filter(c => c.spawnedAt >= tally.startedAt).length
+  await update($, receipt, () => receiptOf(tally, { durationMs: o.durationMs, agentsSince, costNow: cost, reason: o.reason }))
+  await update($, turn, x => ({ ...normalizeTurn(x), isReviewing: false }))
+  await update($, main, m => ({ ...normalizeMain(m), isRunning: false }))
 }
 
 /** `/st-code layout`: the person's layout choice, which wins over the configured one. */

@@ -10,9 +10,15 @@ import { buildViewModel } from '../view/model'
 import type { ViewModel } from '../view/model'
 import { COLORS } from '../view/palette'
 import { logPanel } from '../view/panels/log'
+import { turnPanel } from '../view/panels/turn'
+import { vitalsPanel } from '../view/panels/vitals'
 
 /** One panel's drawing; each panel's renderer joins here as it is added. */
-const panel = (d: Draw, vm: ViewModel, p: Panel): RenderElement | null => (p === 'log' ? logPanel(d, vm.log, vm.width) : null)
+const panel = (d: Draw, vm: ViewModel, p: Panel): RenderElement | null => {
+  if (p === 'vitals') return vitalsPanel(d, vm.vitals, vm.width)
+  if (p === 'turn') return vm.turn ? turnPanel(d, vm.turn, vm.width) : null
+  return p === 'log' ? logPanel(d, vm.log, vm.width) : null
+}
 
 export const wireRender = (on: On, cfg: Config): void => {
   on('ui.render', { component: 'Pane', requestId: PANE_ID }, async ($, e) => {
@@ -26,7 +32,9 @@ export const wireRender = (on: On, cfg: Config): void => {
       viewedAgentId: e.props.view?.agentId ?? null,
       bodyRows: e.props.scroll?.bodyRows ?? e.viewport?.rows,
     })
-    const d: Draw = { els, C: COLORS, hasClient: 'Client' in els, motion: cfg.motion, surface: e.surface, now }
+    // VS Code's webview takes no client modules, whatever its element table holds.
+    const hasClient = 'Client' in els && e.surface !== 'vscode'
+    const d: Draw = { els, C: COLORS, hasClient, motion: cfg.motion, surface: e.surface, now }
     const { Box } = els
     // The OLED black is filled in rather than left to the host's pane colour.
     return (
