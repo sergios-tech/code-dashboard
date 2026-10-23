@@ -3,8 +3,8 @@ import type { Engine } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
 import type { Activity } from '../types'
-import { FILES_MAX, TOOLS_MAX, avgLabel, avgMs, fileOf, hotFiles, recordCall, timedMs, topTools } from '../hooks/domain/activity'
-import { DEFAULT_ACTIVITY } from '../hooks/state/schema'
+import { FILES_MAX, TOOLS_MAX, avgLabel, avgMs, fileOf, hotFiles, recordCall, timedMs, topTools, totalCalls } from '../hooks/domain/activity'
+import { DEFAULT_ACTIVITY, normalizeActivity } from '../hooks/state/schema'
 import { COLORS } from '../hooks/view/palette'
 import { cellWidth, engine, pane, rowsOf, spawn } from './kit'
 
@@ -79,6 +79,7 @@ test('activity stays bounded over a long session (Review Focus 5)', () => {
   const full: Activity = {
     tools: Array.from({ length: TOOLS_MAX }, (_, i) => ({ tool: `T${i}`, calls: i === 5 || i === 9 ? 1 : 2, errors: 0, timedCalls: 0, timedMs: 0 })),
     files: Array.from({ length: FILES_MAX }, (_, i) => ({ path: `d/f${i}.ts`, reads: i < 3 ? 1 : 2, edits: 0, byMain: true, lastAt: 100 - i })),
+    calls: 78,
   }
   const next = recordCall(full, { tool: 'Read', input: { file_path: '/x/new.ts' }, hasFailed: false, inSubagent: true, ms: 1, at: 9999 })
   expect(next.tools.map(t => t.tool).filter(t => t === 'T5' || t === 'T9' || t === 'Read')).toEqual(['T9', 'Read'])
@@ -86,6 +87,23 @@ test('activity stays bounded over a long session (Review Focus 5)', () => {
   expect(next.files.at(-1)).toEqual({ path: 'x/new.ts', reads: 1, edits: 0, byMain: false, lastAt: 9999 })
   // Ranked: touches first, then the one touched last.
   expect(hotFiles(next, 3).map(f => f.path)).toEqual(['d/f3.ts', 'd/f4.ts', 'd/f5.ts'])
+})
+
+test('the call count is a running total that outlives evicted tool rows', async ($, on) => {
+  let a = DEFAULT_ACTIVITY
+  for (let i = 0; i < 60; i++) a = recordCall(a, { tool: `T${i}`, input: {}, hasFailed: false, inSubagent: false, ms: 1, at: i })
+  expect([a.tools.length, a.tools.reduce((n, t) => n + t.calls, 0), totalCalls(a)]).toEqual([TOOLS_MAX, TOOLS_MAX, 60])
+  // Read leniently: junk counts as nothing, and the total never reads below what the kept rows add up to.
+  expect([normalizeActivity(a).calls, normalizeActivity({ ...a, calls: 'x' }).calls, normalizeActivity(null).calls]).toEqual([60, TOOLS_MAX, 0])
+  expect(normalizeActivity({ tools: [{ tool: 'Bash', calls: 3 }], calls: 1 }).calls).toBe(3)
+
+  engine(on)
+  on('tool.call', () => ok)
+  for (let i = 0; i < 45; i++) await $.tool.call({ tool: 'Bash', command: `echo ${i}` } as never)
+  for (let i = 0; i < 45; i++) await $.tool.call({ tool: `mcp__srv__t${i}` } as never)
+  const ui = await $.ui.mount({ ...pane(64), surface: 'terminal' })
+  expect(await ui.find({ type: 'Text', text: /^ 90 calls $/ })).toBeDefined()
+  await ui.unmount()
 })
 
 // ---------------------------------------------------------------- the pane
@@ -126,7 +144,7 @@ test('hot files rank by touches; subagent-only files are dimmed', async ($, on) 
   expect(logged).toHaveLength(1); expect(logged[0]).toMatch(/main +Edit → auth\/login\.ts/)
   await ui.unmount()
 
-  for (const cols of [40, 64, 120]) {
+  for (const cols of [40, 64, 100]) {
     const rows = await drawn($, cols)
     const inside = toolsRows(rows)
     expect(inside).toHaveLength(8)

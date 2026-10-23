@@ -168,7 +168,7 @@ test('the cost row shows the last turn\'s cost as a delta, and every width keeps
   usd = 1.41
   await $.turn.complete({ answer: 'ok', durationMs: 1000, isAborted: false, turnId: 'T1', reason: 'answer' })
   await $.session.measure(reading(30, 1.41, ['context', 'cost']))
-  for (const cols of [40, 64, 120]) {
+  for (const cols of [40, 64, 100]) {
     const rows = await drawn($, cols)
     const body = trendsRows(rows)
     expect(body).toHaveLength(2); expect(body[1]).toMatch(/\$1\.41( \+\$0\.41)? +│$/)

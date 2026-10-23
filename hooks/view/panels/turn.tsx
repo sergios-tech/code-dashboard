@@ -8,8 +8,8 @@ import type { Draw } from '../draw'
 import { frame } from '../frame'
 import type { TurnView } from '../model'
 
-/** The edit and error counts join the running row from this width. */
-const COUNTS_FROM = 60
+/** The edit and error counts join the running row from this width, so a 120-column pane's right column (59) keeps them. */
+const COUNTS_FROM = 56
 
 const running = (d: Draw, t: TurnView, width: number): RenderElement[] => {
   const { Box, Text } = d.els

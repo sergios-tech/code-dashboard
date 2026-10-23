@@ -1,16 +1,17 @@
 // The view model: everything one frame draws, worked out from one state snapshot by a pure function,
 // so the renderers only lay it out and never read state themselves.
 import type { AgentCard, Architect, FileRow, Limit, LogLine, Moment, Receipt, Sample, Speed, ToolNote, ToolRow } from '../../types'
+import { PANELS } from '../config'
 import type { Config, Panel } from '../config'
 import { hotFiles, topTools, totalCalls } from '../domain/activity'
 import { cardFit, cardTitle, isLoopActive } from '../domain/agents'
 import { consultLine, consultTimeline, hasArchitect, isAdvising } from '../domain/architect'
 import { logRows } from '../domain/log'
-import { receiptRows } from '../domain/turn'
+import { receiptLine, receiptRows } from '../domain/turn'
 import { effortLevel } from '../domain/vitals'
 import { plural, prettyModel, shorten, wrapText } from '../format/text'
 import type { Snapshot } from '../state/store'
-import { clampWidth, pickLayout } from './layout'
+import { WIDE_LEFT, WIDE_RIGHT, clampWidth, pickLayout, wideColumns } from './layout'
 
 /** The log panel: the lines to draw, oldest first, and whether they are one agent's alone. */
 export type LogView = { lines: LogLine[]; isViewingAgent: boolean }
@@ -142,11 +143,41 @@ export type TrendsView = {
   rows: number
 }
 
+/**
+ * The summary inline above the prompt: no frames, one row per line and at most eight. Each part is
+ * null, or empty, while it has nothing to show or its panel is switched off.
+ */
+export type MiniView = {
+  /** The main model's readable name, or empty while it is unknown. */
+  model: string
+  isRunning: boolean
+  ctx: { pct: number; compactions: number } | null
+  costUsd: number | null
+  /** `architect advising`, or `architect N` for the consults so far. */
+  arch: string | null
+  /** The context fill of each trend sample that has one, for the one-row sparkline, and the latest; null under two. */
+  spark: { values: number[]; pct: number } | null
+  /** Up to three agents, running ones first, then the newest. */
+  agents: AgentCard[]
+  /** Agents left out of the rows above. */
+  more: number
+  loops: { seen: number; active: number } | null
+  /** The last turn's receipt in one line, while the main loop is idle. */
+  lastTurn: string | null
+}
+
+/** The wide layout's two columns, each holding its panels in config order. */
+export type Columns = { left: Panel[]; right: Panel[]; leftWidth: number; rightWidth: number; gap: number }
+
 export type ViewModel = {
   width: number
   layout: 'compact' | 'wide' | 'mini'
   /** The panels to draw, in config order: enabled and with something to show. */
   panels: Panel[]
+  /** The wide layout's columns, the log running under both; null in one column. */
+  columns: Columns | null
+  /** The cells each panel is drawn in: its column's in the wide layout, else the pane's. */
+  widths: Record<Panel, number>
   header: {
     /** The main model's readable name, or empty while it is unknown. */
     model: string
@@ -174,6 +205,8 @@ export type ViewModel = {
   trends: TrendsView | null
   /** The session log; never null, since an empty log still draws as `nothing yet`. */
   log: LogView
+  /** The inline summary, drawn instead of the panels; null outside the mini layout. */
+  mini: MiniView | null
 }
 
 export type ViewContext = {
@@ -189,42 +222,46 @@ export type ViewContext = {
 export function buildViewModel(s: Snapshot, ctx: ViewContext): ViewModel {
   const width = clampWidth(ctx.bodyColumns)
   const isRunning = s.main.isRunning
-  const vitals = vitalsView(s, ctx.now)
-  const turn = turnView(s, width)
-  const agents = agentsView(s, ctx, width)
-  const loops = loopsView(s, ctx.now, width)
-  const architect = architectView(s, ctx, width)
   const layout = pickLayout(ctx.cfg.layout, s.view.layout, ctx.placement, width)
+  // In the wide layout a panel is laid out for its column, so its cards, dots and lines fit there.
+  const cols = layout === 'wide' ? wideColumns(width) : null
+  const widthOf = (p: Panel): number => (cols === null ? width : WIDE_LEFT.includes(p) ? cols.left : WIDE_RIGHT.includes(p) ? cols.right : width)
+  const widths = Object.fromEntries(PANELS.map(p => [p, widthOf(p)])) as Record<Panel, number>
+  const vitals = vitalsView(s, ctx.now)
+  const turn = turnView(s, widths.turn)
+  const agents = agentsView(s, ctx, widths.agents)
+  const loops = loopsView(s, ctx.now, widths.loops)
+  const architect = architectView(s, ctx, widths.architect)
   const tools = toolsView(s, layout)
   const trends = trendsView(s)
-  // The header row, then each drawn panel's gap above it and its frame's two border rows around its
-  // body; the expanded agent's block sits under its frame, and the loops row is one row under a gap.
-  const drawn = (p: Panel) => ctx.cfg.panels.includes(p)
-  const used =
-    1 +
-    (drawn('vitals') ? 3 + vitals.rows : 0) +
-    (turn && drawn('turn') ? 3 + turn.rows : 0) +
-    (agents && drawn('agents') ? 3 + agents.rows + (agents.expanded?.rows ?? 0) : 0) +
-    (loops && drawn('loops') ? 2 : 0) +
-    (architect && drawn('architect') ? 3 + architect.rows : 0) +
-    (trends && drawn('trends') ? 3 + trends.rows : 0) +
-    (tools && drawn('tools') ? 3 + tools.rows : 0)
-  const log = logView(s.log, ctx, used)
-  // What each panel draws, null while it has nothing to show; each panel's task fills in its own.
-  const content: Record<Panel, unknown> = {
-    vitals,
-    trends,
-    turn,
-    agents,
-    loops,
-    architect,
-    tools,
-    log,
+  // What each panel draws, null while it has nothing to show.
+  const content: Record<Panel, unknown> = { vitals, trends, turn, agents, loops, architect, tools, log: s.log }
+  const panels = ctx.cfg.panels.filter(p => content[p] !== null)
+  const columns: Columns | null = cols
+    ? { left: panels.filter(p => WIDE_LEFT.includes(p)), right: panels.filter(p => WIDE_RIGHT.includes(p)), leftWidth: cols.left, rightWidth: cols.right, gap: cols.gap }
+    : null
+  // Each drawn panel's gap above it and its frame's two border rows around its body; the expanded
+  // agent's block sits under its frame, and the loops row is one row under a gap.
+  const tall: Record<Panel, number> = {
+    vitals: 3 + vitals.rows,
+    trends: trends ? 3 + trends.rows : 0,
+    turn: turn ? 3 + turn.rows : 0,
+    agents: agents ? 3 + agents.rows + (agents.expanded?.rows ?? 0) : 0,
+    loops: loops ? 2 : 0,
+    architect: architect ? 3 + architect.rows : 0,
+    tools: tools ? 3 + tools.rows : 0,
+    log: 0,
   }
+  const height = (ps: Panel[]) => ps.reduce((n, p) => n + tall[p], 0)
+  // The header row, then the panels above the log: one stack, or the taller of the two columns.
+  const used = 1 + (columns ? Math.max(height(columns.left), height(columns.right)) : height(panels))
+  const log = logView(s.log, ctx, used)
   return {
     width,
     layout,
-    panels: ctx.cfg.panels.filter(p => content[p] !== null),
+    panels,
+    columns,
+    widths,
     header: {
       model: s.main.model ? prettyModel(s.main.model) : '',
       isRunning,
@@ -240,6 +277,35 @@ export function buildViewModel(s: Snapshot, ctx: ViewContext): ViewModel {
     tools,
     trends,
     log,
+    mini: layout === 'mini' ? miniView(s, ctx, trends, loops) : null,
+  }
+}
+
+/** Agent rows in the inline summary; the rest are counted on the row under them. */
+const MINI_AGENTS = 3
+
+/** The inline summary: the main model's line, then each part whose panel is switched on and has something to show. */
+function miniView(s: Snapshot, ctx: ViewContext, trends: TrendsView | null, loops: LoopsView | null): MiniView {
+  const drawn = (p: Panel) => ctx.cfg.panels.includes(p)
+  const a = s.architect
+  const label = ctx.cfg.architectLabel.toLowerCase()
+  const running = s.agents.filter(c => c.status === 'running')
+  const rest = s.agents.filter(c => c.status !== 'running').reverse()
+  const agents = drawn('agents') ? [...running, ...rest].slice(0, MINI_AGENTS) : []
+  // Readings that carried no context fill (cost alone) would only leave gaps in a line this short.
+  const ctxs = (trends?.samples ?? []).map(x => x.ctxPct).filter((v): v is number => v !== null)
+  const last = ctxs[ctxs.length - 1]
+  return {
+    model: s.main.model ? prettyModel(s.main.model) : '',
+    isRunning: s.main.isRunning,
+    ctx: s.usage.pct === null ? null : { pct: s.usage.pct, compactions: s.usage.compactions },
+    costUsd: s.usage.costUsd,
+    arch: drawn('architect') && hasArchitect(a) ? `${label} ${isAdvising(a) ? 'advising' : a.consults.length}` : null,
+    spark: drawn('trends') && ctxs.length >= 2 && last !== undefined ? { values: ctxs, pct: last } : null,
+    agents,
+    more: drawn('agents') ? s.agents.length - agents.length : 0,
+    loops: drawn('loops') && loops ? { seen: loops.seen, active: loops.active } : null,
+    lastTurn: drawn('turn') && !s.main.isRunning && s.receipt ? receiptLine(s.receipt) : null,
   }
 }
 

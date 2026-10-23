@@ -1,4 +1,5 @@
-// The pane's drawing: one state snapshot, one view model, then the header and each panel in turn.
+// The pane's drawing: one state snapshot, one view model, then the header and the panels in one
+// column, in two with the log under both, or the inline summary instead of all of them.
 import type { On, RenderElement } from 'claude-code'
 
 import type { Config, Panel } from '../config'
@@ -6,6 +7,7 @@ import { PANE_ID } from '../state/atoms'
 import { loadSnapshot, toggleExpanded } from '../state/store'
 import type { Draw } from '../view/draw'
 import { header } from '../view/header'
+import { miniPane } from '../view/mini'
 import { buildViewModel } from '../view/model'
 import type { ViewModel } from '../view/model'
 import { COLORS } from '../view/palette'
@@ -18,16 +20,36 @@ import { trendsPanel } from '../view/panels/trends'
 import { turnPanel } from '../view/panels/turn'
 import { vitalsPanel } from '../view/panels/vitals'
 
-/** One panel's drawing; each panel's renderer joins here as it is added. */
+/** One panel's drawing, in the cells the view model gave it: its column's in the wide layout. */
 const panel = (d: Draw, vm: ViewModel, p: Panel, expand: Expand): RenderElement | null => {
-  if (p === 'vitals') return vitalsPanel(d, vm.vitals, vm.width)
-  if (p === 'turn') return vm.turn ? turnPanel(d, vm.turn, vm.width) : null
-  if (p === 'agents') return vm.agents ? agentsPanel(d, vm.agents, vm.width, expand) : null
-  if (p === 'loops') return vm.loops ? loopsRow(d, vm.loops, vm.width) : null
-  if (p === 'architect') return vm.architect ? architectPanel(d, vm.architect, vm.width) : null
-  if (p === 'tools') return vm.tools ? toolsPanel(d, vm.tools, vm.width) : null
-  if (p === 'trends') return vm.trends ? trendsPanel(d, vm.trends, vm.width) : null
-  return p === 'log' ? logPanel(d, vm.log, vm.width) : null
+  const w = vm.widths[p]
+  if (p === 'vitals') return vitalsPanel(d, vm.vitals, w)
+  if (p === 'turn') return vm.turn ? turnPanel(d, vm.turn, w) : null
+  if (p === 'agents') return vm.agents ? agentsPanel(d, vm.agents, w, expand) : null
+  if (p === 'loops') return vm.loops ? loopsRow(d, vm.loops, w) : null
+  if (p === 'architect') return vm.architect ? architectPanel(d, vm.architect, w) : null
+  if (p === 'tools') return vm.tools ? toolsPanel(d, vm.tools, w) : null
+  if (p === 'trends') return vm.trends ? trendsPanel(d, vm.trends, w) : null
+  return p === 'log' ? logPanel(d, vm.log, w) : null
+}
+
+/** The panels under the header: one column in config order, or two side by side with the log full width beneath. */
+const body = (d: Draw, vm: ViewModel, expand: Expand): (RenderElement | null)[] => {
+  const { Box } = d.els
+  const draw = (p: Panel) => panel(d, vm, p, expand)
+  const c = vm.columns
+  if (!c) return vm.panels.map(draw)
+  return [
+    <Box key="wide" columnGap={c.gap} width={vm.width}>
+      <Box key="wide-left" flexDirection="column" width={c.leftWidth} flexShrink={0}>
+        {c.left.map(draw)}
+      </Box>
+      <Box key="wide-right" flexDirection="column" width={c.rightWidth} flexShrink={0}>
+        {c.right.map(draw)}
+      </Box>
+    </Box>,
+    vm.panels.includes('log') ? draw('log') : null,
+  ]
 }
 
 export const wireRender = (on: On, cfg: Config): void => {
@@ -47,12 +69,13 @@ export const wireRender = (on: On, cfg: Config): void => {
     const d: Draw = { els, C: COLORS, hasClient, motion: cfg.motion, surface: e.surface, now }
     // A card's hotkey opens its details under the frame, or closes them.
     const expand: Expand = id => () => toggleExpanded($, id)
+    if (vm.mini) return miniPane(d, vm.mini, vm.width)
     const { Box } = els
     // The OLED black is filled in rather than left to the host's pane colour.
     return (
       <Box flexDirection="column" width={vm.width} backgroundColor={COLORS.bg}>
         {header(d, vm.header, vm.width, d.motion)}
-        {vm.panels.map(p => panel(d, vm, p, expand))}
+        {body(d, vm, expand)}
       </Box>
     )
   })

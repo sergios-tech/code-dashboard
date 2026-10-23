@@ -75,7 +75,8 @@ export const recordCall = (a: Activity, c: Call): Activity => {
 
   // A refused or failed call did not get to the file.
   const touched = c.didRun === false || c.hasFailed ? null : fileOf(c.tool, c.input)
-  if (!touched) return { tools, files: a.files }
+  const calls = a.calls + 1
+  if (!touched) return { tools, files: a.files, calls }
   const fileRow = (r: FileRow | undefined): FileRow => ({
     path: touched.path,
     reads: (r?.reads ?? 0) + (touched.kind === 'read' ? 1 : 0),
@@ -85,7 +86,7 @@ export const recordCall = (a: Activity, c: Call): Activity => {
   })
   const f = a.files.findIndex(r => r.path === touched.path)
   const files = f >= 0 ? a.files.map((r, i) => (i === f ? fileRow(r) : r)) : [...makeRoom(a.files, FILES_MAX, touches, r => r.lastAt), fileRow(undefined)]
-  return { tools, files }
+  return { tools, files, calls }
 }
 
 /** The `n` tools with the most calls, most first; a tie keeps the list's order. */
@@ -95,8 +96,8 @@ export const topTools = (a: Activity, n: number): ToolRow[] => [...a.tools].sort
 export const hotFiles = (a: Activity, n: number): FileRow[] =>
   [...a.files].sort((x, y) => touches(y) - touches(x) || y.lastAt - x.lastAt).slice(0, Math.max(0, n))
 
-/** All calls the tallies hold. */
-export const totalCalls = (a: Activity): number => a.tools.reduce((n, r) => n + r.calls, 0)
+/** Every call this session, counted as it came, so tool rows evicted since still count. */
+export const totalCalls = (a: Activity): number => a.calls
 
 /** A tool's average time over its timed calls; null while none was timed. */
 export const avgMs = (r: ToolRow): number | null => (r.timedCalls > 0 ? r.timedMs / r.timedCalls : null)

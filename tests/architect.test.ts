@@ -81,7 +81,7 @@ const advisorUse = (id: string) => ({ type: 'server_tool_use', id, name: 'adviso
 const advisorResult = (id: string) => ({ type: 'advisor_tool_result', tool_use_id: id, content: { type: 'advisor_redacted_result' } })
 
 /** The pane's rows at a width, unmounted again. */
-const drawn = async ($: Engine, cols = 120, surface: 'terminal' | 'desktop' = 'terminal') => {
+const drawn = async ($: Engine, cols = 100, surface: 'terminal' | 'desktop' = 'terminal') => {
   const ui = await $.ui.mount({ ...pane(cols), surface })
   const rows = await rowsOf(ui)
   await ui.unmount()
@@ -207,7 +207,7 @@ test('the panel draws within 40, 64 and 120 columns, the moments narrowed to the
   a = endConsult(a, 15_000, `Split the parser 🚀\tbefore ${'x'.repeat(300)}`, 'c1')
   a = startConsult(a, { id: 'c2', at: 60_000, moment: 'before done', via: 'fable-advisor' })
   for (const cols of [40, 64, 120]) {
-    const vm = buildViewModel({ ...FRESH, architect: a }, { cfg: parseConfig({}), now: 135_000, bodyColumns: cols, placement: 'dock', viewedAgentId: null })
+    const vm = buildViewModel({ ...FRESH, architect: a }, { cfg: parseConfig({ layout: 'compact' }), now: 135_000, bodyColumns: cols, placement: 'dock', viewedAgentId: null })
     const v = vm.architect
     if (!v) throw new Error('no architect panel')
     const rows = drawRows(architectPanel(draw(), v, vm.width))
@@ -243,7 +243,7 @@ test('the server-side advisor is read from assistant rows: advising, then on cal
   await $.turn.start({ text: 'plan it', turnId: 'T1' })
   await reply($, [{ type: 'text', text: 'Checking the plan.' }, advisorUse('srv1')])
   await reply($, [advisorUse('srv1')]) // the same call read again opens no second consult
-  const mid = await $.ui.mount({ ...pane(120), surface: 'terminal' })
+  const mid = await $.ui.mount({ ...pane(100), surface: 'terminal' })
   expect(await mid.find({ type: 'Text', text: /^ ARCHITECT $/ })).toBeDefined(); expect(await mid.find({ text: /^ consults 1 $/ })).toBeDefined()
   expect((await mid.findAll({ type: 'Text', text: /^● advising$/ })).some(t => t.props.color === COLORS.arch)).toBe(true)
   expect(await mid.find({ type: 'Text', text: /^consulting since \d\d:\d\d:\d\d$/ })).toBeDefined()

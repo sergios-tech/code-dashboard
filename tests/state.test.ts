@@ -57,6 +57,7 @@ test('wrong-typed fields and rows are repaired, and defaults are never shared', 
   expect(normalizeActivity({ tools: [{ tool: 'Bash', calls: 2 }, { calls: 9 }], files: [{ path: 'a/b.ts', edits: 1 }, null] })).toEqual({
     tools: [{ tool: 'Bash', calls: 2, errors: 0, timedCalls: 0, timedMs: 0 }],
     files: [{ path: 'a/b.ts', reads: 0, edits: 1, byMain: false, lastAt: 0 }],
+    calls: 2,
   })
   normalize(DEFAULT_USAGE, {}).limits.push({ kind: 'x', pct: 1, resetsAt: null })
   expect(DEFAULT_USAGE.limits).toEqual([])

@@ -322,7 +322,7 @@ test('spawns and ends are logged; max_tokens is flagged in error colour', async 
   reply.stopReason = 'max_tokens'
   reply.usage = { input_tokens: 1000, cache_read_input_tokens: 40_000, cache_creation_input_tokens: 0, output_tokens: 3000 }
   await step($, 'm1')
-  const live = await $.ui.mount({ ...pane(120), surface: 'terminal' })
+  const live = await $.ui.mount({ ...pane(100), surface: 'terminal' })
   expect((await live.find({ key: 'card-box-m1' }))?.props.borderColor).toBe(COLORS.error)
   expect((await live.find({ key: 'card-box-m2' }))?.props.borderColor).toBe(COLORS.agent)
   expect(await live.find({ type: 'Text', text: /^ctx 41k · out 3k · 1 st$/ })).toBeDefined()
@@ -333,7 +333,7 @@ test('spawns and ends are logged; max_tokens is flagged in error colour', async 
   await end($, 'm1', 'answer', 'All green.')
   await end($, 'm2', 'aborted')
   await end($, 'm3', 'error')
-  const ui = await $.ui.mount({ ...pane(120), surface: 'terminal' })
+  const ui = await $.ui.mount({ ...pane(100), surface: 'terminal' })
   const rows = (await rowsOf(ui)).join('\n')
   expect(rows.match(/spawned · general-purpose/g)).toHaveLength(3)
   expect(rows).toMatch(/done · 1m42s/)

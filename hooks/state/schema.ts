@@ -35,7 +35,7 @@ export const DEFAULT_MAIN: Main = { model: '', effort: '', mode: '', steps: 0, i
 export const DEFAULT_USAGE: Usage = { pct: null, tokens: null, window: 0, costUsd: null, limits: [], compactions: 0, lastCompactAt: null }
 export const DEFAULT_TURN: Turn = { startedAt: 0, costAtStart: null, edits: 0, errors: 0, errorStreak: 0, isReviewing: false }
 export const DEFAULT_ARCHITECT: Architect = { consults: [], ids: [], seen: [], lastAdvice: '' }
-export const DEFAULT_ACTIVITY: Activity = { tools: [], files: [] }
+export const DEFAULT_ACTIVITY: Activity = { tools: [], files: [], calls: 0 }
 export const DEFAULT_TRENDS: Trends = { samples: [], pendingCompaction: false }
 export const DEFAULT_DENIALS: Denials = { count: 0 }
 export const DEFAULT_VIEW: View = { expanded: null, layout: null }
@@ -185,13 +185,16 @@ export const normalizeArchitect = (stored: unknown): Architect => {
 
 export const normalizeActivity = (stored: unknown): Activity => {
   const o = isObject(stored) ? stored : {}
+  const tools = objects(o.tools)
+    .filter(t => typeof t.tool === 'string' && t.tool !== '')
+    .map((t): ToolRow => ({ tool: str(t.tool), calls: num(t.calls), errors: num(t.errors), timedCalls: num(t.timedCalls), timedMs: num(t.timedMs) }))
   return {
-    tools: objects(o.tools)
-      .filter(t => typeof t.tool === 'string' && t.tool !== '')
-      .map((t): ToolRow => ({ tool: str(t.tool), calls: num(t.calls), errors: num(t.errors), timedCalls: num(t.timedCalls), timedMs: num(t.timedMs) })),
+    tools,
     files: objects(o.files)
       .filter(f => typeof f.path === 'string' && f.path !== '')
       .map((f): FileRow => ({ path: str(f.path), reads: num(f.reads), edits: num(f.edits), byMain: bool(f.byMain), lastAt: num(f.lastAt) })),
+    // The running total outlives evicted rows, but never reads as fewer calls than the rows kept.
+    calls: Math.max(num(o.calls), tools.reduce((n, t) => n + t.calls, 0)),
   }
 }
 
