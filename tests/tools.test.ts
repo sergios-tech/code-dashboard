@@ -3,10 +3,12 @@ import type { Engine } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
 import type { Activity } from '../types'
-import { FILES_MAX, TOOLS_MAX, avgLabel, avgMs, fileOf, hotFiles, recordCall, timedMs, topTools, totalCalls } from '../hooks/domain/activity'
+import { FILES_MAX, TOOLS_MAX, avgLabel, avgMs, avgShort, fileOf, hotFiles, recordCall, timedMs, toolFamily, toolName, topTools, totalCalls } from '../hooks/domain/activity'
 import { DEFAULT_ACTIVITY, normalizeActivity } from '../hooks/state/schema'
 import { COLORS } from '../hooks/view/palette'
-import { cellWidth, engine, pane, rowsOf, spawn } from './kit'
+import { toolsPanel } from '../hooks/view/panels/tools'
+import { busy, NOW } from './fixture'
+import { cellWidth, draw, drawRows, engine, pane, rowsOf, spawn, vmOf } from './kit'
 
 /** The stand-ins of kit.engine, with every status line the plugin sets recorded. */
 const watched = (on: On) => {
@@ -40,6 +42,36 @@ const ok = { result: {}, text: 'ok' }
 const failed = { isError: true as const, result: 'exit 1', text: 'exit 1' }
 
 // ---------------------------------------------------------------- pure modules
+
+test('TOOLS & FILES is a table: heads, a family glyph per tool, files under a divider', () => {
+  expect(drawRows(toolsPanel(draw(), vmOf(busy(), 66, 'dock', NOW).tools!, 66)).slice(1)).toEqual([
+    '┌ TOOLS & FILES ─────────────────────────────────────── 23 calls ┐',
+    '│   tool                                       calls  err   avg* │',
+    '│ › Read                                           9    ·   40ms │',
+    '│ ▸ Bash                                           6   ✗1   1.5s │',
+    '│ › Grep                                           4    ·   55ms │',
+    '│ ✎ Edit                                           3    ·   50ms │',
+    '├────────────────────────────────────────────────────────────────┤',
+    '│ file                                         reads edits       │',
+    '│ hooks/view/palette.ts                            3    ✎2       │',
+    '│ hooks/view/header.tsx                            2    ✎1       │',
+    '│ README.md                                        2     ·       │',
+    '└────────────────────────────────────────────────────────────────┘',
+  ])
+})
+test('families, MCP names and short averages', () => {
+  expect(['Read', 'MultiEdit', 'BashOutput', 'Task', 'Skill'].map(toolFamily)).toEqual(['read', 'edit', 'run', 'agent', 'other'])
+  expect(toolName('mcp__github__create_issue')).toBe('github:create_issue'); expect([avgShort(40), avgShort(1533), avgShort(null)]).toEqual(['40ms', '1.5s', '—'])
+})
+test('a long or wide tool name keeps the number columns in place (Review Focus 4)', () => {
+  const s = busy(); const wide = { ...s, activity: { ...s.activity, tools: [{ tool: 'mcp__一二三四五六七八九十__🚀'.repeat(4), calls: 2, errors: 1, timedCalls: 1, timedMs: 30 }] } }
+  for (const w of [40, 66]) {
+    const rows = drawRows(toolsPanel(draw(), vmOf(wide, w).tools!, w))
+    for (const r of rows) expect(cellWidth(r) <= w).toBe(true)
+    // The name is cut with `…`; calls, errors and the average stay in their columns.
+    expect(rows.some(r => r.includes('…') && r.endsWith('     2   ✗1   30ms │'))).toBe(true)
+  }
+})
 
 test('file activity: reads and edits per trimmed, redacted path', () => {
   expect(fileOf('Read', { file_path: '/home/me/proj/src/main.ts' })).toEqual({ path: 'src/main.ts', kind: 'read' })
@@ -127,18 +159,23 @@ test('hot files rank by touches; subagent-only files are dimmed', async ($, on) 
   const ui = await $.ui.mount({ ...pane(64), surface: 'terminal' })
   expect(await ui.find({ type: 'Text', text: /^ TOOLS & FILES $/ })).toBeDefined(); expect(await ui.find({ type: 'Text', text: /^ 8 calls $/ })).toBeDefined()
   const body = toolsRows(await rowsOf(ui))
-  // The top four tools, most calls first, a tie in the order first seen; every call ran in 0.4s.
-  expect(body.slice(0, 4).map(r => r.replace(/ +/g, ' '))).toEqual([
-    '│ Read 5 avg* 0.4s │',
-    '│ Edit 1 avg* 0.4s │',
-    '│ Grep 1 avg* 0.4s │',
-    '│ Bash 1 avg* 0.4s │',
+  // The heads row, then the top four tools, most calls first, a tie in the order first seen; every call ran in 0.4s.
+  expect(body.slice(0, 5).map(r => r.replace(/ +/g, ' '))).toEqual([
+    '│ tool calls err avg* │',
+    '│ › Read 5 · 0.4s │',
+    '│ ✎ Edit 1 · 0.4s │',
+    '│ › Grep 1 · 0.4s │',
+    '│ ▸ Bash 1 · 0.4s │',
   ])
-  expect(body[4]).toMatch(/^│ hot files +│$/)
-  expect(body.slice(5).map(r => r.replace(/ +/g, ' '))).toEqual(['│ auth/login.ts 3 ✎1 │', '│ util/a.ts 2 │', '│ lib/util 1 │'])
-  expect((await ui.find({ type: 'Text', text: /^auth\/login\.ts / }))?.props.dimColor).toBe(false)
-  const subOnly = await ui.find({ type: 'Text', text: /^util\/a\.ts / })
-  expect([subOnly?.props.dimColor, subOnly?.props.color]).toEqual([true, COLORS.dim])
+  expect(body[5]).toMatch(/^├─+┤$/)
+  expect(body.slice(6).map(r => r.replace(/ +/g, ' '))).toEqual(['│ file reads edits │', '│ auth/login.ts 3 ✎1 │', '│ util/a.ts 2 · │', '│ lib/util 1 · │'])
+  const mainFile = await ui.find({ type: 'Text', text: /^auth\/login\.ts +$/ })
+  expect([mainFile?.props.color, mainFile?.props.dimColor]).toEqual([COLORS.text, undefined])
+  // A file only subagents touched is dim throughout, in the dim token and never `dimColor`.
+  for (const part of [/^util\/a\.ts +$/, /^ +2$/]) {
+    const subOnly = (await ui.findAll({ type: 'Text', text: part })).at(-1)
+    expect([subOnly?.props.color, subOnly?.props.dimColor]).toEqual([COLORS.dim, undefined])
+  }
   // Only the edit is logged; reads and the passing command stay on the panel.
   const logged = (await rowsOf(ui)).filter(r => /\d\d:\d\d:\d\d main/.test(r))
   expect(logged).toHaveLength(1); expect(logged[0]).toMatch(/main +Edit → auth\/login\.ts/)
@@ -147,8 +184,8 @@ test('hot files rank by touches; subagent-only files are dimmed', async ($, on) 
   for (const cols of [40, 64, 100]) {
     const rows = await drawn($, cols)
     const inside = toolsRows(rows)
-    expect(inside).toHaveLength(8)
-    for (const r of inside) expect(/^│.*│$/.test(r)).toBe(true)
+    expect(inside).toHaveLength(10)
+    for (const r of inside) expect(/^[│├].*[│┤]$/.test(r)).toBe(true)
     for (const r of rows) expect(cellWidth(r) <= cols).toBe(true)
   }
 })
@@ -176,7 +213,7 @@ test('a denied call writes one red log line and a status field', async ($, on) =
   expect(after.some(r => /main +Write → src\/new\.ts · denied/.test(r))).toBe(true)
   expect(statuses.at(-1)).toBe('denied 2')
   // Refused calls still count, are not timed, and touch no file.
-  expect(toolsRows(after).map(r => r.replace(/ +/g, ' '))).toEqual(['│ Bash 1 avg* — │', '│ Write 1 avg* — │'])
+  expect(toolsRows(after).map(r => r.replace(/ +/g, ' '))).toEqual(['│ tool calls err avg* │', '│ ▸ Bash 1 · — │', '│ ✎ Write 1 · — │'])
 })
 test('a call that waited on an approval prompt is not timed', async ($, on) => {
   const clock = engine(on)
@@ -191,7 +228,7 @@ test('a call that waited on an approval prompt is not timed', async ($, on) => {
   await $.tool.call({ tool: 'Read', file_path: '/p/README.md' } as never)
   await $.tool.call({ tool: 'Agent', description: 'look around', prompt: 'look around', subagent_type: 'Explore' } as never)
   const rows = toolsRows(await drawn($)).map(r => r.replace(/ +/g, ' '))
-  expect(rows.slice(0, 3)).toEqual(['│ Bash 1 avg* — │', '│ Read 1 avg* 0.3s │', '│ Agent 1 avg* — │'])
+  expect(rows.slice(1, 4)).toEqual(['│ ▸ Bash 1 · — │', '│ › Read 1 · 0.3s │', '│ ● Agent 1 · — │'])
 })
 test("a subagent's calls fill its card's last three tools; a hand-back is no tool work", async ($, on) => {
   engine(on)

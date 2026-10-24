@@ -1,71 +1,89 @@
-// The TOOLS & FILES panel: the busiest tools with their errors and average time, then the files
-// touched most, each with its reads and edits; a file only subagents touched is drawn dim.
+// The TOOLS & FILES panel: a table of the busiest tools (a family glyph, calls, errors, the average
+// time), then under a divider the files touched most (reads and edits). A file only subagents
+// touched is drawn in the dim token throughout. A name or path too long for its column is cut with
+// `…`, so the number columns keep their place at every width.
 import type { RenderElement } from 'claude-code'
 
-import type { FileRow, ToolRow } from '../../../types'
-import { avgLabel, avgMs } from '../../domain/activity'
+import { FAMILY_GLYPH, avgMs, avgShort, toolFamily, toolName } from '../../domain/activity'
 import { cellCount, fitCells } from '../../domain/agents'
 import type { Draw } from '../draw'
-import { frame } from '../frame'
+import { dividerRow, frame } from '../frame'
 import type { ToolsView } from '../model'
+
+type Piece = { text: string; color: string; bold?: boolean }
 
 /** Border and padding on each side of a row inside the frame. */
 const CHROME = 4
-/** A call or read count, right-aligned. */
-const COUNT_CELLS = 5
-/** `✗12` or `✎12`, after two spaces. */
-const MARK_CELLS = 6
-/** `avg* 12.3s`, after one space. */
-const AVG_CELLS = 12
-/** A name or path stops growing here, so a wide pane keeps its figures beside it, tools' and files' in one column. */
-const NAME_MAX = 32
+/** The family glyph and its space. */
+const GLYPH = 2
+/** The number columns, right-aligned: calls and reads, errors, the average, and edits. */
+const CALLS = 6
+const ERRORS = 5
+const AVERAGE = 7
+const EDITS = 6
 
 /** `s` filled with spaces to `n` terminal cells. */
 const pad = (s: string, n: number): string => s + ' '.repeat(Math.max(0, n - cellCount(s)))
+const lpad = (s: string, n: number): string => ' '.repeat(Math.max(0, n - cellCount(s))) + s
 
-/** `Bash      42  ✗3   avg* 0.4s`: the error count in the error colour beside its glyph, and only when there are some. */
-const toolRow = (d: Draw, r: ToolRow, nameCells: number): RenderElement => {
-  const { Text } = d.els
-  const { C } = d
-  return (
-    <Text key={`tool-${r.tool}`} wrap="truncate">
-      <Text color={C.text}>{`${pad(fitCells(r.tool, nameCells - 1), nameCells)}${String(r.calls).padStart(COUNT_CELLS)}`}</Text>
-      <Text color={C.error}>{pad(r.errors > 0 ? `  ✗${r.errors}` : '', MARK_CELLS)}</Text>
-      <Text color={C.dim}>{` ${avgLabel(avgMs(r))}`}</Text>
-    </Text>
-  )
-}
+/** A name or path on exactly `n` cells, cut with `…` and always leaving one cell before the next column. */
+const column = (s: string, n: number): string => pad(fitCells(s, n - 1), n)
 
-/** `src/auth/login.ts   12  ✎3`: reads, then edits once there are some. */
-const fileRow = (d: Draw, f: FileRow, pathCells: number): RenderElement => {
+const rowOf = (d: Draw, key: string, row: Piece[]): RenderElement => {
   const { Text } = d.els
-  const { C } = d
-  const edits = f.edits > 0 ? `  ✎${f.edits}` : ''
   return (
-    <Text key={`file-${f.path}`} color={f.byMain ? C.text : C.dim} dimColor={!f.byMain} wrap="truncate">
-      {`${pad(fitCells(f.path, pathCells - 1), pathCells)}${String(f.reads).padStart(COUNT_CELLS)}${edits}`}
+    <Text key={key} wrap="truncate">
+      {row.map((p, i) => (
+        <Text key={`p${i}`} color={p.color} bold={p.bold}>
+          {p.text}
+        </Text>
+      ))}
     </Text>
   )
 }
 
 export const toolsPanel = (d: Draw, v: ToolsView, width: number): RenderElement => {
-  const { Box, Text } = d.els
+  const { Box } = d.els
   const { C } = d
   const room = Math.max(1, width - CHROME)
-  const nameCells = Math.max(1, Math.min(NAME_MAX, room - COUNT_CELLS - MARK_CELLS - AVG_CELLS))
-  const pathCells = Math.max(1, Math.min(NAME_MAX, room - COUNT_CELLS - MARK_CELLS))
-  const rows: RenderElement[] = v.tools.map(r => toolRow(d, r, nameCells))
-  if (v.files.length > 0) {
+  const nameCells = Math.max(1, room - GLYPH - CALLS - ERRORS - AVERAGE)
+  const pathCells = Math.max(1, room - CALLS - ERRORS - AVERAGE)
+  const rows: RenderElement[] = []
+  const dividers: number[] = []
+
+  rows.push(
+    rowOf(d, 'tool-head', [
+      { text: `${pad('  tool', GLYPH + nameCells)}${lpad('calls', CALLS)}${lpad('err', ERRORS)}${lpad('avg*', AVERAGE)}`, color: C.dim },
+    ]),
+  )
+  for (const r of v.tools)
     rows.push(
-      <Text key="hot-files" color={C.dim}>
-        hot files
-      </Text>,
-      ...v.files.map(f => fileRow(d, f, pathCells)),
+      rowOf(d, `tool-${r.tool}`, [
+        { text: `${FAMILY_GLYPH[toolFamily(r.tool)]} `, color: C.orange },
+        { text: column(toolName(r.tool), nameCells), color: C.text },
+        { text: lpad(String(r.calls), CALLS), color: C.text, bold: true },
+        { text: lpad(r.errors > 0 ? `✗${r.errors}` : '·', ERRORS), color: r.errors > 0 ? C.error : C.faint },
+        { text: lpad(avgShort(avgMs(r)), AVERAGE), color: C.text },
+      ]),
     )
+  if (v.files.length > 0) {
+    dividers.push(rows.length)
+    rows.push(dividerRow(d, 'tools-divider'))
+    rows.push(rowOf(d, 'file-head', [{ text: `${pad('file', pathCells)}${lpad('reads', CALLS)}${lpad('edits', EDITS)}`, color: C.dim }]))
+    for (const f of v.files) {
+      const tone = f.byMain ? C.text : C.dim
+      rows.push(
+        rowOf(d, `file-${f.path}`, [
+          { text: column(f.path, pathCells), color: tone },
+          { text: lpad(String(f.reads), CALLS), color: tone, bold: f.byMain },
+          { text: lpad(f.edits > 0 ? `✎${f.edits}` : '·', EDITS), color: f.edits > 0 ? (f.byMain ? C.gold : C.dim) : C.faint },
+        ]),
+      )
+    }
   }
   return (
     <Box key="tools" marginTop={1} flexDirection="column" width={width}>
-      {frame(d, { key: 'tools-frame', label: 'TOOLS & FILES', meta: v.meta, width, children: rows })}
+      {frame(d, { key: 'tools-frame', label: 'TOOLS & FILES', meta: v.meta, width, dividers, children: rows })}
     </Box>
   )
 }

@@ -110,9 +110,34 @@ export const avgMs = (r: ToolRow): number | null => (r.timedCalls > 0 ? r.timedM
 export const timedMs = (didRun: boolean, wasAsked: boolean, tool: string, elapsed: number): number | null =>
   didRun && !wasAsked && tool !== 'Agent' && Number.isFinite(elapsed) ? Math.max(0, elapsed) : null
 
-/** `avg* 0.4s`, `avg* 45ms`, `avg* 1m05s`, or `avg* —` with nothing timed; the `*` says it is inferred. */
-export const avgLabel = (ms: number | null): string => {
-  if (ms === null || !Number.isFinite(ms)) return 'avg* —'
-  if (ms < 100) return `avg* ${Math.round(ms)}ms`
-  return ms < 60_000 ? `avg* ${(ms / 1000).toFixed(1)}s` : `avg* ${fmtDuration(ms)}`
+/** An average time in the table's column: `40ms` under 100 ms, `1.5s` under a minute, `1m05s` past it, `—` when untimed. */
+export const avgShort = (ms: number | null): string => {
+  if (ms === null || !Number.isFinite(ms)) return '—'
+  if (ms < 100) return `${Math.round(ms)}ms`
+  return ms < 60_000 ? `${(ms / 1000).toFixed(1)}s` : fmtDuration(ms)
 }
+
+/** `avg* 0.4s`, `avg* 45ms`, `avg* 1m05s`, or `avg* —` with nothing timed; the `*` says it is inferred. */
+export const avgLabel = (ms: number | null): string => `avg* ${avgShort(ms)}`
+
+/** The kind of work a tool does, which picks its glyph in TOOLS & FILES. */
+export type ToolFamily = 'read' | 'edit' | 'run' | 'agent' | 'other'
+
+const FAMILY_TOOLS: Record<Exclude<ToolFamily, 'other'>, ReadonlySet<string>> = {
+  read: new Set(['Read', 'Grep', 'Glob', 'LS', 'NotebookRead', 'WebFetch', 'WebSearch']),
+  edit: new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']),
+  run: new Set(['Bash', 'BashOutput', 'KillShell', 'PowerShell', 'Monitor']),
+  agent: new Set(['Agent', 'Task']),
+}
+
+/** The family of a tool; anything not named above is `other`. */
+export const toolFamily = (tool: string): ToolFamily => {
+  for (const f of ['read', 'edit', 'run', 'agent'] as const) if (FAMILY_TOOLS[f].has(tool)) return f
+  return 'other'
+}
+
+/** One cell per family: read `›`, edit `✎`, run `▸`, agent `●`, other `·`. */
+export const FAMILY_GLYPH: Record<ToolFamily, string> = { read: '›', edit: '✎', run: '▸', agent: '●', other: '·' }
+
+/** A tool as the table names it: `mcp__server__tool` reads `server:tool`. */
+export const toolName = (tool: string): string => (tool.startsWith('mcp__') ? tool.split('__').slice(1).join(':') : tool)

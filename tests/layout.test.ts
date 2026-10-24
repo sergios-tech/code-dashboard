@@ -177,8 +177,8 @@ test('wide puts info, trends and tools left, agents and architect right, and the
   const wide = vmAt(120)
   expect(wide.columns).toEqual({ left: ['info', 'tools'], right: ['agents'], leftWidth: left, rightWidth: right, gap })
   expect([wide.widths.info, wide.widths.tools, wide.widths.agents, wide.widths.log]).toEqual([left, left, right, 120])
-  // One column stacks info (4), agents (4) and tools (6) under the header: in 20 rows the log takes the 2 left.
-  expect(vmAt(100, 20).columns).toBeNull(); expect(vmAt(100, 20).log?.lines).toHaveLength(2)
+  // One column stacks info (4), agents (4) and tools (8) under the header: in 22 rows the log takes the 2 left.
+  expect(vmAt(100, 22).columns).toBeNull(); expect(vmAt(100, 22).log?.lines).toHaveLength(2)
   // Two columns: the header and the taller column (10) leave the log its most.
   expect(wide.log?.lines).toHaveLength(8)
 })

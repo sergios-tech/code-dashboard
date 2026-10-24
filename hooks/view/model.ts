@@ -113,9 +113,9 @@ export type ToolsView = {
   meta: string
   /** The tools with the most calls, most first. */
   tools: ToolRow[]
-  /** The files touched most, under a `hot files` label; none until a call has read or edited one. */
+  /** The files touched most, under a divider and a heads row; none until a call has read or edited one. */
   files: FileRow[]
-  /** Rows the panel body takes. */
+  /** Rows the panel body takes: the heads row, the tools, and for the files a divider, a heads row and the files. */
   rows: number
 }
 
@@ -402,13 +402,13 @@ function architectView(s: Snapshot, ctx: ViewContext, width: number): ArchitectV
 const TOOLS_SHOWN = { compact: 4, wide: 6, mini: 4 } as const
 const FILES_SHOWN = 5
 
-/** Hidden until the first call; the `hot files` label and rows once a call has read or edited a file. */
+/** Hidden until the first call; the divider, the files' heads row and the files once a call has read or edited a file. */
 function toolsView(s: Snapshot, layout: ViewModel['layout']): ToolsView | null {
   const a = s.activity
   if (a.tools.length === 0) return null
   const tools = topTools(a, TOOLS_SHOWN[layout])
   const files = hotFiles(a, FILES_SHOWN)
-  return { meta: plural(totalCalls(a), 'call'), tools, files, rows: tools.length + (files.length > 0 ? 1 + files.length : 0) }
+  return { meta: plural(totalCalls(a), 'call'), tools, files, rows: 1 + tools.length + (files.length > 0 ? 2 + files.length : 0) }
 }
 
 /** The latest figure minus the one before it, `round`ed; null with fewer than two figures or a zero change. */
