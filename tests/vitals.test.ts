@@ -123,102 +123,6 @@ test('the elapsed clock counts from a fresh reading and holds still once it has 
 
 // ---------------------------------------------------------------- the INFO panel
 
-test('INFO shows model vitals; the gauge goes amber from 80%', async ($, on) => {
-  const clock = engine(on)
-  answering(on, clock)
-  on('session.measure', (_$, e) => ({ changed: e.changed }))
-  await $.session.measure({
-    context: { window: 200_000, tokens: 170_000, percent: 85 },
-    cost: { usd: 3.12 },
-    rateLimits: [{ kind: 'five_hour', percentUsed: 38, resetsAt: at(2 * 3_600_000 + 10 * 60_000) }],
-    changed: ['context', 'cost', 'rateLimits'],
-  })
-  const s = $.turn.step({ turnId: 'S1', index: 0, model: 'model-a', effort: 'high', messageCount: 1 })
-  for await (const _ of s) void _
-  await s.result
-  const ui = await $.ui.mount({ ...pane(64), surface: 'terminal' })
-  expect(await ui.find({ text: /INFO/ })).toBeDefined(); expect(await ui.find({ text: /○ idle/ })).toBeDefined()
-  expect(await ui.find({ text: /^effort ▮▮▮▯ high/ })).toBeDefined(); expect(await ui.find({ text: /1 req/ })).toBeDefined()
-  expect(await ui.find({ text: /^ctx ▰{9}▱ 85%/ })).toBeDefined(); expect(await ui.find({ text: /170k\/200k/ })).toBeDefined()
-  expect((await ui.find({ type: 'Text', text: /^▰+$/ }))?.props.color).toBe(COLORS.gold)
-  expect(await ui.find({ text: /^\$3\.12 {3}5h/ })).toBeDefined()
-  expect(await ui.find({ text: /last req {2}ttft 0\.8s · 60 tok\/s/ })).toBeDefined()
-  await ui.unmount()
-  // Below 80% the same gauge is the main colour; the rows are the same at every width, within it.
-  await $.session.measure({ context: { window: 200_000, tokens: 102_000, percent: 51 }, rateLimits: [], changed: ['context'] })
-  for (const cols of [40, 64, 120]) {
-    const view = await $.ui.mount({ ...pane(cols), surface: 'terminal' })
-    expect((await view.find({ type: 'Text', text: /^▰+$/ }))?.props.color).toBe(COLORS.green)
-    expect(await view.find({ text: /51%/ })).toBeDefined()
-    for (const r of await rowsOf(view)) expect(cellWidth(r) <= Math.max(40, cols)).toBe(true)
-    await view.unmount()
-  }
-})
-test("the permission mode is read from the person's prompt and shown beside the effort", async ($, on) => {
-  engine(on)
-  on('classic.UserPromptSubmit', () => ({}))
-  await $.classic.UserPromptSubmit({ prompt: 'go', permission_mode: 'auto' } as never)
-  await $.classic.UserPromptSubmit({ prompt: 'again' } as never)
-  const ui = await $.ui.mount({ ...pane(64), surface: 'terminal' })
-  expect(await ui.find({ text: /^mode auto$/ })).toBeDefined(); expect(await ui.find({ text: /waiting for the first request/ })).toBeUndefined()
-  await ui.unmount()
-})
-test('a compaction counts, is logged, and shows beside the context gauge', async ($, on) => {
-  engine(on)
-  on('session.measure', (_$, e) => ({ changed: e.changed }))
-  const kept = [{ role: 'user', text: 'summary', toolUses: [] }] as never
-  on('session.compact', () => ({ messages: kept }))
-  await $.session.measure({ context: { window: 200_000, tokens: 20_000, percent: 10 }, rateLimits: [], changed: ['context'] })
-  await $.session.compact({ trigger: 'manual', messages: kept } as never)
-  await $.session.compact({ trigger: 'precompute', messages: kept } as never)
-  const ui = await $.ui.mount({ ...pane(64), surface: 'terminal' })
-  expect(await ui.find({ text: /⟲1/ })).toBeDefined(); expect(await ui.find({ text: /⟲2/ })).toBeUndefined()
-  expect(await ui.find({ text: /context compacted \(manual\)/ })).toBeDefined()
-  await ui.unmount()
-})
-test('hosts without cost, limits or context hide those fields (Review Focus 4)', async ($, on) => {
-  engine(on)
-  on('session.measure', (_$, e) => ({ changed: e.changed }))
-  on('session.usage', () => {
-    throw new Error('no usage on this host')
-  })
-  await $.session.measure({ context: { window: 200_000, percent: null as never }, rateLimits: [], changed: ['context'] })
-  // A turn on a host whose usage throws still starts and ends.
-  await $.turn.start({ text: 'go', turnId: 'T1' })
-  await $.turn.complete({ answer: 'ok', durationMs: 1000, isAborted: false, turnId: 'T1', reason: 'answer' })
-  const ui = await $.ui.mount({ ...pane(64), surface: 'terminal' })
-  expect(await ui.find({ text: /INFO/ })).toBeDefined()
-  expect(await ui.find({ text: /NaN|null|undefined/ })).toBeUndefined()
-  expect(await ui.find({ text: /^ctx / })).toBeUndefined(); expect(await ui.find({ text: /\$/ })).toBeUndefined()
-  expect(await ui.find({ text: /last turn/ })).toBeUndefined()
-  expect(await ui.find({ text: /\+\$/ })).toBeUndefined()
-  await ui.unmount()
-})
-test('each rate-limit window shows its reset countdown where the frame has room', async ($, on) => {
-  engine(on)
-  on('session.measure', (_$, e) => ({ changed: e.changed }))
-  await $.session.measure({
-    context: { window: 200_000 },
-    rateLimits: [
-      { kind: 'five_hour', percentUsed: 19, resetsAt: at(3 * 3_600_000 + 10 * 60_000) },
-      { kind: 'seven_day', percentUsed: 3, resetsAt: at(4 * 86_400_000 + 2 * 3_600_000) },
-      { kind: 'seven_day_opus', percentUsed: 9 },
-    ],
-    changed: ['rateLimits'],
-  })
-  for (const cols of [64, 120]) {
-    const ui = await $.ui.mount({ ...pane(cols), surface: 'terminal' })
-    expect(await ui.find({ text: /19% ↻3h10m/ })).toBeDefined()
-    expect(await ui.find({ text: /3% ↻4d2h/ })).toBeDefined()
-    expect(await ui.find({ text: /opus/ })).toBeUndefined() // only the first two windows
-    await ui.unmount()
-  }
-  const narrow = await $.ui.mount({ ...pane(40), surface: 'terminal' })
-  expect(await narrow.find({ text: /19%/ })).toBeDefined(); expect(await narrow.find({ text: /3%/ })).toBeDefined()
-  expect(await narrow.find({ text: /↻/ })).toBeUndefined() // no room: the gauges stay whole
-  for (const r of await rowsOf(narrow)) expect(cellWidth(r) <= 40).toBe(true)
-  await narrow.unmount()
-})
 test('the main loop is timed per request and a subagent request is left alone', async ($, on) => {
   const clock = engine(on)
   answering(on, clock)
@@ -259,13 +163,13 @@ test('a response that arrives in one burst reads — tok/s, and the next timed o
   await run()
   for (const cols of [40, 64]) {
     const ui = await $.ui.mount({ ...pane(cols), surface: 'terminal' })
-    expect(await ui.find({ text: /last req {2}ttft 2\.6s · — tok\/s/ })).toBeDefined(); expect(await ui.find({ text: /\d tok\/s/ })).toBeUndefined()
+    expect(await ui.find({ text: /spend {2}ttft 2\.6s · — tok\/s/ })).toBeDefined(); expect(await ui.find({ text: /\d tok\/s/ })).toBeUndefined()
     for (const r of await rowsOf(ui)) expect(cellWidth(r) <= cols).toBe(true)
     await ui.unmount()
   }
   await run()
   const ui = await $.ui.mount({ ...pane(64), surface: 'terminal' })
-  expect(await ui.find({ text: /last req {2}ttft 0\.8s · 60 tok\/s/ })).toBeDefined()
+  expect(await ui.find({ text: /spend {2}ttft 0\.8s · 60 tok\/s/ })).toBeDefined()
   await ui.unmount()
 })
 

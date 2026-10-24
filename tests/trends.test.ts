@@ -104,7 +104,7 @@ test('TRENDS appears from the second reading; cost row only when cost is known (
   expect(rows).toHaveLength(2); expect(rows[0]).toMatch(/ctx .*35%/); expect(rows[1]).toMatch(/^│ cost .*\$3\.12 +│$/)
   expect(rows.join('')).not.toMatch(/NaN|null|undefined|\+\$/)
   const ui = await $.ui.mount({ ...pane(64), surface: 'terminal' })
-  expect((await ui.find({ type: 'Text', text: /^[ ▁▂▃▄▅▆▇█]+$/ }))?.props.color).toBe(COLORS.green)
+  expect((await ui.find({ type: 'Text', text: /^ *[▁▂▃▄▅▆▇█][ ▁▂▃▄▅▆▇█]*$/ }))?.props.color).toBe(COLORS.green)
   await ui.unmount()
 })
 test('a reading that changed neither context nor cost adds no sample', async ($, on) => {

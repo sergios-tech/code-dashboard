@@ -16,10 +16,11 @@ import { WIDE_LEFT, WIDE_RIGHT, clampWidth, pickLayout, wideColumns } from './la
 export type LogView = { lines: LogLine[]; isViewingAgent: boolean }
 
 /**
- * The info panel: the main model's effort, context, spend, rate limits and last request. Each
- * `has` flag is a row with something to show; with none the panel says it is waiting.
+ * The info panel: the main model's effort, context, spend, rate limits and last request, in three
+ * groups (model, usage, spend) split by dividers. `rows` counts the body rows, dividers included,
+ * and is 1 when there is nothing to show but the waiting line.
  */
-export type VitalsView = {
+export type InfoView = {
   isRunning: boolean
   effort: string
   /** Steps of the effort gauge, 0 for a word off the scale. */
@@ -27,12 +28,11 @@ export type VitalsView = {
   mode: string
   requests: number
   ctx: { pct: number; tokens: number | null; window: number; compactions: number } | null
-  costUsd: number | null
   /** The first two rate-limit windows. */
   limits: Limit[]
+  costUsd: number | null
   speed: Speed | null
   now: number
-  has: { pace: boolean; ctx: boolean; spend: boolean; speed: boolean }
   /** Rows the panel body takes. */
   rows: number
 }
@@ -177,7 +177,7 @@ export type ViewModel = {
   }
   viewedAgentId: string | null
   /** The info panel; never null, since a fresh session still shows it. */
-  info: VitalsView
+  info: InfoView
   /** The agents panel, null until a subagent has been spawned. */
   agents: AgentsView | null
   /** The other loops row, null until a loop no card claims has stepped. */
@@ -212,7 +212,7 @@ export function buildViewModel(s: Snapshot, ctx: ViewContext): ViewModel {
   const cols = layout === 'wide' ? wideColumns(width) : null
   const widthOf = (p: Panel): number => (cols === null ? width : WIDE_LEFT.includes(p) ? cols.left : WIDE_RIGHT.includes(p) ? cols.right : width)
   const widths = Object.fromEntries(PANELS.map(p => [p, widthOf(p)])) as Record<Panel, number>
-  const info = vitalsView(s, ctx.now)
+  const info = infoView(s, ctx.now)
   const agents = agentsView(s, ctx, widths.agents)
   const loops = loopsView(s, ctx.now, widths.loops)
   const architect = architectView(s, ctx, widths.architect)
@@ -296,18 +296,15 @@ function miniView(s: Snapshot, ctx: ViewContext, trends: TrendsView | null, loop
 /** Only the first two windows are drawn; the stored list may hold more. */
 const LIMITS_SHOWN = 2
 
-function vitalsView(s: Snapshot, now: number): VitalsView {
+/** The model, usage and spend groups the panel shows, from what the session has reported. */
+function infoView(s: Snapshot, now: number): InfoView {
   const { main, usage } = s
   const ctx = usage.pct === null ? null : { pct: usage.pct, tokens: usage.tokens, window: usage.window, compactions: usage.compactions }
   const limits = usage.limits.slice(0, LIMITS_SHOWN)
-  const has = {
-    pace: main.effort !== '' || main.mode !== '' || main.steps > 0,
-    ctx: ctx !== null,
-    spend: usage.costUsd !== null || limits.length > 0,
-    speed: main.speed !== null,
-  }
-  // The rows that exist; a panel with none keeps one for its waiting line.
-  const rows = Math.max(1, Object.values(has).filter(Boolean).length)
+  const groups = [main.effort !== '' || main.mode !== '' || main.steps > 0 ? 1 : 0, ctx !== null || limits.length > 0 ? (ctx ? 1 : 0) + limits.length : 0, usage.costUsd !== null || main.speed !== null ? 1 : 0]
+  const shown = groups.filter(n => n > 0)
+  // The rows of each group, a divider between each pair of groups; a panel with none keeps one for its waiting line.
+  const rows = Math.max(1, shown.reduce((n, g) => n + g, 0) + Math.max(0, shown.length - 1))
   return {
     isRunning: main.isRunning,
     effort: main.effort,
@@ -315,11 +312,10 @@ function vitalsView(s: Snapshot, now: number): VitalsView {
     mode: main.mode,
     requests: main.steps,
     ctx,
-    costUsd: usage.costUsd,
     limits,
+    costUsd: usage.costUsd,
     speed: main.speed,
     now,
-    has,
     rows,
   }
 }
