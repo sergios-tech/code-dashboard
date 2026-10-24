@@ -16,6 +16,17 @@ export const addSample = (t: Trends, s: { at: number; ctxPct: number | null; cos
   return { samples: first && samples.length > SAMPLES_MAX ? [first, ...thin(rest)] : samples, pendingCompaction: false }
 }
 
+/**
+ * Whether a reading moves either line: the first one, the one after a compaction, or one whose
+ * context fill or cost differs from the last sample's. The host also flags a reading as changed for
+ * figures the lines do not draw (the token count, the rate limits), and a repeat of the last point
+ * would draw a flat line where nothing happened, such as a fresh session's `$0.00` twice.
+ */
+export const movesTrend = (t: Trends, s: { ctxPct: number | null; costUsd: number | null }): boolean => {
+  const last = t.samples[t.samples.length - 1]
+  return !last || t.pendingCompaction || last.ctxPct !== s.ctxPct || last.costUsd !== s.costUsd
+}
+
 /** A compaction happened: the next reading is the one that shows it. */
 export const markCompaction = (t: Trends): Trends => ({ ...t, pendingCompaction: true })
 

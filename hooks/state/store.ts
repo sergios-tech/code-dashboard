@@ -10,7 +10,7 @@ import { addCard, applyStep, finishCard, finishLoop, noteTool, stepLoop } from '
 import { IDS_MAX, SEEN_MAX, endConsult, momentOf, startConsult } from '../domain/architect'
 import { appendLog } from '../domain/log'
 import { statusText } from '../domain/status'
-import { addSample, markCompaction } from '../domain/trends'
+import { addSample, markCompaction, movesTrend } from '../domain/trends'
 import { afterCall, receiptOf } from '../domain/turn'
 import { usageFrom } from '../domain/vitals'
 import { redact } from '../format/redact'
@@ -196,13 +196,15 @@ export async function applyMeasure($: EngineInterface, reading: Parameters<typeo
 
 /**
  * The stored context and cost as one more point of the trend lines. A reading that has neither is
- * no point: the host reported nothing to draw.
+ * no point: the host reported nothing to draw. Nor is one that repeats the last point, which writes
+ * nothing and so costs no redraw.
  */
 export async function takeSample($: EngineInterface): Promise<void> {
-  const [u, now] = await Promise.all([read($, usage), $.clock.now()])
+  const [u, t, now] = await Promise.all([read($, usage), read($, trends), $.clock.now()])
   const x = normalizeUsage(u)
-  if (x.pct === null && x.costUsd === null) return
-  await update($, trends, t => addSample(normalizeTrends(t), { at: now, ctxPct: x.pct, costUsd: x.costUsd }))
+  const s = { at: now, ctxPct: x.pct, costUsd: x.costUsd }
+  if ((s.ctxPct === null && s.costUsd === null) || !movesTrend(normalizeTrends(t), s)) return
+  await update($, trends, tr => addSample(normalizeTrends(tr), s))
 }
 
 /** The next trend sample is the one after a compaction. */

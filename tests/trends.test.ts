@@ -2,7 +2,7 @@ import { expect, test } from 'claude-code/testing'
 import type { Engine } from 'claude-code/testing'
 
 import type { Sample, Trends } from '../types'
-import { SAMPLES_MAX, addSample, compactionCells, markCompaction, thin } from '../hooks/domain/trends'
+import { SAMPLES_MAX, addSample, compactionCells, markCompaction, movesTrend, thin } from '../hooks/domain/trends'
 import { sparkline } from '../hooks/format/text'
 import { DEFAULT_TRENDS } from '../hooks/state/schema'
 import { COLORS } from '../hooks/view/palette'
@@ -59,6 +59,12 @@ test('a compaction marks the next sample once, and only that one', () => {
   expect(t.pendingCompaction).toBe(true)
   t = addSample(addSample(t, { at: 2, ctxPct: 10, costUsd: 1 }), { at: 3, ctxPct: 12, costUsd: 1 })
   expect(t.samples.map(s => s.isCompaction)).toEqual([false, true, false]); expect(t.pendingCompaction).toBe(false)
+})
+test('a reading moves the lines only as the first, after a compaction, or with a new figure', () => {
+  const one = addSample(DEFAULT_TRENDS, { at: 1, ctxPct: null, costUsd: 0 })
+  expect(movesTrend(DEFAULT_TRENDS, { ctxPct: null, costUsd: 0 })).toBe(true); expect(movesTrend(one, { ctxPct: null, costUsd: 0 })).toBe(false)
+  expect(movesTrend(one, { ctxPct: 5, costUsd: 0 })).toBe(true); expect(movesTrend(one, { ctxPct: null, costUsd: 0.01 })).toBe(true)
+  expect(movesTrend(markCompaction(one), { ctxPct: null, costUsd: 0 })).toBe(true)
 })
 test('compaction cells follow where the sparkline puts each sample', () => {
   // Fewer samples than cells: right-aligned. More samples than cells: each cell takes the samples that fall in it.
@@ -142,6 +148,24 @@ test('the start of the session takes the first sample; hosts without usage take 
   await $.session.measure(reading(25, 0.9, ['context', 'cost']))
   const rows = trendsRows(await drawn($))
   expect(rows).toHaveLength(2); expect(rows[1]).toMatch(/\$0\.90/)
+})
+test('a fresh session whose readings repeat the start draws no TRENDS until a figure moves', async ($, on) => {
+  engine(on)
+  on('session.start', (_$, e) => ({ cwd: e.cwd }))
+  on('command.register', () => ({ value: undefined }) as never)
+  on('session.measure', (_$, e) => ({ changed: e.changed }))
+  on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200_000 }, cost: { usd: 0 }, rateLimits: [] } }) as never)
+  on('ui.open', () => ({ value: { isPlaced: true } }) as never)
+  await $.session.start({ cwd: '/work', surface: 'terminal', isInteractive: true } as never)
+  // The host flags its first readings as changing context and cost, yet they repeat the start's figures.
+  const same = { context: { window: 200_000, tokens: 9_000 }, cost: { usd: 0 }, rateLimits: [], changed: ['context', 'rateLimits', 'cost'] } as never
+  await $.session.measure(same); await $.session.measure(same)
+  const fresh = await drawn($)
+  expect(fresh.some(r => r.includes('TRENDS'))).toBe(false)
+  expect(fresh.some(r => r.includes('┌ VITALS'))).toBe(true); expect(fresh.some(r => r.includes('┌ LOG'))).toBe(true)
+  await $.session.measure({ ...(same as object), cost: { usd: 0.02 } } as never)
+  const rows = trendsRows(await drawn($))
+  expect(rows).toHaveLength(1); expect(rows[0]).toMatch(/^│ cost +▁█ +\$0\.02 +│$/)
 })
 test('a host whose usage throws or has no context still draws, with no cost row and no junk (Review Focus 4)', async ($, on) => {
   engine(on)
