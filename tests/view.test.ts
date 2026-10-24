@@ -2,12 +2,12 @@ import { expect, test } from 'claude-code/testing'
 
 import Pulse from '../hooks/client/pulse'
 import { DEFAULT_ARCHITECT, DEFAULT_MAIN, normalizeCard } from '../hooks/state/schema'
-import { frame } from '../hooks/view/frame'
+import { dividerRow, frame } from '../hooks/view/frame'
 import { header } from '../hooks/view/header'
 import { WIDE_LEFT, WIDE_RIGHT, clampWidth, headerRight, pickLayout, wideColumns } from '../hooks/view/layout'
 import type { ViewModel } from '../hooks/view/model'
 import { COLORS, TEXT_TOKENS, contrast, familyColor, levelColor, to256 } from '../hooks/view/palette'
-import { ELS, cellWidth, draw, drawRows, engine, found, pane, rowsOf, vmOf } from './kit'
+import { ELS, cellWidth, draw, drawRows, engine, found, pane, rowsOf, texts, vmOf } from './kit'
 
 const line = (text: string) => ELS.Text({ children: [text] })
 
@@ -94,6 +94,18 @@ test('a frame sets its caps label into the top border, the meta at the right', (
   expect(found(tree, 'Box').filter(b => b.borderStyle === 'single').map(b => b.borderColor)).toEqual([COLORS.green])
   expect(found(frame(draw(), { key: 'f', label: 'info', width: 40, children: [] }), 'Box').some(b => b.borderColor === COLORS.frame)).toBe(true)
   expect(found(tree, 'Text').find(t => t.bold)?.color).toBe(COLORS.text)
+})
+test('dividers join the side borders in the frame colour, green while the frame holds running work', () => {
+  const kids = [line('a'), dividerRow(draw(), 'd'), line('b')]
+  expect(drawRows(frame(draw(), { key: 'f', label: 'info', width: 20, dividers: [1], children: kids }))).toEqual([
+    `┌ INFO ${'─'.repeat(12)}┐`, `│ a${' '.repeat(16)}│`, `├${'─'.repeat(18)}┤`, `│ b${' '.repeat(16)}│`, `└${'─'.repeat(18)}┘`,
+  ])
+  const live = frame(draw(), { key: 'f', label: 'info', width: 20, isActive: true, dividers: [1], children: kids })
+  expect(found(live, 'Box').filter(b => b.borderStyle === 'single').map(b => b.borderColor)).toEqual([COLORS.green])
+  expect(texts(live).find(t => t.text.startsWith('├'))?.color).toBe(COLORS.green)
+  const idle = frame(draw(), { key: 'f', label: 'info', width: 20, dividers: [1], children: kids })
+  expect(found(idle, 'Box').filter(b => b.borderStyle === 'single').map(b => b.borderColor)).toEqual([COLORS.frame])
+  expect(texts(idle).find(t => t.text.startsWith('├'))?.color).toBe(COLORS.frame)
 })
 test('the header dot pulses as a Client only while work runs and motion is on', () => {
   const pulse = found(header(draw(), WORKING, 64, true), 'Client')
