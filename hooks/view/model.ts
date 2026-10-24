@@ -120,15 +120,17 @@ export type ToolsView = {
 }
 
 /**
- * The trends panel: the samples both lines are drawn from, and each line's current figure. A line is
- * null when no sample has its figure, so a host without cost shows the context line alone.
+ * The trends panel: the samples both lines are drawn from, and each line's current figure and
+ * change. A line is null when no sample has its figure, so a host without cost shows the context
+ * line alone. A change is the latest figure minus the one before it, null when either is missing or
+ * when it rounds to zero (for cost, also when it is not positive).
  */
 export type TrendsView = {
   samples: Sample[]
-  /** The latest context fill, in percent. */
-  ctx: number | null
-  /** The latest cumulative cost. */
-  cost: { usd: number; min: number; max: number } | null
+  /** The latest context fill, in percent, and its change in whole percent points. */
+  ctx: { pct: number; change: number | null } | null
+  /** The latest cumulative cost, its change in dollars rounded to cents, and the range of the line. */
+  cost: { usd: number; change: number | null; min: number; max: number } | null
   /** Rows the panel body takes. */
   rows: number
 }
@@ -409,16 +411,26 @@ function toolsView(s: Snapshot, layout: ViewModel['layout']): ToolsView | null {
   return { meta: plural(totalCalls(a), 'call'), tools, files, rows: tools.length + (files.length > 0 ? 1 + files.length : 0) }
 }
 
+/** The latest figure minus the one before it, `round`ed; null with fewer than two figures or a zero change. */
+function changeOf(figures: number[], round: (n: number) => number): number | null {
+  const [before, latest] = figures.slice(-2)
+  if (before === undefined || latest === undefined) return null
+  const change = round(latest - before)
+  return change === 0 ? null : change
+}
+
 /** Hidden below two samples; each line only while some sample has its figure. */
 function trendsView(s: Snapshot): TrendsView | null {
   const { samples } = s.trends
   if (samples.length < 2) return null
   const ctxs = samples.map(x => x.ctxPct).filter((v): v is number => v !== null)
   const costs = samples.map(x => x.costUsd).filter((v): v is number => v !== null)
+  const lastCtx = ctxs[ctxs.length - 1]
   const lastCost = costs[costs.length - 1]
-  const ctx = ctxs[ctxs.length - 1] ?? null
-  const cost = lastCost === undefined ? null : { usd: lastCost, min: Math.min(...costs), max: Math.max(...costs) }
-  const rows = (ctx !== null ? 1 : 0) + (cost ? 1 : 0)
+  const ctx = lastCtx === undefined ? null : { pct: lastCtx, change: changeOf(ctxs, Math.round) }
+  const costChange = lastCost === undefined ? null : changeOf(costs, n => Math.round(n * 100) / 100)
+  const cost = lastCost === undefined ? null : { usd: lastCost, change: costChange !== null && costChange > 0 ? costChange : null, min: Math.min(...costs), max: Math.max(...costs) }
+  const rows = (ctx ? 1 : 0) + (cost ? 1 : 0)
   return rows === 0 ? null : { samples, ctx, cost, rows }
 }
 
