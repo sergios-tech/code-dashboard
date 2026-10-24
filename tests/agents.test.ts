@@ -346,6 +346,22 @@ test('spawns and ends are logged; max_tokens is flagged in error colour', async 
   expect((await ui.find({ key: 'card-box-m2' }))?.props.borderDimColor).toBe(true)
   await ui.unmount()
 })
+test("a subagent's answer is masked before it is stored or drawn in the open card", async ($, on) => {
+  const clock = engine(on)
+  let n = 0
+  on('agent.spawn', () => ({ model: 'claude-sonnet-5-5', agentId: `r${++n}` }))
+  await clock.advance(1000)
+  await $.agent.spawn(spawn('Explore', 'Find the deploy key'))
+  await clock.advance(2000)
+  const secret = 'ghp_Zx9Qw3Lm7Kd2Vb8Rt5'
+  await end($, 'r1', 'answer', `Found it: use ${secret} to deploy.`)
+  const ui = await $.ui.mount({ ...pane(100), surface: 'terminal' })
+  await ui.press({ key: 'card-r1' })
+  const rows = await rowsOf(ui)
+  expect(rows.some(r => r.includes(secret) || r.includes('Zx9Qw3Lm7Kd2'))).toBe(false)
+  expect(rows.some(r => r.startsWith('│ » Found it: use ••• to deploy.'))).toBe(true)
+  await ui.unmount()
+})
 test('the agent being viewed is marked ▶, as a card and as a lane, and the log follows it', async ($, on) => {
   const clock = engine(on)
   let n = 0
