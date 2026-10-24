@@ -1,16 +1,13 @@
 // The ARCHITECT panel: whether the architect is advising, its consults on one timeline, when the
-// last one ran and how long it took, the moment each is inferred at, and the advice it left. The
-// surfaces that draw vectors add the same timeline as an SVG.
+// last one ran and how long it took, the moment each is inferred at, and the advice it left.
 import type { RenderElement } from 'claude-code'
 
 import type { Moment } from '../../../types'
 import { fitCells } from '../../domain/agents'
 import { MOMENTS } from '../../domain/architect'
-import { plural } from '../../format/text'
 import type { Draw } from '../draw'
 import { frame } from '../frame'
 import type { ArchitectView } from '../model'
-import { svgTimeline } from '../svg'
 
 type Piece = { text: string; color: string; bold?: boolean }
 
@@ -19,8 +16,6 @@ const widthOf = (row: Piece[]): number => row.reduce((n, p) => n + cells(p.text)
 
 /** Border and padding on each side of a row inside the frame. */
 const CHROME = 4
-/** About one terminal cell, in CSS pixels, for the width of the desktop's timeline. */
-const CELL_PX = 8
 
 const rowOf = (d: Draw, key: string, row: Piece[]): RenderElement => {
   const { Text } = d.els
@@ -53,13 +48,6 @@ const momentsRow = (d: Draw, lit: Moment | null, room: number): Piece[] => {
   return variants.find(v => widthOf(v) <= room) ?? variants[variants.length - 1] ?? []
 }
 
-/** The consults on one timeline as a vector drawing, for the surfaces that take `Svg`. */
-const timelineSvg = (d: Draw, v: ArchitectView, width: number): RenderElement | null => {
-  const { els } = d
-  if (d.surface === 'terminal' || !('Svg' in els)) return null
-  return <els.Svg key="architect-timeline" source={svgTimeline(v.architect, v.now, width * CELL_PX)} alt={`${plural(v.architect.consults.length, 'consult')} on one timeline`} />
-}
-
 export const architectPanel = (d: Draw, v: ArchitectView, width: number): RenderElement => {
   const { Box } = d.els
   const { C } = d
@@ -74,7 +62,6 @@ export const architectPanel = (d: Draw, v: ArchitectView, width: number): Render
   return (
     <Box key="architect" marginTop={1} flexDirection="column" width={width}>
       {frame(d, { key: 'architect-frame', label: v.label, meta: v.meta, width, isActive: v.isAdvising, children: rows })}
-      {timelineSvg(d, v, width)}
     </Box>
   )
 }

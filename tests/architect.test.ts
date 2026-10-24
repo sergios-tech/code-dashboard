@@ -33,7 +33,6 @@ import type { Snapshot } from '../hooks/state/store'
 import { buildViewModel } from '../hooks/view/model'
 import { COLORS } from '../hooks/view/palette'
 import { architectPanel } from '../hooks/view/panels/architect'
-import { svgTimeline } from '../hooks/view/svg'
 import { busy, NOW } from './fixture'
 import { cellWidth, draw, drawRows, engine, found, pane, rowsOf, spawn, texts, vmOf } from './kit'
 
@@ -195,18 +194,6 @@ test('the panel draws within 40, 64 and 120 columns, the moments narrowed to the
     expect(rows.some(r => r.startsWith('│ » Split the parser 🚀 before x'))).toBe(true)
   }
 })
-test('the SVG timeline draws on OLED black in palette colours', () => {
-  let a = startConsult(DEFAULT_ARCHITECT, { id: 'c1', at: 0, moment: 'before a plan', via: 'v' })
-  a = startConsult(endConsult(a, 10, null), { id: 'c2', at: 50, moment: 'before done', via: 'v' })
-  const svg = svgTimeline(a, 100, 480)
-  expect(svg.startsWith('<svg')).toBe(true); expect(svg.endsWith('</svg>')).toBe(true)
-  expect(svg).toContain(`<rect x="0" y="0" width="480" height="24" fill="${COLORS.fill}"/>`)
-  expect(svg.match(/<polygon /g)).toHaveLength(2); expect(svg).toContain(`fill="${COLORS.architect}"`)
-  const palette: string[] = Object.values(COLORS)
-  for (const m of svg.matchAll(/(?:fill|stroke)="([^"]+)"/g)) expect(palette.includes(m[1] ?? '')).toBe(true)
-  expect(svgTimeline(DEFAULT_ARCHITECT, 0, Number.NaN)).toContain('width="240"')
-})
-
 // ---------------------------------------------------------------- the ARCHITECT panel
 
 test('the server-side advisor is read from assistant rows: advising, then on call', async ($, on) => {
@@ -349,24 +336,6 @@ test('an architect type offered before /clear is still known after it', { option
   expect(rows.some(r => /^│ ● advising +│$/.test(r))).toBe(true); expect(rows.some(r => r.includes('AGENTS'))).toBe(false)
   expect(rows.some(r => /architect +before a plan · design-reviewer/.test(r))).toBe(true)
 })
-test('desktop adds the consult timeline as an SVG on black', async ($, on) => {
-  const clock = engine(on)
-  on('agent.spawn', () => ({ model: 'model-x', agentId: 'd1' }))
-  await clock.advance(1000)
-  await $.agent.spawn(spawn('fable-advisor', 'look it over'))
-  for (const surface of ['desktop', 'vscode'] as const) {
-    const ui = await $.ui.mount({ ...pane(64), surface })
-    const svg = await ui.find({ type: 'Svg' })
-    expect([svg?.type, String(svg?.props.alt)]).toEqual(['Svg', '1 consult on one timeline'])
-    expect(String(svg?.props.source)).toMatch(/^<svg .*fill="#000000".*<polygon /)
-    expect(await ui.find({ type: 'Text', text: /^ ARCHITECT $/ })).toBeDefined() // the same panel above it
-    await ui.unmount()
-  }
-  const terminal = await $.ui.mount({ ...pane(64), surface: 'terminal' })
-  expect(await terminal.find({ type: 'Svg' })).toBeUndefined()
-  await terminal.unmount()
-})
-
 // ---------------------------------------------------------------- the ARCHITECT panel, recoloured
 
 test('ARCHITECT keeps its rows in architect gold', () => {

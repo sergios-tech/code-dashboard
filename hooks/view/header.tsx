@@ -1,7 +1,7 @@
 // The header row on the black fill: the brand on the left, the main model's state on the right.
 import type { RenderElement } from 'claude-code'
 
-import { canAnimate } from './draw'
+import { canAnimate, clientNode } from './draw'
 import type { Draw } from './draw'
 import { headerFit } from './layout'
 import type { ViewModel } from './model'
@@ -9,13 +9,12 @@ import { familyColor } from './palette'
 
 const BRAND_CELLS = Array.from("▌SERGIO'S TECH · CODE").length
 
-/** The state dot: `●` green, pulsing as a client module while work runs where the surface animates, else a plain `●`; `○` dim at rest. */
+/** The state dot: `●` green, pulsing while work runs where the surface animates (a client module, or SMIL in a picture), else a plain `●`; `○` dim at rest. */
 export const stateDot = (d: Draw, isActive: boolean): RenderElement => {
   const { els, C } = d
   const { Text } = els
-  const Client = 'Client' in els ? els.Client : null
-  return canAnimate(d) && Client && isActive ? (
-    <Client key="st-code-pulse" module="../client/pulse.tsx" width={1} height={1} props={{ active: true, color: C.green, dim: C.pulse }} />
+  return canAnimate(d) && isActive ? (
+    clientNode(d, 'st-code-pulse', 'pulse', 1, { active: true, color: C.green, dim: C.pulse })
   ) : (
     <Text key="st-code-dot" bold={isActive} color={isActive ? C.green : C.dim}>
       {isActive ? '●' : '○'}

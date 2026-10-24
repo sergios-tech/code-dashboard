@@ -7,6 +7,7 @@ import { header } from '../hooks/view/header'
 import { WIDE_LEFT, WIDE_RIGHT, clampWidth, pickLayout, wideColumns } from '../hooks/view/layout'
 import type { ViewModel } from '../hooks/view/model'
 import { COLORS, TEXT_TOKENS, contrast, familyColor, levelColor, to256 } from '../hooks/view/palette'
+import { CELL_PX } from '../hooks/view/picture'
 import { ELS, cellWidth, draw, drawRows, engine, found, pane, rowsOf, texts, vmOf } from './kit'
 
 const line = (text: string) => ELS.Text({ children: [text] })
@@ -171,10 +172,17 @@ test('a fresh pane draws its header within the pane on every surface and width',
   for (const surface of ['terminal', 'desktop', 'vscode', 'mobile'] as const) {
     for (const cols of [28, 40, 64, 120]) {
       const ui = await $.ui.mount({ ...pane(cols), surface })
-      const rows = await rowsOf(ui)
-      expect(rows.length > 0).toBe(true)
-      for (const r of rows) expect(cellWidth(r) <= clampWidth(cols)).toBe(true)
-      expect(rows[0]?.startsWith("▌SERGIO'S TECH · CODE")).toBe(true); expect(rows[0]?.endsWith('○ IDLE')).toBe(true)
+      if (surface === 'terminal') {
+        const rows = await rowsOf(ui)
+        expect(rows.length > 0).toBe(true)
+        for (const r of rows) expect(cellWidth(r) <= clampWidth(cols)).toBe(true)
+        expect(rows[0]?.startsWith("▌SERGIO'S TECH · CODE")).toBe(true); expect(rows[0]?.endsWith('○ IDLE')).toBe(true)
+      } else {
+        // Off the terminal the header is the first picture, as wide as the pane, and no Text.
+        const first = (await ui.findAll({ type: 'Svg' }))[0]
+        expect(first?.props.width).toBe(Math.ceil(clampWidth(cols) * CELL_PX)); expect(String(first?.props.source)).toContain(">SERGIO'S<")
+        expect(await ui.find({ type: 'Text', text: /SERGIO'S TECH/ })).toBeUndefined()
+      }
       expect(await ui.find({ type: 'Client' })).toBeUndefined()
       await ui.unmount()
     }

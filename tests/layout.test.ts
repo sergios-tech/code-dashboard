@@ -20,6 +20,7 @@ import type { Snapshot } from '../hooks/state/store'
 import { clampWidth, wideColumns } from '../hooks/view/layout'
 import { buildViewModel } from '../hooks/view/model'
 import { COLORS } from '../hooks/view/palette'
+import { CELL_PX } from '../hooks/view/picture'
 import { cellWidth, engine, pane, rowsOf, spawn } from './kit'
 
 /** The model beneath the plugin: every request ends at once, for any loop. */
@@ -74,9 +75,16 @@ test('a fresh session draws on every surface and width, empty panels hidden', as
   engine(on)
   for (const surface of ['terminal', 'desktop', 'vscode', 'mobile'] as const) for (const cols of [40, 64, 120]) {
     const ui = await $.ui.mount({ ...pane(cols), surface })
-    expect(await ui.find({ text: /SERGIO'S TECH · CODE/ })).toBeDefined(); expect(await ui.find({ text: /INFO/ })).toBeDefined()
-    expect(await ui.find({ text: /AGENTS|TRENDS|TOOLS & FILES|ARCHITECT/ })).toBeUndefined()
-    expect(await ui.find({ type: 'Text', text: /^ LOG $/ })).toBeDefined(); expect(await ui.find({ text: /TURN|loops/ })).toBeUndefined()
+    if (surface === 'terminal') {
+      expect(await ui.find({ text: /SERGIO'S TECH · CODE/ })).toBeDefined(); expect(await ui.find({ text: /INFO/ })).toBeDefined()
+      expect(await ui.find({ text: /AGENTS|TRENDS|TOOLS & FILES|ARCHITECT/ })).toBeUndefined()
+      expect(await ui.find({ type: 'Text', text: /^ LOG $/ })).toBeDefined(); expect(await ui.find({ text: /TURN|loops/ })).toBeUndefined()
+    } else {
+      // Off the terminal the words are in the pictures, one `<text>` each.
+      const all = (await ui.findAll({ type: 'Svg' })).map(s => String(s.props.source)).join('')
+      for (const word of ["SERGIO'S", 'INFO', 'LOG']) expect(all).toContain(`>${word}<`)
+      expect(/>(AGENTS|TRENDS|TOOLS|ARCHITECT|TURN|loops)</.test(all)).toBe(false)
+    }
     await ui.unmount()
   }
 })
@@ -100,10 +108,18 @@ test('no drawn row is wider than the pane, from 28 to 220 columns (Review Focus 
   await step($, 'loop-1')
   for (const surface of ['terminal', 'desktop'] as const) for (const cols of [28, 40, 64, 120, 220]) {
     const ui = await $.ui.mount({ ...pane(cols), surface })
-    const rows = await rowsOf(ui)
-    for (const r of rows) expect(cellWidth(r) <= clampWidth(cols)).toBe(true)
-    expect(rows[0]?.startsWith("▌SERGIO'S TECH · CODE")).toBe(true); expect(cornersPaired(rows)).toBe(true)
-    for (const label of ['INFO', 'TRENDS', 'AGENTS', 'loops', 'ARCHITECT', 'TOOLS & FILES', 'LOG']) expect(rows.some(r => r.includes(label))).toBe(true)
+    if (surface === 'terminal') {
+      const rows = await rowsOf(ui)
+      for (const r of rows) expect(cellWidth(r) <= clampWidth(cols)).toBe(true)
+      expect(rows[0]?.startsWith("▌SERGIO'S TECH · CODE")).toBe(true); expect(cornersPaired(rows)).toBe(true)
+      for (const label of ['INFO', 'TRENDS', 'AGENTS', 'loops', 'ARCHITECT', 'TOOLS & FILES', 'LOG']) expect(rows.some(r => r.includes(label))).toBe(true)
+    } else {
+      // Off the terminal every picture is exactly as wide as the pane (the agents' axis aside), and each panel is in one.
+      const svgs = await ui.findAll({ type: 'Svg' })
+      for (const s of svgs.filter(v => !/on one time axis$/.test(String(v.props.alt)))) expect(s.props.width).toBe(Math.ceil(clampWidth(cols) * CELL_PX))
+      const all = svgs.map(s => String(s.props.source)).join('')
+      for (const word of ['INFO', 'TRENDS', 'AGENTS', 'loops', 'ARCHITECT', 'TOOLS', 'LOG']) expect(all).toContain(`>${word}<`)
+    }
     await ui.unmount()
   }
 })

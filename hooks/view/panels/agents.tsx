@@ -1,18 +1,19 @@
 // The AGENTS panel: one row per agent, running first, each with a status glyph, its hotkey digit and
 // title, its model tag, a status bar and a clock. The agent a hotkey opened shows its details inside
 // the frame after a divider, then the loops row: the model loops no agent claims, after another
-// divider. The surfaces that draw vectors add the agents on one time axis as an SVG.
+// divider. The surfaces that draw pictures add the agents on one time axis as an SVG under it.
 import type { RenderElement } from 'claude-code'
 
 import type { AgentCard } from '../../../types'
 import { agentGlyph, cardTitle, fitCells, modelTag } from '../../domain/agents'
 import { plural } from '../../format/text'
-import { canAnimate, clock } from '../draw'
+import { canAnimate, clientNode, clock } from '../draw'
 import type { Draw } from '../draw'
 import { dividerRow, frame } from '../frame'
 import { loopsWords } from '../model'
 import type { AgentsView, ExpandedView, LoopsView } from '../model'
 import { familyColor } from '../palette'
+import { CELL_PX } from '../picture'
 import { agentTone, svgLanes } from '../svg'
 
 /** What pressing an agent's row does: its details open inside the frame, or close when they were open. */
@@ -38,8 +39,6 @@ const BAR_WIDE_FROM = 56
 const BAR_MID_FROM = 46
 /** The least a title column keeps, however tight the row. */
 const TITLE_MIN = 6
-/** About one terminal cell, in CSS pixels, for the width of the desktop's axis. */
-const CELL_PX = 8
 
 const barCells = (inside: number): number => (inside >= BAR_WIDE_FROM ? 14 : inside >= BAR_MID_FROM ? 10 : 6)
 
@@ -58,10 +57,7 @@ export const bar = (d: Draw, c: AgentCard, w: number): RenderElement[] => {
       </Text>,
     ]
   }
-  if (canAnimate(d) && 'Client' in d.els) {
-    const { Client } = d.els
-    return [<Client key={`sweep-${c.id}`} module="../../client/sweep.tsx" width={w} height={1} props={{ width: w, color: tone, track: C.faint }} />]
-  }
+  if (canAnimate(d)) return [clientNode(d, `sweep-${c.id}`, 'sweep', w, { width: w, color: tone, track: C.faint })]
   return [
     <Text key="bar-on" color={tone}>
       {'▰'.repeat(Math.min(3, w))}
@@ -195,10 +191,10 @@ const loopsRow = (d: Draw, l: LoopsView): RenderElement => {
   )
 }
 
-/** The agents on one time axis as a vector drawing, for the surfaces that take `Svg`. */
+/** The agents on one time axis as a vector drawing, under the AGENTS picture. */
 const axisSvg = (d: Draw, a: AgentsView, width: number): RenderElement | null => {
   const { els } = d
-  if (d.surface === 'terminal' || !('Svg' in els)) return null
+  if (!d.isPicture || !('Svg' in els)) return null
   return <els.Svg key="agents-axis" source={svgLanes(a.all, a.now, width * CELL_PX)} alt={`${plural(a.all.length, 'agent')} on one time axis`} />
 }
 

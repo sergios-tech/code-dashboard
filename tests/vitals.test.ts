@@ -207,6 +207,7 @@ test('a surface without client modules draws the clock as plain text', async ($,
   await $.agent.spawn(spawn('Explore', 'look around'))
   await clock.advance(65_000)
   const ui = await $.ui.mount({ ...pane(64), surface: 'vscode' })
-  expect(await ui.find({ type: 'Text', text: /^1:05$/ })).toBeDefined()
+  // The clock is its value at this draw, as a word of the AGENTS picture.
+  expect((await ui.findAll({ type: 'Svg' })).some(s => String(s.props.source).includes('>1:05<'))).toBe(true)
   await ui.unmount()
 })

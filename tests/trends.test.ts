@@ -7,7 +7,6 @@ import { placeCells, sparkline } from '../hooks/format/text'
 import { DEFAULT_TRENDS } from '../hooks/state/schema'
 import { COLORS } from '../hooks/view/palette'
 import { trendsPanel } from '../hooks/view/panels/trends'
-import { svgSpark } from '../hooks/view/svg'
 import { FRESH, cellWidth, draw, drawRows, engine, pane, rowsOf, texts, vmOf } from './kit'
 import { NOW } from './fixture'
 
@@ -78,18 +77,6 @@ test('compaction cells follow where the sparkline puts each sample', () => {
   const values = many.map(s => s.ctxPct)
   expect(sparkline(values, 4, { min: 0, max: 11 })).toHaveLength(4)
 })
-test('the vector spark: a line over a faint baseline, gaps break it, bad numbers are safe', () => {
-  const svg = svgSpark([0, 50, 100], 300, 40, COLORS.green, { min: 0, max: 100 })
-  expect(svg.startsWith('<svg ')).toBe(true); expect(svg).toContain(`stroke="${COLORS.green}"`); expect(svg).toContain(COLORS.faint)
-  expect(svg).toContain('<polyline'); expect(svg).not.toContain('NaN')
-  // A gap splits the line; a lone reading is a dot.
-  const gapped = svgSpark([1, 2, null, 5], 300, 40, COLORS.green)
-  expect((gapped.match(/<polyline/g) ?? []).length).toBe(1); expect((gapped.match(/<circle/g) ?? []).length).toBe(1)
-  for (const bad of [svgSpark([], Number.NaN, Number.NaN, COLORS.green), svgSpark([Number.NaN, 3, Infinity], 0, 0, COLORS.green), svgSpark([2], 300, 40, COLORS.green)]) {
-    expect(bad).not.toMatch(/NaN|Infinity|undefined|null/)
-  }
-})
-
 // ---------------------------------------------------------------- the TRENDS table
 
 const point = (i: number, ctxPct: number | null, costUsd: number | null, isCompaction = false) => ({ at: NOW - (10 - i) * 60_000, ctxPct, costUsd, isCompaction })
@@ -260,16 +247,4 @@ test('a long session draws a bounded TRENDS panel (Review Focus 5)', async ($, o
     expect(trendsRows(rows)).toHaveLength(2)
     for (const r of rows) expect(cellWidth(r) <= Math.max(40, cols)).toBe(true)
   }
-})
-test('on a surface with vectors each line also draws as an Svg', async ($, on) => {
-  engine(on)
-  on('session.measure', (_$, e) => ({ changed: e.changed }))
-  await $.session.measure(reading(10, 1, ['context', 'cost'])); await $.session.measure(reading(20, 2, ['context', 'cost']))
-  const ui = await $.ui.mount({ ...pane(64), surface: 'desktop' })
-  const svg = await ui.find({ type: 'Svg' })
-  expect(String(svg?.props.source ?? '')).toContain('<polyline'); expect(String(svg?.props.alt)).toBe('context fill over 2 readings')
-  await ui.unmount()
-  const term = await $.ui.mount({ ...pane(64), surface: 'terminal' })
-  expect(await term.find({ type: 'Svg' })).toBeUndefined()
-  await term.unmount()
 })

@@ -1,18 +1,16 @@
 // The TRENDS panel: a table of two rows, the context fill and the cost over the session. Each row
 // holds an orange head icon, the dim label, the sparkline, the latest figure and its change. The
 // context cells take the level colour of their own reading, the cost cells are muted, and a
-// compaction is a gold `↺` in the cell of the reading that showed it. The surfaces that draw vectors
-// add each line as an SVG.
+// compaction is a gold `↺` in the cell of the reading that showed it.
 import type { RenderElement } from 'claude-code'
 
 import type { Sample } from '../../../types'
 import { compactionCells } from '../../domain/trends'
-import { fmtUsd, placeCells, plural, sparkline } from '../../format/text'
+import { fmtUsd, placeCells, sparkline } from '../../format/text'
 import type { Draw } from '../draw'
 import { frame } from '../frame'
 import type { TrendsView } from '../model'
 import { levelColor } from '../palette'
-import { svgSpark } from '../svg'
 
 type Piece = { text: string; color: string; bold?: boolean }
 
@@ -25,9 +23,6 @@ const FIGURE = 7
 const CHANGE = 7
 /** The change column is drawn from this many cells inside the frame. */
 const CHANGE_FROM = 50
-/** About one terminal cell, in CSS pixels, and the height of a desktop line. */
-const CELL_PX = 8
-const SPARK_PX = 36
 
 const cells = (s: string): number => Array.from(s).length
 const lpad = (s: string, n: number): string => ' '.repeat(Math.max(0, n - cells(s))) + s
@@ -69,13 +64,6 @@ export const sparkPieces = (d: Draw, samples: Sample[], values: (number | null)[
   return out
 }
 
-/** The desktop's drawing of one line, below the frame. */
-const sparkSvg = (d: Draw, key: string, alt: string, values: (number | null)[], width: number, color: string, range?: { min: number; max: number }): RenderElement | null => {
-  const { els } = d
-  if (d.surface === 'terminal' || !('Svg' in els)) return null
-  return <els.Svg key={key} source={svgSpark(values, width * CELL_PX, SPARK_PX, color, range)} alt={alt} />
-}
-
 /** `+2`, `−3`: the signed change in whole percent points. */
 const fmtPoints = (n: number): string => `${n > 0 ? '+' : '−'}${Math.abs(n)}`
 
@@ -97,22 +85,18 @@ export const trendsPanel = (d: Draw, v: TrendsView, width: number): RenderElemen
       { text: hasChange ? lpad(change, CHANGE) : '', color: C.dim },
     ])
   const rows: RenderElement[] = []
-  const svgs: (RenderElement | null)[] = []
   if (v.ctx) {
     const change = v.ctx.change === null ? '' : fmtPoints(v.ctx.change)
     rows.push(row('trend-ctx', '◐ ', 'ctx', sparkPieces(d, v.samples, ctxValues, sparkWidth, ctxRange, levelColor), `${Math.round(v.ctx.pct)}%`, change))
-    svgs.push(sparkSvg(d, 'trend-ctx-svg', `context fill over ${plural(v.samples.length, 'reading')}`, ctxValues, width, C.green, ctxRange))
   }
   if (v.cost) {
     const change = v.cost.change === null ? '' : `+${fmtUsd(v.cost.change)}`
     const range = { min: v.cost.min, max: v.cost.max }
     rows.push(row('trend-cost', '$ ', 'cost', sparkPieces(d, v.samples, costValues, sparkWidth, range, () => C.muted), fmtUsd(v.cost.usd), change))
-    svgs.push(sparkSvg(d, 'trend-cost-svg', `cost over ${plural(v.samples.length, 'reading')}`, costValues, width, C.green, range))
   }
   return (
     <Box key="trends" marginTop={1} flexDirection="column" width={width}>
       {frame(d, { key: 'trends-frame', label: 'TRENDS', width, children: rows })}
-      {svgs}
     </Box>
   )
 }

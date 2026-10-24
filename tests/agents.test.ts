@@ -348,11 +348,13 @@ test('desktop draws the agents as an SVG axis on black', async ($, on) => {
   await $.agent.spawn(spawn('Explore', 'Map <the> call & sites'))
   for (const surface of ['desktop', 'vscode'] as const) {
     const ui = await $.ui.mount({ ...pane(64), surface })
-    const svg = await ui.find({ type: 'Svg' })
-    const source = String(svg?.props.source ?? '')
+    const svgs = await ui.findAll({ type: 'Svg' })
+    const at = svgs.findIndex(s => /^1 agent on one time axis$/.test(String(s.props.alt)))
+    const source = String(svgs[at]?.props.source ?? '')
     expect(source.startsWith('<svg')).toBe(true); expect(source).toContain('fill="#000000"')
-    expect(source).toContain('Map &lt;the&gt; call &amp; sites'); expect(String(svg?.props.alt)).toMatch(/^1 agent on one time axis$/)
-    expect(await ui.find({ text: /1 running · 1 total/ })).toBeDefined() // the same panel above it
+    expect(source).toContain('Map &lt;the&gt; call &amp; sites')
+    // The same panel is the picture above it.
+    expect(at > 0).toBe(true); expect(String(svgs[at - 1]?.props.source)).toMatch(/>running<.*>total</)
     await ui.unmount()
   }
   const terminal = await $.ui.mount({ ...pane(64), surface: 'terminal' })

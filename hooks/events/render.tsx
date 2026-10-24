@@ -1,5 +1,6 @@
 // The pane's drawing: one state snapshot, one view model, then the header and the panels in one
-// column, in two with the log under both, or the inline summary instead of all of them.
+// column, in two with the log under both, or the inline summary instead of all of them. Off the
+// terminal each of those blocks is drawn as a picture of its cells.
 import type { On, RenderElement } from 'claude-code'
 
 import type { Config, Panel } from '../config'
@@ -18,6 +19,7 @@ import { infoPanel } from '../view/panels/info'
 import { logPanel } from '../view/panels/log'
 import { toolsPanel } from '../view/panels/tools'
 import { trendsPanel } from '../view/panels/trends'
+import { pictures } from '../view/picture'
 
 /** One panel's drawing, in the cells the view model gave it: its column's in the wide layout. */
 const panel = (d: Draw, vm: ViewModel, p: Panel, expand: Expand): RenderElement | null => {
@@ -63,16 +65,25 @@ export const wireRender = (on: On, cfg: Config): void => {
     })
     // VS Code's webview takes no client modules, whatever its element table holds.
     const hasClient = 'Client' in els && e.surface !== 'vscode'
-    const d: Draw = { els, C: COLORS, hasClient, motion: cfg.motion, surface: e.surface, now }
+    const d: Draw = { els, C: COLORS, hasClient, motion: cfg.motion, surface: e.surface, isPicture: e.surface !== 'terminal', now }
     // An agent's hotkey opens its details inside the AGENTS frame, or closes them.
     const expand: Expand = id => () => toggleExpanded($, id)
-    if (vm.mini) return miniPane(d, vm.mini, vm.width)
     const { Box } = els
     // The OLED black is filled in rather than left to the host's pane colour.
+    if (!d.isPicture) {
+      if (vm.mini) return miniPane(d, vm.mini, vm.width)
+      return (
+        <Box flexDirection="column" width={vm.width} backgroundColor={COLORS.fill}>
+          {header(d, vm.header, vm.width)}
+          {body(d, vm, expand)}
+        </Box>
+      )
+    }
+    // Off the terminal each block is one picture of its cells, beside the hidden hotkey Buttons.
+    const blocks = vm.mini ? [miniPane(d, vm.mini, vm.width)] : [header(d, vm.header, vm.width), ...body(d, vm, expand)]
     return (
       <Box flexDirection="column" width={vm.width} backgroundColor={COLORS.fill}>
-        {header(d, vm.header, vm.width)}
-        {body(d, vm, expand)}
+        {pictures(d, blocks.filter((b): b is RenderElement => b !== null), vm.width)}
       </Box>
     )
   })
