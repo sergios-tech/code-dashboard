@@ -77,13 +77,13 @@ test('compaction cells follow where the sparkline puts each sample', () => {
   expect(sparkline(values, 4, { min: 0, max: 11 })).toHaveLength(4)
 })
 test('the vector spark: a line over a faint baseline, gaps break it, bad numbers are safe', () => {
-  const svg = svgSpark([0, 50, 100], 300, 40, COLORS.main, { min: 0, max: 100 })
-  expect(svg.startsWith('<svg ')).toBe(true); expect(svg).toContain(`stroke="${COLORS.main}"`); expect(svg).toContain(COLORS.faint)
+  const svg = svgSpark([0, 50, 100], 300, 40, COLORS.green, { min: 0, max: 100 })
+  expect(svg.startsWith('<svg ')).toBe(true); expect(svg).toContain(`stroke="${COLORS.green}"`); expect(svg).toContain(COLORS.faint)
   expect(svg).toContain('<polyline'); expect(svg).not.toContain('NaN')
   // A gap splits the line; a lone reading is a dot.
-  const gapped = svgSpark([1, 2, null, 5], 300, 40, COLORS.ok)
+  const gapped = svgSpark([1, 2, null, 5], 300, 40, COLORS.green)
   expect((gapped.match(/<polyline/g) ?? []).length).toBe(1); expect((gapped.match(/<circle/g) ?? []).length).toBe(1)
-  for (const bad of [svgSpark([], Number.NaN, Number.NaN, COLORS.ok), svgSpark([Number.NaN, 3, Infinity], 0, 0, COLORS.ok), svgSpark([2], 300, 40, COLORS.ok)]) {
+  for (const bad of [svgSpark([], Number.NaN, Number.NaN, COLORS.green), svgSpark([Number.NaN, 3, Infinity], 0, 0, COLORS.green), svgSpark([2], 300, 40, COLORS.green)]) {
     expect(bad).not.toMatch(/NaN|Infinity|undefined|null/)
   }
 })
@@ -104,7 +104,7 @@ test('TRENDS appears from the second reading; cost row only when cost is known (
   expect(rows).toHaveLength(2); expect(rows[0]).toMatch(/ctx .*35%/); expect(rows[1]).toMatch(/^│ cost .*\$3\.12 +│$/)
   expect(rows.join('')).not.toMatch(/NaN|null|undefined|\+\$/)
   const ui = await $.ui.mount({ ...pane(64), surface: 'terminal' })
-  expect((await ui.find({ type: 'Text', text: /^[ ▁▂▃▄▅▆▇█]+$/ }))?.props.color).toBe(COLORS.main)
+  expect((await ui.find({ type: 'Text', text: /^[ ▁▂▃▄▅▆▇█]+$/ }))?.props.color).toBe(COLORS.green)
   await ui.unmount()
 })
 test('a reading that changed neither context nor cost adds no sample', async ($, on) => {
@@ -132,7 +132,7 @@ test('a compaction shows as ⟲ on the ctx line', async ($, on) => {
   const rows = trendsRows(await drawn($))
   expect(rows[0]).toMatch(/ctx .*▇⟲▁?.*14%/); expect(rows[0]!.split('⟲')).toHaveLength(2)
   const ui = await $.ui.mount({ ...pane(64), surface: 'terminal' })
-  expect((await ui.find({ type: 'Text', text: /^⟲$/ }))?.props.color).toBe(COLORS.amber)
+  expect((await ui.find({ type: 'Text', text: /^⟲$/ }))?.props.color).toBe(COLORS.gold)
   await ui.unmount()
 })
 test('the start of the session takes the first sample; hosts without usage take none (Review Focus 4)', async ($, on) => {

@@ -45,7 +45,7 @@ const sparkPieces = (d: Draw, v: TrendsView, values: (number | null)[], width: n
   line.forEach((ch, i) => {
     const isMark = marks.has(i)
     const text = isMark ? '⟲' : ch
-    const tone = isMark ? d.C.amber : color
+    const tone = isMark ? d.C.gold : color
     const last = out[out.length - 1]
     if (last && last.color === tone && !isMark) last.text += text
     else out.push({ text, color: tone })
@@ -79,21 +79,21 @@ export const trendsPanel = (d: Draw, v: TrendsView, width: number): RenderElemen
     rows.push(
       rowOf(d, 'trend-ctx', [
         { text: 'ctx'.padEnd(LABEL_CELLS), color: C.dim },
-        ...sparkPieces(d, v, ctxValues, sparkWidth, C.main, { min: 0, max: 100 }),
+        ...sparkPieces(d, v, ctxValues, sparkWidth, C.green, { min: 0, max: 100 }),
         { text: ctxValue, color: C.text, bold: true },
       ]),
     )
-    svgs.push(sparkSvg(d, 'trend-ctx-svg', `context fill over ${plural(v.samples.length, 'reading')}`, ctxValues, width, C.main, { min: 0, max: 100 }))
+    svgs.push(sparkSvg(d, 'trend-ctx-svg', `context fill over ${plural(v.samples.length, 'reading')}`, ctxValues, width, C.green, { min: 0, max: 100 }))
   }
   if (v.cost) {
     rows.push(
       rowOf(d, 'trend-cost', [
         { text: 'cost'.padEnd(LABEL_CELLS), color: C.dim },
-        ...sparkPieces(d, v, costValues, sparkWidth, C.ok, costRange),
+        ...sparkPieces(d, v, costValues, sparkWidth, C.green, costRange),
         { text: costValue, color: C.text, bold: true },
       ]),
     )
-    svgs.push(sparkSvg(d, 'trend-cost-svg', `cost over ${plural(v.samples.length, 'reading')}`, costValues, width, C.ok, costRange))
+    svgs.push(sparkSvg(d, 'trend-cost-svg', `cost over ${plural(v.samples.length, 'reading')}`, costValues, width, C.green, costRange))
   }
   return (
     <Box key="trends" marginTop={1} flexDirection="column" width={width}>

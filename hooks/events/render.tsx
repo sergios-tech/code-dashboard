@@ -73,7 +73,7 @@ export const wireRender = (on: On, cfg: Config): void => {
     const { Box } = els
     // The OLED black is filled in rather than left to the host's pane colour.
     return (
-      <Box flexDirection="column" width={vm.width} backgroundColor={COLORS.bg}>
+      <Box flexDirection="column" width={vm.width} backgroundColor={COLORS.fill}>
         {header(d, vm.header, vm.width, d.motion)}
         {body(d, vm, expand)}
       </Box>

@@ -121,7 +121,7 @@ test('the elapsed clock counts from a fresh reading and holds still once it has 
   }
   const shown = (p: { since: number; now: number; endAt: number | null; color: string }) =>
     (Elapsed(p, surface as never) as unknown as { children: string[] }).children[0]
-  const run = { since: 1000, now: 4000, endAt: null, color: COLORS.main }
+  const run = { since: 1000, now: 4000, endAt: null, color: COLORS.green }
   expect(shown(run)).toBe('0:03')
   timers[0]?.(); timers[0]?.()
   expect(shown(run)).toBe('0:05')
@@ -151,7 +151,7 @@ test('VITALS shows model vitals; the gauge goes amber from 80%', async ($, on) =
   expect(await ui.find({ text: /VITALS/ })).toBeDefined(); expect(await ui.find({ text: /○ idle/ })).toBeDefined()
   expect(await ui.find({ text: /^effort ▮▮▮▯ high/ })).toBeDefined(); expect(await ui.find({ text: /1 req/ })).toBeDefined()
   expect(await ui.find({ text: /^ctx ▰{9}▱ 85%/ })).toBeDefined(); expect(await ui.find({ text: /170k\/200k/ })).toBeDefined()
-  expect((await ui.find({ type: 'Text', text: /^▰+$/ }))?.props.color).toBe(COLORS.amber)
+  expect((await ui.find({ type: 'Text', text: /^▰+$/ }))?.props.color).toBe(COLORS.gold)
   expect(await ui.find({ text: /^\$3\.12 {3}5h/ })).toBeDefined()
   expect(await ui.find({ text: /last req {2}ttft 0\.8s · 60 tok\/s/ })).toBeDefined()
   await ui.unmount()
@@ -159,7 +159,7 @@ test('VITALS shows model vitals; the gauge goes amber from 80%', async ($, on) =
   await $.session.measure({ context: { window: 200_000, tokens: 102_000, percent: 51 }, rateLimits: [], changed: ['context'] })
   for (const cols of [40, 64, 120]) {
     const view = await $.ui.mount({ ...pane(cols), surface: 'terminal' })
-    expect((await view.find({ type: 'Text', text: /^▰+$/ }))?.props.color).toBe(COLORS.main)
+    expect((await view.find({ type: 'Text', text: /^▰+$/ }))?.props.color).toBe(COLORS.green)
     expect(await view.find({ text: /51%/ })).toBeDefined()
     for (const r of await rowsOf(view)) expect(cellWidth(r) <= Math.max(40, cols)).toBe(true)
     await view.unmount()
@@ -312,7 +312,7 @@ test('TURN shows the running turn, then its receipt', async ($, on) => {
   }
   const wide = await $.ui.mount({ ...pane(64), surface: 'terminal' })
   expect(await wide.find({ text: /last turn 1m12s · 0 agents · 0 edits · 0 errors · \+\$0\.41/ })).toBeDefined()
-  expect((await wide.find({ type: 'Text', text: /^✓$/ }))?.props.color).toBe(COLORS.ok)
+  expect((await wide.find({ type: 'Text', text: /^✓$/ }))?.props.color).toBe(COLORS.green)
   await wide.unmount()
 })
 test('a turn that did not end in an answer reads ✗ and says why', async ($, on) => {

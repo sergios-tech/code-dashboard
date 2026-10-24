@@ -37,7 +37,7 @@ const rowOf = (d: Draw, key: string, row: Piece[]): RenderElement => {
 
 /** The timeline in runs: consults in the architect's colour, the rule between them faint. */
 const timelineRow = (d: Draw, timeline: string): Piece[] =>
-  (timeline.match(/─+|[^─]+/g) ?? []).map(run => ({ text: run, color: run.startsWith('─') ? d.C.faint : d.C.arch }))
+  (timeline.match(/─+|[^─]+/g) ?? []).map(run => ({ text: run, color: run.startsWith('─') ? d.C.faint : d.C.architect }))
 
 /**
  * `◆ before a plan  ◇ error repeats  ◇ before done  (inferred)`, the last consult's moment lit; a
@@ -45,7 +45,7 @@ const timelineRow = (d: Draw, timeline: string): Piece[] =>
  */
 const momentsRow = (d: Draw, lit: Moment | null, room: number): Piece[] => {
   const { C } = d
-  const piece = (m: Moment): Piece => (m === lit ? { text: `◆ ${m}`, color: C.arch, bold: true } : { text: `◇ ${m}`, color: C.dim })
+  const piece = (m: Moment): Piece => (m === lit ? { text: `◆ ${m}`, color: C.architect, bold: true } : { text: `◇ ${m}`, color: C.dim })
   const spaced = (ps: Piece[], gap: string): Piece[] => ps.flatMap((p, i) => (i === 0 ? [p] : [{ text: gap, color: C.dim }, p]))
   const tag: Piece = { text: '(inferred)', color: C.dim }
   const all = [...MOMENTS.map(piece), tag]
@@ -65,12 +65,12 @@ export const architectPanel = (d: Draw, v: ArchitectView, width: number): Render
   const { C } = d
   const room = Math.max(1, width - CHROME)
   const rows: RenderElement[] = [
-    rowOf(d, 'arch-status', [v.isAdvising ? { text: '● advising', color: C.arch, bold: true } : { text: '○ on call', color: C.dim }]),
+    rowOf(d, 'arch-status', [v.isAdvising ? { text: '● advising', color: C.architect, bold: true } : { text: '○ on call', color: C.dim }]),
     rowOf(d, 'arch-timeline', timelineRow(d, v.timeline)),
     rowOf(d, 'arch-since', [{ text: v.since, color: C.dim }]),
   ]
   if (v.moments) rows.push(rowOf(d, 'arch-moments', momentsRow(d, v.moments.lit, room)))
-  if (v.advice) rows.push(rowOf(d, 'arch-advice', [{ text: `» ${fitCells(v.advice, room - 2)}`, color: C.arch }]))
+  if (v.advice) rows.push(rowOf(d, 'arch-advice', [{ text: `» ${fitCells(v.advice, room - 2)}`, color: C.architect }]))
   return (
     <Box key="architect" marginTop={1} flexDirection="column" width={width}>
       {frame(d, { key: 'architect-frame', label: v.label, meta: v.meta, width, children: rows })}

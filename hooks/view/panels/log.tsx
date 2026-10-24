@@ -17,12 +17,12 @@ const CHROME = 4
 const colorOf = (d: Draw, l: LogLine): string => {
   const { C } = d
   if (l.kind === 'error') return C.error
-  if (l.kind === 'consult') return C.arch
-  if (l.kind === 'done') return C.ok
-  if (l.who === 'main') return C.main
+  if (l.kind === 'consult') return C.architect
+  if (l.kind === 'done') return C.green
+  if (l.who === 'main') return C.green
   if (l.who === 'you' || l.who === 'engine') return C.text
-  if (l.who === 'gate') return C.amber
-  return C.agent
+  if (l.who === 'gate') return C.gold
+  return C.orange
 }
 
 export const logPanel = (d: Draw, log: LogView, width: number): RenderElement => {

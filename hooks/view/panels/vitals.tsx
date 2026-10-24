@@ -57,12 +57,12 @@ const paceRow = (d: Draw, v: VitalsView, room: number): Piece[] => {
           { text: 'effort ', color: C.dim },
           ...(level > 0
             ? [
-                { text: '▮'.repeat(level), color: C.main },
+                { text: '▮'.repeat(level), color: C.green },
                 { text: '▯'.repeat(EFFORT_STEPS - level), color: C.faint },
                 { text: ' ', color: C.dim },
               ]
             : []),
-          { text: shorten(v.effort, 12), color: C.main, bold: true },
+          { text: shorten(v.effort, 12), color: C.green, bold: true },
         ]
   const mode: Piece[] = v.mode === '' ? [] : [{ text: `mode ${shorten(v.mode, 14)}`, color: C.dim }]
   const req: Piece[] = v.requests > 0 ? [{ text: `${v.requests} req`, color: C.dim }] : []
@@ -75,12 +75,12 @@ const ctxRow = (d: Draw, ctx: NonNullable<VitalsView['ctx']>, room: number): Pie
   const g = gauge(ctx.pct, CTX_CELLS)
   const head: Piece[] = [
     { text: 'ctx ', color: C.dim },
-    { text: g.on, color: ctx.pct >= HOT ? C.amber : C.main },
+    { text: g.on, color: ctx.pct >= HOT ? C.gold : C.green },
     { text: g.off, color: C.faint },
     { text: ` ${Math.round(ctx.pct)}%`, color: C.text, bold: true },
   ]
   const tokens: Piece[] = ctx.tokens !== null && ctx.window > 0 ? [{ text: `  ${kTokens(ctx.tokens)}/${kTokens(ctx.window)}`, color: C.dim }] : []
-  const compacted: Piece[] = ctx.compactions > 0 ? [{ text: `  ⟲${ctx.compactions}`, color: C.amber }] : []
+  const compacted: Piece[] = ctx.compactions > 0 ? [{ text: `  ⟲${ctx.compactions}`, color: C.gold }] : []
   return firstFit([[...head, ...tokens, ...compacted], [...head, ...compacted]], room)
 }
 
@@ -92,7 +92,7 @@ const limitPieces = (d: Draw, l: Limit, now: number, withReset: boolean): Piece[
   const reset = withReset ? fmtResetIn(l.resetsAt, now) : ''
   return [
     ...(label ? [{ text: `${label} `, color: C.dim }] : []),
-    { text: g.on, color: l.pct >= HOT ? C.amber : C.main },
+    { text: g.on, color: l.pct >= HOT ? C.gold : C.green },
     { text: g.off, color: C.faint },
     { text: ` ${Math.round(l.pct)}%`, color: C.text },
     ...(reset ? [{ text: ` ↻${reset}`, color: C.dim }] : []),

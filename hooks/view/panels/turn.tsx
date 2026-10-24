@@ -17,10 +17,10 @@ const running = (d: Draw, t: TurnView, width: number): RenderElement[] => {
   const counts = width >= COUNTS_FROM
   const rows: RenderElement[] = [
     <Box key="turn-run" columnGap={1}>
-      <Text bold color={C.main}>
+      <Text bold color={C.green}>
         ◐ turn
       </Text>
-      {clock(d, 'turn-clock', t.startedAt, null, C.main)}
+      {clock(d, 'turn-clock', t.startedAt, null, C.green)}
       {counts ? (
         <Text color={C.dim} wrap="truncate">{`· ${plural(t.edits, 'edit')} · ${plural(t.errors, 'error')}`}</Text>
       ) : null}
@@ -28,7 +28,7 @@ const running = (d: Draw, t: TurnView, width: number): RenderElement[] => {
   ]
   if (t.isReviewing) {
     rows.push(
-      <Text key="turn-review" color={C.arch} wrap="truncate">
+      <Text key="turn-review" color={C.architect} wrap="truncate">
         reviewing before done (inferred)
       </Text>,
     )
@@ -45,7 +45,7 @@ const receipt = (d: Draw, t: TurnView, width: number): RenderElement[] => {
   return receiptRows(r, width).map((row, i) => (
     <Box key={`turn-last-${i}`} columnGap={1}>
       <Box width={1} flexShrink={0}>
-        <Text bold color={isOk ? C.ok : C.error}>
+        <Text bold color={isOk ? C.green : C.error}>
           {i === 0 ? (isOk ? '✓' : '✗') : ' '}
         </Text>
       </Box>

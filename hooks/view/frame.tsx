@@ -39,7 +39,7 @@ export const frame = (d: Draw, p: FrameProps): RenderElement => {
   const meta = p.meta && metaRoom >= 4 ? shorten(p.meta, metaRoom) : ''
   return (
     <Box key={p.key} flexDirection="column" width={p.width} flexShrink={0}>
-      <Box flexDirection="column" width={p.width} borderStyle="single" borderColor={p.isActive ? C.main : C.brand} paddingX={1}>
+      <Box flexDirection="column" width={p.width} borderStyle="single" borderColor={p.isActive ? C.green : C.frame} paddingX={1}>
         {p.children}
       </Box>
       <Box position="absolute" top={0} left={1}>

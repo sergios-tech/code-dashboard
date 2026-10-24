@@ -46,7 +46,7 @@ const statusOf = (c: AgentCard): string => `${AGENT_GLYPH[c.status]} ${c.lastSto
 const mark = (d: Draw): RenderElement => {
   const { Text } = d.els
   return (
-    <Text key="mark" bold color={d.C.agent}>
+    <Text key="mark" bold color={d.C.orange}>
       ▶{' '}
     </Text>
   )
@@ -67,7 +67,7 @@ const card = (d: Draw, a: AgentsView, c: AgentCard, i: number, expand: Expand): 
       width={a.cardWidth}
       flexShrink={0}
       borderStyle="single"
-      borderColor={c.lastStop === 'max_tokens' ? C.error : C.agent}
+      borderColor={c.lastStop === 'max_tokens' ? C.error : C.orange}
       borderDimColor={c.status !== 'running'}
       paddingX={1}
     >
@@ -140,7 +140,7 @@ const expandedBlock = (d: Draw, x: ExpandedView, width: number): RenderElement =
   const { Box, Text } = d.els
   const { C } = d
   return (
-    <Box key="agent-open" flexDirection="column" width={width} borderStyle="single" borderColor={C.agent} paddingX={1}>
+    <Box key="agent-open" flexDirection="column" width={width} borderStyle="single" borderColor={C.orange} paddingX={1}>
       {x.description.map((row, i) => (
         <Text key={`task-${i}`} bold color={C.text} wrap="truncate">
           {row}
@@ -201,7 +201,7 @@ const LOOP_GLYPH: Record<LoopsView['dots'][number], string> = { active: '●', d
 export const loopsRow = (d: Draw, l: LoopsView, width: number): RenderElement => {
   const { Box, Text } = d.els
   const { C } = d
-  const toneOf = (s: LoopsView['dots'][number]) => (s === 'active' ? C.agent : s === 'done' ? C.ok : C.dim)
+  const toneOf = (s: LoopsView['dots'][number]) => (s === 'active' ? C.orange : s === 'done' ? C.green : C.dim)
   return (
     <Box key="loops" marginTop={1} paddingX={1} width={width}>
       <Text wrap="truncate">

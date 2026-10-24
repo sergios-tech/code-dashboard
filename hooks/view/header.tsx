@@ -21,20 +21,20 @@ export const header = (d: Draw, vm: ViewModel['header'], width: number, motion: 
   const words = right.slice(1)
   const dot =
     d.hasClient && motion && vm.isActive && 'Client' in els ? (
-      <els.Client key="st-code-pulse" module="../client/pulse.tsx" width={1} height={1} props={{ active: true, color: C.onBrand, dim: C.text }} />
+      <els.Client key="st-code-pulse" module="../client/pulse.tsx" width={1} height={1} props={{ active: true, color: C.text, dim: C.text }} />
     ) : (
-      <Text bold color={C.onBrand} backgroundColor={C.brand}>
+      <Text bold color={C.text} backgroundColor={C.frame}>
         {vm.isActive ? '●' : '○'}
       </Text>
     )
   return (
-    <Box width={width} backgroundColor={C.brand} justifyContent="space-between">
-      <Text bold color={C.onBrand} backgroundColor={C.brand} wrap="truncate">
+    <Box width={width} backgroundColor={C.frame} justifyContent="space-between">
+      <Text bold color={C.text} backgroundColor={C.frame} wrap="truncate">
         {BRAND}
       </Text>
       <Box>
         {dot}
-        <Text bold color={C.onBrand} backgroundColor={C.brand}>
+        <Text bold color={C.text} backgroundColor={C.frame}>
           {words}
         </Text>
       </Box>

@@ -46,21 +46,21 @@ const rowOf = (d: Draw, key: string, row: Piece[]): RenderElement => {
 /** `▌Opus 5.5 ● working · ctx ▰▰▰▱▱▱ 51% ⟲1 · $3.12 · architect 2`: each figure only once the host has reported it. */
 const headRow = (d: Draw, m: MiniView): Piece[] => {
   const { C } = d
-  const row: Piece[] = [{ text: '▌', color: C.brand }]
-  if (m.model) row.push({ text: `${m.model} `, color: C.main, bold: true })
-  row.push(m.isRunning ? { text: '● working', color: C.main } : { text: '○ idle', color: C.dim })
+  const row: Piece[] = [{ text: '▌', color: C.frame }]
+  if (m.model) row.push({ text: `${m.model} `, color: C.green, bold: true })
+  row.push(m.isRunning ? { text: '● working', color: C.green } : { text: '○ idle', color: C.dim })
   if (m.ctx) {
     const g = gauge(m.ctx.pct, CTX_CELLS)
     row.push(
       { text: ' · ctx ', color: C.dim },
-      { text: g.on, color: m.ctx.pct >= HOT ? C.amber : C.main },
+      { text: g.on, color: m.ctx.pct >= HOT ? C.gold : C.green },
       { text: g.off, color: C.faint },
       { text: ` ${Math.round(m.ctx.pct)}%`, color: C.text },
     )
-    if (m.ctx.compactions > 0) row.push({ text: ` ⟲${m.ctx.compactions}`, color: C.amber })
+    if (m.ctx.compactions > 0) row.push({ text: ` ⟲${m.ctx.compactions}`, color: C.gold })
   }
   if (m.costUsd !== null) row.push({ text: ` · ${fmtUsd(m.costUsd)}`, color: C.text })
-  if (m.arch) row.push({ text: ` · ${m.arch}`, color: C.arch })
+  if (m.arch) row.push({ text: ` · ${m.arch}`, color: C.architect })
   return row
 }
 
@@ -70,7 +70,7 @@ const sparkRow = (d: Draw, spark: NonNullable<MiniView['spark']>, width: number)
   const cells = Math.max(1, Math.min(spark.values.length, width - SPARK_CHROME))
   return [
     { text: 'ctx ', color: C.dim },
-    { text: sparkline(spark.values, cells, { min: 0, max: 100 }), color: C.main },
+    { text: sparkline(spark.values, cells, { min: 0, max: 100 }), color: C.green },
     { text: ` ${Math.round(spark.pct)}%`, color: C.text, bold: true },
   ]
 }
@@ -125,7 +125,7 @@ export const miniPane = (d: Draw, m: MiniView, width: number): RenderElement => 
     )
   }
   return (
-    <Box flexDirection="column" width={width} backgroundColor={C.bg}>
+    <Box flexDirection="column" width={width} backgroundColor={C.fill}>
       {rows}
     </Box>
   )

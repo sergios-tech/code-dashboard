@@ -20,7 +20,7 @@ const MIN_PX = 240
  * status glyph, so the state is never told by colour alone.
  */
 export const agentTone = (c: AgentCard): string =>
-  c.lastStop === 'max_tokens' || c.status === 'failed' ? COLORS.error : c.status === 'done' ? COLORS.ok : c.status === 'stopped' ? COLORS.dim : COLORS.agent
+  c.lastStop === 'max_tokens' || c.status === 'failed' ? COLORS.error : c.status === 'done' ? COLORS.green : c.status === 'stopped' ? COLORS.dim : COLORS.orange
 
 /**
  * The agents on one time axis, `widthPx` wide: per agent a label (status glyph and title) and a
@@ -47,7 +47,7 @@ export const svgLanes = (cards: AgentCard[], now: number, widthPx: number): stri
   })
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">` +
-    `<rect x="0" y="0" width="${w}" height="${h}" fill="${COLORS.bg}"/>` +
+    `<rect x="0" y="0" width="${w}" height="${h}" fill="${COLORS.fill}"/>` +
     rows.join('') +
     '</svg>'
   )
@@ -73,13 +73,13 @@ export const svgTimeline = (a: Architect, now: number, widthPx: number): string 
     const from = x(c.at)
     const d = DIAMOND_PX
     return (
-      `<rect x="${from}" y="${mid - 2}" width="${Math.max(2, x(c.endAt ?? now) - from)}" height="4" fill="${COLORS.arch}"/>` +
-      `<polygon points="${from},${mid - d} ${from + d},${mid} ${from},${mid + d} ${from - d},${mid}" fill="${COLORS.arch}"/>`
+      `<rect x="${from}" y="${mid - 2}" width="${Math.max(2, x(c.endAt ?? now) - from)}" height="4" fill="${COLORS.architect}"/>` +
+      `<polygon points="${from},${mid - d} ${from + d},${mid} ${from},${mid + d} ${from - d},${mid}" fill="${COLORS.architect}"/>`
     )
   })
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${TIMELINE_PX}" viewBox="0 0 ${w} ${TIMELINE_PX}">` +
-    `<rect x="0" y="0" width="${w}" height="${TIMELINE_PX}" fill="${COLORS.bg}"/>` +
+    `<rect x="0" y="0" width="${w}" height="${TIMELINE_PX}" fill="${COLORS.fill}"/>` +
     `<line x1="${PAD_PX}" y1="${mid}" x2="${PAD_PX + spanPx}" y2="${mid}" stroke="${COLORS.faint}" stroke-width="1"/>` +
     marks.join('') +
     '</svg>'
@@ -118,7 +118,7 @@ export const svgSpark = (values: (number | null)[], widthPx: number, heightPx: n
   )
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">` +
-    `<rect x="0" y="0" width="${w}" height="${h}" fill="${COLORS.bg}"/>` +
+    `<rect x="0" y="0" width="${w}" height="${h}" fill="${COLORS.fill}"/>` +
     `<line x1="${PAD_PX}" y1="${h - PAD_PX}" x2="${PAD_PX + spanX}" y2="${h - PAD_PX}" stroke="${COLORS.faint}" stroke-width="1"/>` +
     marks.join('') +
     '</svg>'
