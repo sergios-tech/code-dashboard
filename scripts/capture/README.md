@@ -76,8 +76,9 @@ The layout follows the pane width, and the host caps the dock at 45% of the term
 | Wide (dock 110 columns or more) | `start --wide`: runs a temporary copy of the plugin under `$OUT/plugin-wide` that asks for 120 columns, in a 280x50 terminal. `stop` deletes the copy. The repo is not touched. |
 | Inline mini | `start -x 100 -y 40`. Under about 110 columns the pane goes inline in the conversation. |
 
-The host applies `/st-code layout wide|compact` on top of this, but wide still needs
-a dock of 110 columns or more.
+The host applies `/st-code layout wide|compact` on top of this. A forced `wide` draws
+two columns from a dock of 82 columns (the automatic wide layout starts at 110), so in
+the stock 66-column dock it still draws compact.
 
 `capture.sh` sets `COLORTERM=truecolor` so the host draws 24-bit colour. Without it
 the palette is rounded to 256 colours (the crimson header comes out lighter).

@@ -11,7 +11,7 @@ log. Every number comes from a real session event, anything inferred says so, an
 your machine.
 
 <p align="center">
-  <img src="docs/media/demo.gif" alt="The st-code pane docked beside a live session: subagents start as cards, the TOOLS &amp; FILES counts climb, and the log fills with spawns, edits and completions" width="560">
+  <img src="docs/media/demo.gif" alt="The st-code pane, docked at 66 columns, through a real three-subagent run: the turn starts, three agent cards go from starting to running to done, TOOLS &amp; FILES counts the calls and edited files, and the log fills with spawns, writes, failed calls in red and completions" width="528">
 </p>
 
 <p align="center">
@@ -52,15 +52,15 @@ releases. If something breaks after an update, see [Troubleshooting](#troublesho
 ## What you see
 
 <p align="center">
-  <img src="docs/media/docked-session.png" alt="A fullscreen terminal session with the st-code pane docked on the right: the crimson SERGIO'S TECH · CODE header over VITALS, TRENDS, TURN, AGENTS, TOOLS &amp; FILES and LOG in one column" width="820">
+  <img src="docs/media/docked-session.png" alt="A fullscreen session 160 columns wide: on the left, the transcript reports three finished subagents and a passing test run; on the right, the docked st-code pane shows the crimson SERGIO'S TECH · CODE header over VITALS, TRENDS, TURN, AGENTS with three done cards, TOOLS &amp; FILES and LOG in one column; below the prompt, the status line reads st-code: ctx 5% · agents 0/3" width="820">
 </p>
 
-| Two columns, from a 110-column dock | One column, the default 66-column dock |
+| Two columns, in a 120-column dock | One column, in the default 66-column dock |
 | --- | --- |
-| <img src="docs/media/docked-wide.png" alt="The wide layout: VITALS, TRENDS, ARCHITECT and TOOLS &amp; FILES on the left, TURN, AGENTS and LOOPS on the right, the LOG full width underneath" width="480"> | <img src="docs/media/compact.png" alt="The compact layout: every panel stacked in one column under the crimson header" width="300"> |
+| <img src="docs/media/docked-wide.png" alt="The wide layout: VITALS, TRENDS and TOOLS &amp; FILES on the left; TURN and AGENTS on the right, where three subagents share one time axis as lanes, one still running; the LOG full width underneath, listing edits to tally/parser.py, tally/cli.py and tally/utils.py" width="480"> | <img src="docs/media/compact.png" alt="The compact layout close up: VITALS, TRENDS, TURN, AGENTS with three done cards, TOOLS &amp; FILES and LOG stacked in one column under the crimson header" width="300"> |
 
 <p align="center">
-  <img src="docs/media/inline-mini.png" alt="The inline summary above the prompt: the model, its state, a context gauge, the session cost, a context sparkline, running agents with their clocks and the last turn, in no more than 8 rows" width="620">
+  <img src="docs/media/inline-mini.png" alt="A 100-column session with the summary inline above the prompt, in five rows: the model, its state, a context gauge and the session cost; a context sparkline; two running subagents with their ctx and clocks; and the last turn" width="620">
 </p>
 
 The crimson header bar reads `SERGIO'S TECH · CODE` on the left and the main model's state on the
@@ -83,7 +83,8 @@ Panels with nothing to show take no room, so a fresh session shows the header, V
 | **Status line** | `ctx 51% · agents 2/3 · architect advising · denied 1`. Each field appears only when it has something to say. With no consult open, the architect field shows the consult count. | the same state |
 
 A **denial** is a call refused by a permission rule or hook. It writes one red log line
-(`Bash → rm · denied`) and adds to `denied N` in the status line.
+(`Bash → rm · denied`) and adds to `denied N` in the status line. Declining an approval prompt
+is not a denial: that call counts as a failed call (`✗`) in TOOLS & FILES and the log.
 
 ## Use
 
