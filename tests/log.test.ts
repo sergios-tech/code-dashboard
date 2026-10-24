@@ -56,6 +56,10 @@ test('the status line says only what it has', () => {
   expect(statusText({ usage: DEFAULT_USAGE, agents: [], architect: DEFAULT_ARCHITECT, denials: { count: 0 } }, parseConfig({}))).toBeUndefined()
   expect(statusText({ usage: { ...DEFAULT_USAGE, pct: 51.2 }, agents: [], architect: DEFAULT_ARCHITECT, denials: { count: 1 } }, parseConfig({}))).toBe('ctx 51% · denied 1')
 })
+test('the status line counts compactions after ctx', () => {
+  expect(status({ usage: { ...DEFAULT_USAGE, pct: 11, compactions: 1 }, denials: { count: 1 } })).toBe('ctx 11% ↺1 · denied 1')
+  expect(status({ usage: { ...DEFAULT_USAGE, pct: 11 } })).toBe('ctx 11%')
+})
 test('the status line counts running agents and names the architect by its label', () => {
   const agents = [normalizeCard({ id: 'a', status: 'running' }), normalizeCard({ id: 'b', status: 'done' }), normalizeCard({ id: 'c', status: 'running' })]
   const consult = { id: 'c1', at: 1, endAt: null, moment: 'before a plan' as const, via: 'advisor' }
