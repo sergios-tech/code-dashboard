@@ -376,6 +376,9 @@ test('spawns and ends are logged; max_tokens is flagged in error colour', async 
   expect((await rowsOf(live)).some(r => /^│ ● 3: task one /.test(r))).toBe(true)
   expect((await live.find({ type: 'Text', text: /^●$/ }))?.props.color).toBe(COLORS.orange)
   expect((await live.find({ type: 'Text', text: /^hit max_tokens$/ }))?.props.color).toBe(COLORS.text)
+  // The cut line ends in the bold error mark, so its state never rests on colour alone.
+  expect((await rowsOf(live)).some(r => /hit max_tokens ✗ *│$/.test(r))).toBe(true)
+  expect(await live.find({ type: 'Text', text: /^ ✗$/ })).toMatchObject({ props: { color: COLORS.error, bold: true } })
   await live.unmount()
   await clock.advance(102_000)
   await end($, 'm1', 'answer', 'All green.')
@@ -387,6 +390,8 @@ test('spawns and ends are logged; max_tokens is flagged in error colour', async 
   expect(rows.match(/spawned · general-purpose/g)).toHaveLength(3)
   expect(rows).toMatch(/done · 1m42s/)
   expect((await ui.find({ type: 'Text', text: /^failed$/ }))?.props.color).toBe(COLORS.text)
+  expect(all.some(r => /failed ✗ *│$/.test(r))).toBe(true)
+  expect(await ui.find({ type: 'Text', text: /^ ✗$/ })).toMatchObject({ props: { color: COLORS.error, bold: true } })
   expect(await ui.find({ type: 'Text', text: /^stopped$/ })).toBeDefined()
   expect(await ui.find({ text: /0 running · 3 total/ })).toBeDefined()
   // Ended agents list newest first; the one cut at max_tokens reads ✗ although it answered.

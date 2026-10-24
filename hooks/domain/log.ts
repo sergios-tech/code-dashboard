@@ -2,7 +2,6 @@
 import type { LogLine } from '../../types'
 import { redact } from '../format/redact'
 import { shorten } from '../format/text'
-import { cellCount, fitCells } from './agents'
 
 /** The log keeps this many lines; older ones are dropped as new ones arrive. */
 export const LOG_MAX = 60
@@ -20,16 +19,6 @@ export const promptLine = (text: string): { who: string; text: string } => {
   if (!tag) return { who: 'you', text: shorten(redact(text), 70) }
   const from = /\bfrom="([^"]+)"/.exec(text)?.[1]
   return { who: 'engine', text: shorten(`${tag.replace(/[-_]/g, ' ')}${from ? ` from ${from.slice(0, 8)}` : ''}`, 70) }
-}
-
-/**
- * A line's text in `cells` terminal cells with its marker after it. Only the text is cut, so a
- * failed or refused call still ends in `✗` or `· denied`, its state never shown by colour alone.
- */
-export const logText = (l: Pick<LogLine, 'text' | 'mark'>, cells: number): string => {
-  if (l.mark === null) return fitCells(l.text, cells)
-  const room = cells - cellCount(l.mark) - 1
-  return room > 0 ? [fitCells(l.text, room), l.mark].filter(Boolean).join(' ') : fitCells(l.mark, cells)
 }
 
 /** The rows a pane that reports no height is taken to have. */

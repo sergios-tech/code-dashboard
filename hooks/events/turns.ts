@@ -44,7 +44,7 @@ export const wireTurns = (on: On, cfg: Config): void => {
       // The model that answered, as the API reports it, else the one the request named. An
       // architect's requests belong to its consult: they make neither a card nor a loop.
       const card = await noteAgentStep($, id, { model: result.usage?.model || e.model, usage: result.usage, stopReason: result.stopReason })
-      if (card && result.stopReason === 'max_tokens') await say($, whoOf(card), 'hit max_tokens', 'error', id)
+      if (card && result.stopReason === 'max_tokens') await say($, whoOf(card), 'hit max_tokens', 'error', id, '✗')
       return result
     }
     // The main loop's model and effort are known when its request starts, so a long first request does not read `—`.
@@ -91,7 +91,8 @@ export const wireTurns = (on: On, cfg: Config): void => {
     if (card) {
       const took = card.spawnedAt > 0 && card.endedAt !== null ? ` · ${fmtDuration(card.endedAt - card.spawnedAt)}` : ''
       if (card.status === 'done') await say($, whoOf(card), `done${took}`, 'done', id)
-      else await say($, whoOf(card), card.status, card.status === 'failed' ? 'error' : 'info', id)
+      else if (card.status === 'failed') await say($, whoOf(card), card.status, 'error', id, '✗')
+      else await say($, whoOf(card), card.status, 'info', id)
       await refreshStatus($, cfg)
     }
     return done
