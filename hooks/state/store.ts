@@ -2,7 +2,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface } from 'claude-code'
 
-import type { Activity, AgentCard, Architect, Denials, Layout, LogKind, LogLine, LogMark, Loop, Main, Moment, Receipt, Roster, Speed, ToolNote, Trends, Turn, Usage, View } from '../../types'
+import type { Activity, AgentCard, Architect, Denials, Layout, LogKind, LogLine, LogMark, Loop, Main, Moment, Roster, Speed, ToolNote, Trends, Turn, Usage, View } from '../../types'
 import type { Config } from '../config'
 import { recordCall } from '../domain/activity'
 import type { Call } from '../domain/activity'
@@ -11,7 +11,7 @@ import { IDS_MAX, SEEN_MAX, endConsult, momentOf, startConsult } from '../domain
 import { appendLog } from '../domain/log'
 import { statusText } from '../domain/status'
 import { addSample, markCompaction, movesTrend } from '../domain/trends'
-import { afterCall, receiptOf } from '../domain/turn'
+import { afterCall } from '../domain/turn'
 import { usageFrom } from '../domain/vitals'
 import { redact } from '../format/redact'
 import {
@@ -32,7 +32,6 @@ import {
   normalizeLog,
   normalizeLoops,
   normalizeMain,
-  normalizeReceipt,
   normalizeRoster,
   normalizeTrends,
   normalizeTurn,
@@ -47,7 +46,6 @@ export const meta = atom({ plugin: 'st-code', key: 'meta' } as const, { schemaVe
 export const main = atom({ plugin: 'st-code', key: 'main' } as const, DEFAULT_MAIN)
 export const usage = atom({ plugin: 'st-code', key: 'usage' } as const, DEFAULT_USAGE)
 export const turn = atom({ plugin: 'st-code', key: 'turn' } as const, DEFAULT_TURN)
-export const receipt = atom({ plugin: 'st-code', key: 'receipt' } as const, null)
 export const agents = atom({ plugin: 'st-code', key: 'agents' } as const, [])
 export const loops = atom({ plugin: 'st-code', key: 'loops' } as const, [])
 export const architect = atom({ plugin: 'st-code', key: 'architect' } as const, DEFAULT_ARCHITECT)
@@ -62,7 +60,6 @@ export type Snapshot = {
   main: Main
   usage: Usage
   turn: Turn
-  receipt: Receipt | null
   agents: AgentCard[]
   loops: Loop[]
   architect: Architect
@@ -76,11 +73,10 @@ export type Snapshot = {
 
 /** Every key read once, so a frame is drawn from one consistent set of values. */
 export async function loadSnapshot($: EngineInterface): Promise<Snapshot> {
-  const [m, u, t, r, a, l, ar, ac, tr, d, lg, v, ro] = await Promise.all([
+  const [m, u, t, a, l, ar, ac, tr, d, lg, v, ro] = await Promise.all([
     read($, main),
     read($, usage),
     read($, turn),
-    read($, receipt),
     read($, agents),
     read($, loops),
     read($, architect),
@@ -95,7 +91,6 @@ export async function loadSnapshot($: EngineInterface): Promise<Snapshot> {
     main: normalizeMain(m),
     usage: normalizeUsage(u),
     turn: normalizeTurn(t),
-    receipt: normalizeReceipt(r),
     agents: normalizeAgents(a),
     loops: normalizeLoops(l),
     architect: normalizeArchitect(ar),
@@ -116,7 +111,6 @@ export async function migrate($: EngineInterface): Promise<void> {
   await update($, main, normalizeMain)
   await update($, usage, normalizeUsage)
   await update($, turn, normalizeTurn)
-  await update($, receipt, normalizeReceipt)
   await update($, agents, normalizeAgents)
   await update($, loops, normalizeLoops)
   await update($, architect, normalizeArchitect)
@@ -139,7 +133,6 @@ export async function resetAll($: EngineInterface): Promise<void> {
   await update($, main, () => ({ ...DEFAULT_MAIN, model: keptMain.model, mode: keptMain.mode }))
   await update($, usage, u => ({ ...normalizeUsage(u), pct: null, tokens: null, window: 0, lastCompactAt: null }))
   await update($, turn, () => DEFAULT_TURN)
-  await update($, receipt, () => null)
   await update($, agents, () => [])
   await update($, loops, () => [])
   await update($, architect, () => DEFAULT_ARCHITECT)
@@ -172,12 +165,6 @@ async function readUsage($: EngineInterface) {
   } catch {
     return null
   }
-}
-
-/** The session's cost read fresh, not from the last measurement: a receipt subtracts two of these. */
-async function costNow($: EngineInterface): Promise<number | null> {
-  const c = (await readUsage($))?.cost?.usd
-  return typeof c === 'number' && Number.isFinite(c) ? c : null
 }
 
 /**
@@ -227,10 +214,9 @@ export async function noteMode($: EngineInterface, mode: string | undefined): Pr
   await update($, main, m => ({ ...normalizeMain(m), mode }))
 }
 
-/** The main loop starts a turn: a fresh tally from now, with the session cost to subtract at the end. */
+/** The main loop starts a turn: a fresh tally, and the loop is running. */
 export async function beginTurn($: EngineInterface): Promise<void> {
-  const [now, cost] = await Promise.all([$.clock.now(), costNow($)])
-  await update($, turn, () => ({ ...DEFAULT_TURN, startedAt: now, costAtStart: cost }))
+  await update($, turn, () => DEFAULT_TURN)
   await update($, main, m => ({ ...normalizeMain(m), isRunning: true }))
 }
 
@@ -252,24 +238,20 @@ export async function storeSpeed($: EngineInterface, speed: Speed): Promise<void
   await update($, main, m => ({ ...normalizeMain(m), speed }))
 }
 
-/** The main loop's turn ended: its receipt is stored, the loop is idle and no review is under way. */
-export async function endTurn($: EngineInterface, o: { durationMs: number; reason: string }): Promise<void> {
-  const [t, cards, cost] = await Promise.all([read($, turn), read($, agents), costNow($)])
-  const tally = normalizeTurn(t)
-  const agentsSince = normalizeAgents(cards).filter(c => c.spawnedAt >= tally.startedAt).length
-  await update($, receipt, () => receiptOf(tally, { durationMs: o.durationMs, agentsSince, costNow: cost, reason: o.reason }))
-  await update($, turn, x => ({ ...normalizeTurn(x), isReviewing: false }))
+/** The main loop's turn ended: the tally is cleared and the loop is idle. */
+export async function endTurn($: EngineInterface): Promise<void> {
+  await update($, turn, () => DEFAULT_TURN)
   await update($, main, m => ({ ...normalizeMain(m), isRunning: false }))
 }
 
 /**
- * One tool call added to the turn's tally (edits, errors and the main loop's error streak); a call
+ * One tool call added to the turn's tally (edits and the main loop's error streak); a call
  * that changes none of them writes nothing, so it costs no redraw.
  */
 export async function noteTurnCall($: EngineInterface, c: Parameters<typeof afterCall>[1]): Promise<void> {
   const t = normalizeTurn(await read($, turn))
   const after = afterCall(t, c)
-  if (after.edits === t.edits && after.errors === t.errors && after.errorStreak === t.errorStreak) return
+  if (after.edits === t.edits && after.errorStreak === t.errorStreak) return
   await update($, turn, x => afterCall(normalizeTurn(x), c))
 }
 
@@ -339,27 +321,21 @@ export async function markSeen($: EngineInterface, id: string): Promise<boolean>
 }
 
 /**
- * A consult opened now, at the moment the main turn's tally suggests; one asked before done puts
- * the turn under review. The moment, or null when a consult of that id was already opened.
+ * A consult opened now, at the moment the main turn's tally suggests. The moment, or null when a
+ * consult of that id was already opened.
  */
 export async function openConsult($: EngineInterface, id: string, via: string): Promise<Moment | null> {
   const [t, a, now] = await Promise.all([read($, turn), read($, architect), $.clock.now()])
   if (normalizeArchitect(a).consults.some(c => c.id === id)) return null
   const moment = momentOf(normalizeTurn(t))
   await update($, architect, x => startConsult(normalizeArchitect(x), { id, at: now, moment, via }))
-  if (moment === 'before done') await update($, turn, x => ({ ...normalizeTurn(x), isReviewing: true }))
   return moment
 }
 
-/**
- * The open consult of `id` (else the latest open one) ended now, its advice the last when it gave
- * some. The turn stays under review only while a consult asked before done is still open.
- */
+/** The open consult of `id` (else the latest open one) ended now, its advice the last when it gave some. */
 export async function closeConsult($: EngineInterface, advice: string | null, id?: string): Promise<void> {
   const now = await $.clock.now()
-  const a = normalizeArchitect(await update($, architect, x => endConsult(normalizeArchitect(x), now, advice, id)))
-  const isReviewing = a.consults.some(c => c.endAt === null && c.moment === 'before done')
-  if (!isReviewing) await update($, turn, x => ({ ...normalizeTurn(x), isReviewing: false }))
+  await update($, architect, x => endConsult(normalizeArchitect(x), now, advice, id))
 }
 
 /** Advice that arrived outside a consult's end; true when it differs from the last. */

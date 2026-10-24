@@ -2,9 +2,9 @@ import { expect, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
 import Elapsed from '../hooks/client/elapsed'
-import { EDIT_TOOLS, afterCall, receiptLine, receiptOf } from '../hooks/domain/turn'
+import { EDIT_TOOLS, afterCall } from '../hooks/domain/turn'
 import { EFFORT_LEVEL, limitOf, stepSpeed, usageFrom } from '../hooks/domain/vitals'
-import { DEFAULT_TURN, DEFAULT_USAGE } from '../hooks/state/schema'
+import { DEFAULT_TURN, DEFAULT_USAGE, normalizeTurn } from '../hooks/state/schema'
 import { COLORS } from '../hooks/view/palette'
 import { cellWidth, engine, pane, rowsOf, spawn } from './kit'
 
@@ -35,13 +35,6 @@ const streaming = (on: On, clock: ReturnType<typeof engine>, steps: { firstMs: n
   })
 }
 
-/** What the host reports as the session's usage, changeable between calls. */
-const hostUsage = (on: On, cost: { usd: number } | undefined = undefined) => {
-  const state = { cost }
-  on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200_000 }, rateLimits: [], ...(state.cost ? { cost: state.cost } : {}) } }) as never)
-  return state
-}
-
 // ---------------------------------------------------------------- pure modules
 
 test("a request's speed: time to first piece, then output tokens per second to the stop", () => {
@@ -65,23 +58,19 @@ test('a window too short or too quick for its tokens has no rate; the envelope s
 test('the effort scale has four steps and max shares the top one', () => {
   expect(EFFORT_LEVEL).toEqual({ low: 1, medium: 2, high: 3, xhigh: 4, max: 4 })
 })
-test('edits count from every loop; errors only from the main loop', () => {
+test('edits count from every loop; the error streak only from the main loop', () => {
   const t = afterCall(afterCall(DEFAULT_TURN, { inSubagent: true, hasFailed: true, isEdit: false }), { inSubagent: false, hasFailed: false, isEdit: true })
-  expect(t.errors).toBe(0); expect(t.edits).toBe(1)
+  expect(t).toEqual({ edits: 1, errorStreak: 0 })
   const streak = afterCall(afterCall(DEFAULT_TURN, { inSubagent: false, hasFailed: true, isEdit: false }), { inSubagent: false, hasFailed: true, isEdit: false })
-  expect([streak.errors, streak.errorStreak]).toEqual([2, 2])
+  expect(streak).toEqual({ edits: 0, errorStreak: 2 })
   expect(afterCall(streak, { inSubagent: false, hasFailed: false, isEdit: false }).errorStreak).toBe(0)
   expect([...EDIT_TOOLS].sort()).toEqual(['Edit', 'NotebookEdit', 'Write'])
 })
-test('a receipt counts the turn, and a cost below half a cent is not worth a figure', () => {
-  const turn = { ...DEFAULT_TURN, costAtStart: 1, edits: 4, errors: 1 }
-  const spent = receiptOf(turn, { durationMs: 72_000, agentsSince: 2, costNow: 1.41, reason: 'answer' })
-  expect({ ...spent, costDelta: Math.round((spent.costDelta ?? 0) * 100) / 100 }).toEqual({ durationMs: 72_000, agents: 2, edits: 4, errors: 1, costDelta: 0.41, reason: 'answer' })
-  expect(receiptOf(turn, { durationMs: 1, agentsSince: 0, costNow: 1.004, reason: 'answer' }).costDelta).toBeNull()
-  expect(receiptOf(turn, { durationMs: 1, agentsSince: 0, costNow: null, reason: 'answer' }).costDelta).toBeNull()
-  expect(receiptOf({ ...turn, costAtStart: null }, { durationMs: 1, agentsSince: 0, costNow: 9, reason: 'answer' }).costDelta).toBeNull()
-  expect(receiptLine({ durationMs: 72_000, agents: 2, edits: 1, errors: 0, costDelta: 0.41, reason: 'answer' })).toBe('last turn 1m12s · 2 agents · 1 edit · 0 errors · +$0.41')
-  expect(receiptLine({ durationMs: 5000, agents: 0, edits: 0, errors: 0, costDelta: null, reason: 'aborted' })).toBe('last turn 5s · 0 agents · 0 edits · 0 errors · aborted')
+test('the turn keeps only what the moments need', () => {
+  expect(normalizeTurn({ startedAt: 5, costAtStart: 1, edits: 3, errors: 2, errorStreak: 1, isReviewing: true })).toEqual({ edits: 3, errorStreak: 1 })
+  const t = afterCall(afterCall(DEFAULT_TURN, { inSubagent: false, hasFailed: true, isEdit: false }), { inSubagent: true, hasFailed: true, isEdit: true })
+  expect(t).toEqual({ edits: 1, errorStreak: 1 })
+  expect(afterCall(t, { inSubagent: false, hasFailed: false, isEdit: false }).errorStreak).toBe(0)
 })
 test('a window keeps its reset time in milliseconds; unusable times become unknown', () => {
   expect(limitOf({ kind: 'five_hour', percentUsed: 19, resetsAt: '1970-01-01T03:10:00.000Z' })).toEqual({ kind: 'five_hour', pct: 19, resetsAt: 11_400_000 })
@@ -280,6 +269,14 @@ test('a response that arrives in one burst reads — tok/s, and the next timed o
   await ui.unmount()
 })
 
+test('a finished turn leaves nothing in the pane', async ($, on) => {
+  engine(on)
+  const ui = await $.ui.mount({ ...pane(66), surface: 'terminal' })
+  await $.turn.start({ turnId: 'T1', text: 'go' })
+  await $.turn.complete({ answer: 'ok', durationMs: 4000, isAborted: false, turnId: 'T1', reason: 'answer' })
+  expect((await rowsOf(ui)).some(r => /last turn|receipt|TURN/.test(r))).toBe(false)
+  await ui.unmount()
+})
 test('a running turn draws no TURN panel', async ($, on) => {
   engine(on)
   await $.turn.start({ turnId: 'T1', text: 'go' })
@@ -295,7 +292,7 @@ test("a subagent's turn neither restarts nor ends the main turn", async ($, on) 
   await $.turn.start({ text: 'sub work', turnId: 'T2', agentId: 'a1' })
   await $.turn.complete({ answer: '', durationMs: 10, isAborted: false, turnId: 'T2', agentId: 'a1', reason: 'answer' })
   const ui = await $.ui.mount({ ...pane(64), surface: 'terminal' })
-  expect(await ui.find({ text: /TURN|◐ turn/ })).toBeUndefined(); expect(await ui.find({ text: /last turn/ })).toBeUndefined()
+  // The main loop is still running: INFO reads working.
   expect(await ui.find({ text: /● working/ })).toBeDefined()
   await ui.unmount()
 })

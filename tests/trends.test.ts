@@ -181,24 +181,17 @@ test('a host whose usage throws or has no context still draws, with no cost row 
   const rows = trendsRows(await drawn($))
   expect(rows).toHaveLength(1); expect(rows[0]).toMatch(/ctx /); expect(rows.join('')).not.toMatch(/NaN|null|undefined|cost/)
 })
-test('the cost row shows the last turn\'s cost as a delta, and every width keeps its rows inside the pane', async ($, on) => {
-  const clock = engine(on)
+test('every width keeps the TRENDS rows inside the pane', async ($, on) => {
+  engine(on)
   on('session.measure', (_$, e) => ({ changed: e.changed }))
-  let usd = 1
-  on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200_000 }, cost: { usd }, rateLimits: [] } }) as never)
   await $.session.measure(reading(10, 1, ['context', 'cost']))
-  await $.turn.start({ text: 'go', turnId: 'T1' })
-  await clock.advance(1000)
-  usd = 1.41
-  await $.turn.complete({ answer: 'ok', durationMs: 1000, isAborted: false, turnId: 'T1', reason: 'answer' })
   await $.session.measure(reading(30, 1.41, ['context', 'cost']))
   for (const cols of [40, 64, 100]) {
     const rows = await drawn($, cols)
     const body = trendsRows(rows)
-    expect(body).toHaveLength(2); expect(body[1]).toMatch(/\$1\.41( \+\$0\.41)? +│$/)
+    expect(body).toHaveLength(2); expect(body[1]).toMatch(/\$1\.41 +│$/)
     for (const r of rows) expect(cellWidth(r) <= Math.max(40, cols)).toBe(true)
   }
-  expect(trendsRows(await drawn($, 64))[1]).toContain('$1.41 +$0.41')
 })
 test('a long session draws a bounded TRENDS panel (Review Focus 5)', async ($, on) => {
   engine(on)

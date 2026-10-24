@@ -1,5 +1,5 @@
 // Turns in every loop. The main loop's opening text goes into the log (or, for an architect's
-// hand-back, its advice), its requests are timed as they stream, and its end leaves a receipt. A
+// hand-back, its advice), its requests are timed as they stream, and its end clears the turn's tally. A
 // subagent's requests fill its card (or count among the other loops when no card claims it and it
 // is not the architect's), and its end settles the card, or the architect's consult, and is logged.
 import type { On } from 'claude-code'
@@ -77,7 +77,7 @@ export const wireTurns = (on: On, cfg: Config): void => {
   on('turn.complete', async ($, e, next) => {
     const done = await next(e)
     if (!e.agentId) {
-      await endTurn($, { durationMs: e.durationMs, reason: e.reason })
+      await endTurn($)
       await refreshStatus($, cfg)
       return done
     }

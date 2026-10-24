@@ -16,8 +16,6 @@ type Piece = { text: string; color: string; bold?: boolean }
 const CHROME = 4
 /** `ctx  ` and `cost `, so both lines start their sparkline in the same cell. */
 const LABEL_CELLS = 5
-/** The sparkline keeps at least this many cells; the cost delta is the first thing to give way. */
-const SPARK_MIN = 8
 /** About one terminal cell, in CSS pixels, and the height of a desktop line. */
 const CELL_PX = 8
 const SPARK_PX = 36
@@ -66,10 +64,7 @@ export const trendsPanel = (d: Draw, v: TrendsView, width: number): RenderElemen
   const room = Math.max(1, width - CHROME)
   const ctxValue = v.ctx === null ? '' : `  ${Math.round(v.ctx)}%`
   const total = v.cost ? `  ${fmtUsd(v.cost.usd)}` : ''
-  const delta = v.cost?.delta != null ? ` +${fmtUsd(v.cost.delta)}` : ''
-  // The delta goes first when the sparkline would be left too short, then the sparklines share the rest.
-  const costValue = room - LABEL_CELLS - cells(total + delta) >= SPARK_MIN ? total + delta : total
-  const sparkWidth = Math.max(1, room - LABEL_CELLS - Math.max(cells(ctxValue), cells(costValue)))
+  const sparkWidth = Math.max(1, room - LABEL_CELLS - Math.max(cells(ctxValue), cells(total)))
   const ctxValues = v.samples.map(s => s.ctxPct)
   const costValues = v.samples.map(s => s.costUsd)
   const costRange = v.cost ? { min: v.cost.min, max: v.cost.max } : undefined
@@ -90,7 +85,7 @@ export const trendsPanel = (d: Draw, v: TrendsView, width: number): RenderElemen
       rowOf(d, 'trend-cost', [
         { text: 'cost'.padEnd(LABEL_CELLS), color: C.dim },
         ...sparkPieces(d, v, costValues, sparkWidth, C.green, costRange),
-        { text: costValue, color: C.text, bold: true },
+        { text: total, color: C.text, bold: true },
       ]),
     )
     svgs.push(sparkSvg(d, 'trend-cost-svg', `cost over ${plural(v.samples.length, 'reading')}`, costValues, width, C.green, costRange))

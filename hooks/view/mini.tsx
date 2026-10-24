@@ -1,6 +1,6 @@
 // The inline summary above the prompt: at most eight frameless rows. The main model's line first,
 // then the context sparkline, up to three agents with their clocks, the agents left out, the other
-// loops and, while idle, the last turn.
+// loops.
 import type { RenderElement } from 'claude-code'
 
 import type { AgentCard } from '../../types'
@@ -115,13 +115,6 @@ export const miniPane = (d: Draw, m: MiniView, width: number): RenderElement => 
         { text: 'LOOPS', color: C.text, bold: true },
         { text: ` ${m.loops.seen} · ${m.loops.active} active`, color: C.dim },
       ]),
-    )
-  }
-  if (m.lastTurn) {
-    rows.push(
-      <Text key="mini-turn" color={C.dim} wrap="truncate">
-        {m.lastTurn}
-      </Text>,
     )
   }
   return (

@@ -193,27 +193,6 @@ test('a call that waited on an approval prompt is not timed', async ($, on) => {
   const rows = toolsRows(await drawn($)).map(r => r.replace(/ +/g, ' '))
   expect(rows.slice(0, 3)).toEqual(['│ Bash 1 avg* — │', '│ Read 1 avg* 0.3s │', '│ Agent 1 avg* — │'])
 })
-test('an edit, then a consult: the architect shows the review before done', async ($, on) => {
-  const clock = engine(on)
-  on('agent.spawn', () => ({ model: 'model-x', agentId: 'fab1' }))
-  on('tool.call', (_$, e) => (e.tool === 'Bash' ? failed : ok))
-  await clock.advance(1000)
-  await $.turn.start({ text: 'fix the redirect', turnId: 'R1' })
-  await $.tool.call({ tool: 'Bash', command: 'npm test' } as never)
-  await $.tool.call({ tool: 'Edit', file_path: '/p/src/fix.ts', old_string: 'a', new_string: 'b' } as never)
-
-  const ui = await $.ui.mount({ ...pane(64), surface: 'terminal' })
-  const rows = await rowsOf(ui)
-  expect(rows.some(r => /main +Bash → npm test ✗/.test(r))).toBe(true); expect(rows.some(r => /main +Edit → src\/fix\.ts/.test(r))).toBe(true)
-  expect((await ui.findAll({ type: 'Text', text: /✗1/ })).some(t => t.props.color === COLORS.error)).toBe(true)
-  expect(rows.some(r => r.includes('reviewing before done'))).toBe(false)
-  await ui.unmount()
-
-  await $.agent.spawn(spawn('fable-advisor:fable-advisor', 'final review'))
-  const review = await drawn($)
-  expect(review.some(r => r.includes('reviewing before done'))).toBe(false)
-  expect(review.some(r => /architect +before done · fable-advisor/.test(r))).toBe(true)
-})
 test("a subagent's calls fill its card's last three tools; a hand-back is no tool work", async ($, on) => {
   engine(on)
   on('agent.spawn', () => ({ model: 'claude-sonnet-5-5', agentId: 'ag1' }))

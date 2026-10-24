@@ -75,7 +75,6 @@ export const FRESH: Snapshot = {
   main: DEFAULT_MAIN,
   usage: DEFAULT_USAGE,
   turn: DEFAULT_TURN,
-  receipt: null,
   agents: [],
   loops: [],
   architect: DEFAULT_ARCHITECT,

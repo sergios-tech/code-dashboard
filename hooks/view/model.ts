@@ -7,7 +7,6 @@ import { hotFiles, topTools, totalCalls } from '../domain/activity'
 import { cardFit, cardTitle, isLoopActive } from '../domain/agents'
 import { consultLine, consultTimeline, hasArchitect, isAdvising } from '../domain/architect'
 import { logRows } from '../domain/log'
-import { receiptLine } from '../domain/turn'
 import { effortLevel } from '../domain/vitals'
 import { plural, prettyModel, shorten, wrapText } from '../format/text'
 import type { Snapshot } from '../state/store'
@@ -125,8 +124,8 @@ export type TrendsView = {
   samples: Sample[]
   /** The latest context fill, in percent. */
   ctx: number | null
-  /** The latest cumulative cost, and the last turn's cost from its receipt. */
-  cost: { usd: number; delta: number | null; min: number; max: number } | null
+  /** The latest cumulative cost. */
+  cost: { usd: number; min: number; max: number } | null
   /** Rows the panel body takes. */
   rows: number
 }
@@ -150,8 +149,6 @@ export type MiniView = {
   /** Agents left out of the rows above. */
   more: number
   loops: { seen: number; active: number } | null
-  /** The last turn's receipt in one line, while the main loop is idle. */
-  lastTurn: string | null
 }
 
 /** The wide layout's two columns, each holding its panels in config order. */
@@ -290,7 +287,6 @@ function miniView(s: Snapshot, ctx: ViewContext, trends: TrendsView | null, loop
     agents,
     more: drawn('agents') ? s.agents.length - agents.length : 0,
     loops: drawn('loops') && loops ? { seen: loops.seen, active: loops.active } : null,
-    lastTurn: !s.main.isRunning && s.receipt ? receiptLine(s.receipt) : null,
   }
 }
 
@@ -429,7 +425,7 @@ function trendsView(s: Snapshot): TrendsView | null {
   const costs = samples.map(x => x.costUsd).filter((v): v is number => v !== null)
   const lastCost = costs[costs.length - 1]
   const ctx = ctxs[ctxs.length - 1] ?? null
-  const cost = lastCost === undefined ? null : { usd: lastCost, delta: s.receipt?.costDelta ?? null, min: Math.min(...costs), max: Math.max(...costs) }
+  const cost = lastCost === undefined ? null : { usd: lastCost, min: Math.min(...costs), max: Math.max(...costs) }
   const rows = (ctx !== null ? 1 : 0) + (cost ? 1 : 0)
   return rows === 0 ? null : { samples, ctx, cost, rows }
 }

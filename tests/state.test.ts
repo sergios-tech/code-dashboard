@@ -3,7 +3,7 @@ import { read, update } from 'claude-code'
 import type { EngineInterface } from 'claude-code'
 
 import { parseConfig } from '../hooks/config'
-import { activity, agents, architect, denials, log, loops, main, receipt, roster, trends, turn, usage, view } from '../hooks/state/atoms'
+import { activity, agents, architect, denials, log, loops, main, meta, roster, trends, turn, usage, view } from '../hooks/state/atoms'
 import {
   DEFAULT_ACTIVITY,
   DEFAULT_ARCHITECT,
@@ -23,7 +23,7 @@ import {
   normalizeTrends,
   normalizeUsage,
 } from '../hooks/state/schema'
-import { loadSnapshot, resetAll } from '../hooks/state/store'
+import { loadSnapshot, migrate, resetAll } from '../hooks/state/store'
 
 test('config is read leniently: bad values fall back to defaults', () => {
   const d = parseConfig({})
@@ -99,15 +99,22 @@ const junkOf = [null, 7, 'x', [], { consults: 'no' }, [null, 3, 'y']]
 
 test('a store full of garbage loads as all defaults', async () => {
   const $ = memoryState()
-  const atoms = [main, usage, turn, receipt, agents, loops, architect, activity, trends, denials, log, view, roster]
+  const atoms = [main, usage, turn, agents, loops, architect, activity, trends, denials, log, view, roster]
   for (const junk of junkOf) {
     for (const a of atoms) await update($, a as never, (() => junk) as never)
     expect(await loadSnapshot($)).toEqual({
-      main: DEFAULT_MAIN, usage: DEFAULT_USAGE, turn: DEFAULT_TURN, receipt: null, agents: [], loops: [],
+      main: DEFAULT_MAIN, usage: DEFAULT_USAGE, turn: DEFAULT_TURN, agents: [], loops: [],
       architect: DEFAULT_ARCHITECT, activity: DEFAULT_ACTIVITY, trends: DEFAULT_TRENDS, denials: DEFAULT_DENIALS,
       log: [], view: DEFAULT_VIEW, roster: DEFAULT_ROSTER,
     })
   }
+})
+test('state from the 0.1.0 build migrates to schema 2 (Review Focus 2)', async () => {
+  const $ = memoryState()
+  await update($, meta, () => ({ schemaVersion: 1 }))
+  await update($, turn, () => ({ startedAt: 9, costAtStart: 0.5, edits: 2, errors: 1, errorStreak: 0, isReviewing: true }) as never)
+  await migrate($)
+  expect(await read($, meta)).toEqual({ schemaVersion: 2 }); expect(await read($, turn)).toEqual({ edits: 2, errorStreak: 0 })
 })
 test('reset keeps cost, limits, compactions, model, mode, trends and the offered architect types, and empties the rest', async () => {
   const $ = memoryState()

@@ -4,8 +4,7 @@ export type Speed = { ttftMs: number; tokPerS: number | null }
 export type Main = { model: string; effort: string; mode: string; steps: number; isRunning: boolean; speed: Speed | null }
 export type Limit = { kind: string; pct: number; resetsAt: number | null }
 export type Usage = { pct: number | null; tokens: number | null; window: number; costUsd: number | null; limits: Limit[]; compactions: number; lastCompactAt: number | null }
-export type Turn = { startedAt: number; costAtStart: number | null; edits: number; errors: number; errorStreak: number; isReviewing: boolean }
-export type Receipt = { durationMs: number; agents: number; edits: number; errors: number; costDelta: number | null; reason: string }
+export type Turn = { edits: number; errorStreak: number }
 export type ToolNote = { tool: string; text: string; isError: boolean }
 export type AgentStatus = 'running' | 'done' | 'stopped' | 'failed'
 export type AgentCard = { id: string; type: string; model: string; description: string; status: AgentStatus; spawnedAt: number; endedAt: number | null; ctx: number; out: number; steps: number; lastStop: string | null; tools: ToolNote[]; answer: string }
@@ -28,7 +27,7 @@ declare module 'claude-code' {
   interface PluginState {
     'st-code': {
       meta: { schemaVersion: number }
-      main: Main; usage: Usage; turn: Turn; receipt: Receipt | null
+      main: Main; usage: Usage; turn: Turn
       agents: AgentCard[]; loops: Loop[]; architect: Architect
       activity: Activity; trends: Trends; denials: Denials
       log: LogLine[]; view: View; roster: Roster

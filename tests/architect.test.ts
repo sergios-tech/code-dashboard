@@ -1,6 +1,5 @@
 import { expect, mock, test } from 'claude-code/testing'
 import type { Engine } from 'claude-code/testing'
-import { update } from 'claude-code'
 import type { EngineInterface, On, RenderElement } from 'claude-code'
 
 import type { Architect } from '../types'
@@ -18,7 +17,6 @@ import {
   momentOf,
   startConsult,
 } from '../hooks/domain/architect'
-import { turn } from '../hooks/state/atoms'
 import {
   DEFAULT_ACTIVITY,
   DEFAULT_ARCHITECT,
@@ -30,7 +28,7 @@ import {
   DEFAULT_USAGE,
   DEFAULT_VIEW,
 } from '../hooks/state/schema'
-import { addArchitectId, closeConsult, loadSnapshot, markSeen, openConsult } from '../hooks/state/store'
+import { addArchitectId, loadSnapshot, markSeen } from '../hooks/state/store'
 import type { Snapshot } from '../hooks/state/store'
 import type { Draw } from '../hooks/view/draw'
 import { buildViewModel } from '../hooks/view/model'
@@ -101,7 +99,6 @@ const FRESH: Snapshot = {
   main: DEFAULT_MAIN,
   usage: DEFAULT_USAGE,
   turn: DEFAULT_TURN,
-  receipt: null,
   agents: [],
   loops: [],
   architect: DEFAULT_ARCHITECT,
@@ -185,22 +182,6 @@ test('consults, architect ids and seen tool calls stay bounded (Review Focus 5)'
   expect([s.ids.length, s.seen.length, s.ids[0], s.seen[0]]).toEqual([40, 60, 'a10', 's10'])
   expect(await markSeen($, 's69')).toBe(false); expect(await markSeen($, 'fresh')).toBe(true)
   expect([CONSULTS_MAX, IDS_MAX, SEEN_MAX]).toEqual([40, 40, 60])
-})
-test('a consult asked before done puts the turn under review until it ends', async () => {
-  const $ = memoryState(5000)
-  await update($, turn, () => ({ ...DEFAULT_TURN, edits: 2 }))
-  expect(await openConsult($, 'c1', 'advisor tool')).toBe('before done')
-  expect(await openConsult($, 'c1', 'again')).toBeNull() // one consult per id
-  expect((await loadSnapshot($)).turn.isReviewing).toBe(true)
-  await update($, turn, t => ({ ...t, errorStreak: 2 }))
-  expect(await openConsult($, 'c2', 'fable-advisor')).toBe('error repeats')
-  // Another consult ending leaves the review standing while the one asked before done is open.
-  await closeConsult($, null, 'c2')
-  expect((await loadSnapshot($)).turn.isReviewing).toBe(true)
-  await closeConsult($, 'Use a queue', 'c1')
-  const s = await loadSnapshot($)
-  expect([s.turn.isReviewing, s.architect.lastAdvice, isAdvising(s.architect)]).toEqual([false, 'Use a queue', false])
-  expect(s.architect.consults.map(c => [c.id, c.at, c.endAt, c.moment])).toEqual([['c1', 5000, 5000, 'before done'], ['c2', 5000, 5000, 'error repeats']])
 })
 test('the panel draws within 40, 64 and 120 columns, the moments narrowed to the lit one when tight', () => {
   let a = startConsult(DEFAULT_ARCHITECT, { id: 'c1', at: 1000, moment: 'before a plan', via: 'advisor tool' })

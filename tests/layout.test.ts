@@ -59,7 +59,6 @@ const FRESH: Snapshot = {
   main: DEFAULT_MAIN,
   usage: DEFAULT_USAGE,
   turn: DEFAULT_TURN,
-  receipt: null,
   agents: [],
   loops: [],
   architect: DEFAULT_ARCHITECT,
@@ -129,8 +128,8 @@ test('inline, the pane is a summary of at most 8 rows', async ($, on) => {
     const ui = await $.ui.mount({ ...pane(cols, 'inline'), surface: 'terminal' })
     expect(childrenOf(await ui.drawn()).length <= 8).toBe(true)
     const rows = await rowsOf(ui)
-    // Every part has something to say here, so all eight rows are drawn, each within the pane.
-    expect(rows).toHaveLength(8)
+    // Every part has something to say here, so every row is drawn, each within the pane.
+    expect(rows).toHaveLength(7)
     for (const r of rows) expect(cellWidth(r) <= cols).toBe(true)
     expect(rows[0]).toMatch(/^▌Opus 5\.5 ○ idle · ctx ▰▰▰▱▱▱ 51%/); if (cols >= 64) expect(rows[0]).toMatch(/ 51% · \$3\.12 *$/)
     expect((await ui.find({ type: 'Text', text: /^▌$/ }))?.props.color).toBe(COLORS.frame)
@@ -139,7 +138,7 @@ test('inline, the pane is a summary of at most 8 rows', async ($, on) => {
     expect(rows.slice(2, 5).map(r => r.slice(0, 12).trimEnd())).toEqual(['● task one', '● task three', '● task four'])
     expect(rows[2]).toMatch(/ctx 41k +\d:\d\d *$/)
     expect(await ui.find({ text: /^\+2 more agents · \/st-code layout compact for all$/ })).toBeDefined()
-    expect(rows[6]).toMatch(/^LOOPS 1 · 1 active *$/); expect(rows[7]).toMatch(/^last turn 1m12s · 5 agents/)
+    expect(rows[6]).toMatch(/^LOOPS 1 · 1 active *$/)
     // No frames, no header bar and no log.
     expect(rows.some(r => /[┌│└]/.test(r))).toBe(false); expect(await ui.find({ text: /LOG|INFO|SERGIO/ })).toBeUndefined()
     await ui.unmount()
@@ -200,7 +199,7 @@ test('every atom holding garbage still draws the header and LOG (Review Focus 1)
       reads = 0
       const ui = await $.ui.mount({ ...pane(cols), surface: 'terminal' })
       // One read per stored key: the whole snapshot came from junk.
-      expect(reads >= 13).toBe(true)
+      expect(reads >= 12).toBe(true)
       expect(await ui.find({ type: 'Text', text: /SERGIO'S TECH · CODE/ })).toBeDefined(); expect(await ui.find({ type: 'Text', text: /^ LOG $/ })).toBeDefined()
       expect(await ui.find({ text: /nothing yet/ })).toBeDefined(); expect(await ui.find({ text: /NaN|undefined|null|object/ })).toBeUndefined()
       for (const r of await rowsOf(ui)) expect(cellWidth(r) <= cols).toBe(true)

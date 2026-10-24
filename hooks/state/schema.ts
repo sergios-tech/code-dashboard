@@ -17,7 +17,6 @@ import type {
   Loop,
   Main,
   Moment,
-  Receipt,
   Roster,
   Sample,
   ToolNote,
@@ -28,13 +27,13 @@ import type {
   View,
 } from '../../types'
 
-export const SCHEMA_VERSION = 1
+export const SCHEMA_VERSION = 2
 
 // ---------------------------------------------------------------- defaults
 
 export const DEFAULT_MAIN: Main = { model: '', effort: '', mode: '', steps: 0, isRunning: false, speed: null }
 export const DEFAULT_USAGE: Usage = { pct: null, tokens: null, window: 0, costUsd: null, limits: [], compactions: 0, lastCompactAt: null }
-export const DEFAULT_TURN: Turn = { startedAt: 0, costAtStart: null, edits: 0, errors: 0, errorStreak: 0, isReviewing: false }
+export const DEFAULT_TURN: Turn = { edits: 0, errorStreak: 0 }
 export const DEFAULT_ARCHITECT: Architect = { consults: [], ids: [], seen: [], lastAdvice: '' }
 export const DEFAULT_ACTIVITY: Activity = { tools: [], files: [], calls: 0 }
 export const DEFAULT_TRENDS: Trends = { samples: [], pendingCompaction: false }
@@ -101,23 +100,8 @@ export const normalizeMain = (stored: unknown): Main => {
   return { ...m, speed: s && ttftMs !== null ? { ttftMs, tokPerS: numOrNull(s.tokPerS) } : null }
 }
 
-export const normalizeTurn = (stored: unknown): Turn => ({
-  ...normalize(DEFAULT_TURN, stored),
-  costAtStart: isObject(stored) ? numOrNull(stored.costAtStart) : null,
-})
-
-// A stored object with no numeric duration is not a receipt, whatever else it holds.
-export const normalizeReceipt = (stored: unknown): Receipt | null =>
-  isObject(stored) && numOrNull(stored.durationMs) !== null
-    ? {
-        durationMs: num(stored.durationMs),
-        agents: num(stored.agents),
-        edits: num(stored.edits),
-        errors: num(stored.errors),
-        costDelta: numOrNull(stored.costDelta),
-        reason: str(stored.reason),
-      }
-    : null
+// Only the two counts survive; a turn stored by the 0.1.0 build carries more, and the rest is dropped.
+export const normalizeTurn = (stored: unknown): Turn => normalize(DEFAULT_TURN, stored)
 
 export const normalizeUsage = (stored: unknown): Usage => {
   const o = isObject(stored) ? stored : {}
