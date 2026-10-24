@@ -132,7 +132,7 @@ test('inline, the pane is a summary of at most 8 rows', async ($, on) => {
     expect(rows).toHaveLength(7)
     for (const r of rows) expect(cellWidth(r) <= cols).toBe(true)
     expect(rows[0]).toMatch(/^▌Opus 5\.5 ○ idle · ctx ▰▰▰▱▱▱ 51%/); if (cols >= 64) expect(rows[0]).toMatch(/ 51% · \$3\.12 *$/)
-    expect((await ui.find({ type: 'Text', text: /^▌$/ }))?.props.color).toBe(COLORS.frame)
+    expect((await ui.find({ type: 'Text', text: /^▌$/ }))?.props.color).toBe(COLORS.brand)
     expect(rows[1]).toMatch(/^ctx ▂▅ 51% *$/)
     // Running agents first, in the order they were spawned; the finished one is among those left out.
     expect(rows.slice(2, 5).map(r => r.slice(0, 12).trimEnd())).toEqual(['● task one', '● task three', '● task four'])
@@ -227,7 +227,7 @@ test('config hides panels and motion off stops the pulse', { options: { panels: 
     for (const label of ['AGENTS', 'TRENDS', 'TOOLS & FILES']) expect(rows.some(r => r.includes(`┌ ${label}`))).toBe(false)
     // Work runs, yet the header's dot is plain text: no pulse module, and nothing else here ticks.
     expect(await ui.find({ type: 'Client' })).toBeUndefined()
-    expect((await ui.find({ type: 'Text', text: /^●$/ }))?.props.color).toBe(COLORS.text)
+    expect((await ui.find({ type: 'Text', text: /^●$/ }))?.props.color).toBe(COLORS.green)
     await ui.unmount()
   }
   // The inline summary leaves out the hidden panels' rows too.

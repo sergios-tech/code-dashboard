@@ -172,6 +172,8 @@ export type ViewModel = {
     isActive: boolean
     /** The architect's status words (`ARCHITECT ADVISING`), or null with no architect seen. */
     arch: string | null
+    /** The architect has an open consult: its words read `architect` rather than `dim`. */
+    isAdvising: boolean
   }
   viewedAgentId: string | null
   /** The info panel; never null, since a fresh session still shows it. */
@@ -250,6 +252,7 @@ export function buildViewModel(s: Snapshot, ctx: ViewContext): ViewModel {
       isRunning,
       isActive: isRunning || s.agents.some(a => a.status === 'running'),
       arch: hasArchitect(s.architect) ? `${ctx.cfg.architectLabel.toUpperCase()} ${isAdvising(s.architect) ? 'ADVISING' : 'ON CALL'}` : null,
+      isAdvising: isAdvising(s.architect),
     },
     viewedAgentId: ctx.viewedAgentId,
     info,

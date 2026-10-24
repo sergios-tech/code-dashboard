@@ -46,7 +46,7 @@ const rowOf = (d: Draw, key: string, row: Piece[]): RenderElement => {
 /** `▌Opus 5.5 ● working · ctx ▰▰▰▱▱▱ 51% ⟲1 · $3.12 · architect 2`: each figure only once the host has reported it. */
 const headRow = (d: Draw, m: MiniView): Piece[] => {
   const { C } = d
-  const row: Piece[] = [{ text: '▌', color: C.frame }]
+  const row: Piece[] = [{ text: '▌', color: C.brand }]
   if (m.model) row.push({ text: `${m.model} `, color: C.green, bold: true })
   row.push(m.isRunning ? { text: '● working', color: C.green } : { text: '○ idle', color: C.dim })
   if (m.ctx) {

@@ -41,14 +41,15 @@ export const WIDE_RIGHT: Panel[] = ['agents', 'loops', 'architect']
 const cells = (s: string): number => Array.from(s).length
 
 /**
- * The right side of the header bar, the longest variant that fits `room` cells: the status words
- * go first, then the model; the state glyph always stays. An unknown model is left out.
+ * How much of the header's right side fits `room` cells: the longest of `● MODEL WORKING · ARCH`
+ * (`arch`), `● MODEL WORKING` (`state`), `● MODEL` (`model`) and `●` (`dot`). An empty model drops
+ * out of every variant; the state dot always stays.
  */
-export const headerRight = (model: string, isRunning: boolean, arch: string | null, room: number): string => {
-  const glyph = isRunning ? '●' : '○'
+export const headerFit = (model: string, isRunning: boolean, arch: string | null, room: number): 'arch' | 'state' | 'model' | 'dot' => {
   const name = model.trim().toUpperCase()
-  const named = name ? `${glyph} ${name}` : glyph
+  const named = name ? `● ${name}` : '●'
   const state = `${named} ${isRunning ? 'WORKING' : 'IDLE'}`
-  const variants = [arch ? `${state} · ${arch}` : null, state, named, glyph]
-  return variants.find((v): v is string => v !== null && cells(v) <= room) ?? glyph
+  if (arch && cells(`${state} · ${arch}`) <= room) return 'arch'
+  if (cells(state) <= room) return 'state'
+  return cells(named) <= room ? 'model' : 'dot'
 }

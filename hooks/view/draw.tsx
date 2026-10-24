@@ -18,6 +18,9 @@ export type Draw = {
   now: number
 }
 
+/** The surface can run the animated client modules and the person has not turned motion off. */
+export const canAnimate = (d: Draw): boolean => d.motion && d.hasClient && 'Client' in d.els
+
 /**
  * A clock from `since` to `endAt`, or to now while `endAt` is null. A start of 0 is unknown (state
  * saved before it was recorded), so it reads `—` rather than decades. Where the surface runs client
