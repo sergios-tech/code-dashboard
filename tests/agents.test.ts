@@ -373,7 +373,7 @@ test('spawns and ends are logged; max_tokens is flagged in error colour', async 
   // Still running when a request hit max_tokens: it stays a steady orange ●.
   expect((await rowsOf(live)).some(r => /^│ ● 3: task one /.test(r))).toBe(true)
   expect((await live.find({ type: 'Text', text: /^●$/ }))?.props.color).toBe(COLORS.orange)
-  expect((await live.find({ type: 'Text', text: /^hit max_tokens$/ }))?.props.color).toBe(COLORS.error)
+  expect((await live.find({ type: 'Text', text: /^hit max_tokens$/ }))?.props.color).toBe(COLORS.text)
   await live.unmount()
   await clock.advance(102_000)
   await end($, 'm1', 'answer', 'All green.')
@@ -384,7 +384,7 @@ test('spawns and ends are logged; max_tokens is flagged in error colour', async 
   const rows = all.join('\n')
   expect(rows.match(/spawned · general-purpose/g)).toHaveLength(3)
   expect(rows).toMatch(/done · 1m42s/)
-  expect((await ui.find({ type: 'Text', text: /^failed$/ }))?.props.color).toBe(COLORS.error)
+  expect((await ui.find({ type: 'Text', text: /^failed$/ }))?.props.color).toBe(COLORS.text)
   expect(await ui.find({ type: 'Text', text: /^stopped$/ })).toBeDefined()
   expect(await ui.find({ text: /0 running · 3 total/ })).toBeDefined()
   // Ended agents list newest first; the one cut at max_tokens reads ✗ although it answered.

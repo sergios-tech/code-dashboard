@@ -6,8 +6,11 @@ import { parseConfig } from '../hooks/config'
 import { LOG_MAX, appendLog, logRows, promptLine } from '../hooks/domain/log'
 import { statusText } from '../hooks/domain/status'
 import { DEFAULT_ARCHITECT, DEFAULT_USAGE, normalizeCard } from '../hooks/state/schema'
+import type { LogView } from '../hooks/view/model'
 import { COLORS } from '../hooks/view/palette'
-import { cellWidth, engine, pane, rowsOf, spawn } from './kit'
+import { logPanel } from '../hooks/view/panels/log'
+import { busy, NOW } from './fixture'
+import { cellWidth, draw, drawRows, engine, pane, rowsOf, spawn, texts } from './kit'
 
 // The test kit's `$` takes the engine's full command input; only the name and arguments matter here.
 const slash = ($: { command: { run: (i: never) => Promise<{ text?: string }> } }, args: string) => $.command.run({ command: 'st-code', args } as never)
@@ -62,6 +65,26 @@ test('the status line counts running agents and names the architect by its label
   expect(status({ architect: { ...DEFAULT_ARCHITECT, ids: ['x'] } }, { architectLabel: 'Advisor' })).toBe('advisor 0')
 })
 
+const logOf = (lines: LogLine[], mainModel = 'Opus 5.5'): LogView => ({ lines, isViewingAgent: false, mainModel })
+test('LOG names the main loop by its model, colours only the marks', () => {
+  const tree = logPanel(draw({ now: NOW }), logOf(busy().log), 66)
+  const rows = drawRows(tree).slice(1)
+  expect(rows[5]).toMatch(/^│ \d\d:\d\d:\d\d opus {7}Bash rm -rf build · denied {17}│$/)
+  const by = (t: string) => texts(tree).find(x => x.text.trim() === t)
+  expect(by('opus')).toMatchObject({ color: COLORS.brand, bold: true }); expect(by('Explore 1')?.color).toBe(COLORS.orange)
+  expect(by('architect')?.color).toBe(COLORS.architect); expect(by('· denied')).toMatchObject({ color: COLORS.gold, bold: true })
+  expect(by('✗')).toMatchObject({ color: COLORS.error, bold: true }); expect(by('hit max_tokens')?.color).toBe(COLORS.text)
+  expect(by('you')?.color).toBe(COLORS.text)
+})
+test('an unknown main model reads main in dim; a wide or long line keeps its mark and its columns (Review Focus 4)', () => {
+  const long = [{ at: NOW, who: 'main', text: '日本語'.repeat(40), agentId: null, kind: 'error' as const, mark: '✗' as const }]
+  for (const w of [40, 66]) {
+    const r = drawRows(logPanel(draw(), logOf(long), w)).slice(1)[1] ?? ''
+    expect(cellWidth(r) <= w).toBe(true); expect(r.includes('✗')).toBe(true)
+  }
+  expect(texts(logPanel(draw(), logOf(long, ''), 66)).find(x => x.text.trim() === 'main')?.color).toBe(COLORS.dim)
+})
+
 // ---------------------------------------------------------------- the mounted pane
 
 test('a fresh session shows the header and an empty LOG; a prompt lands in it', async ($, on) => {
@@ -90,8 +113,8 @@ test('log rows are timed, labelled by source, one row each and within the width'
     expect(at > 0).toBe(true)
     expect(rows[at - 1]?.trim()).toBe('')
     // The frame is intact and holds the two entries, one row each.
-    expect(rows[at + 1]).toMatch(/^│ \d\d:\d\d:\d\d you {9}first second/)
-    expect(rows[at + 2]).toMatch(/^│ \d\d:\d\d:\d\d engine {6}task notif/)
+    expect(rows[at + 1]).toMatch(/^│ \d\d:\d\d:\d\d you {8}first second/)
+    expect(rows[at + 2]).toMatch(/^│ \d\d:\d\d:\d\d engine {5}task notif/)
     if (cols >= 64) expect(rows[at + 2]).toContain('task notification from abcdef12')
     expect(rows[at + 3]?.startsWith('└')).toBe(true)
     for (const r of rows) expect(cellWidth(r) <= Math.max(40, cols)).toBe(true)
@@ -142,8 +165,10 @@ test('a cut log line keeps its ✗ or · denied, so a failure is never shown by 
     // The command is cut (at 40 columns down to `Bash…`), the marker after it is whole, and the row still closes on the frame.
     expect(rows.some(r => /main +Bash.*… ✗ *│$/.test(r))).toBe(true)
     expect(rows.some(r => /main +Bash.*… · denied *│$/.test(r))).toBe(true)
-    expect((await ui.find({ type: 'Text', text: /^Bash.*… ✗$/ }))?.props.color).toBe(COLORS.error)
-    expect((await ui.find({ type: 'Text', text: /^Bash.*… · denied$/ }))?.props.color).toBe(COLORS.error)
+    // The cut text stays in `text`; only the mark after it is coloured.
+    expect((await ui.find({ type: 'Text', text: /^Bash.*…$/ }))?.props.color).toBe(COLORS.text)
+    expect(await ui.find({ type: 'Text', text: /^ ✗$/ })).toMatchObject({ props: { color: COLORS.error, bold: true } })
+    expect(await ui.find({ type: 'Text', text: /^ · denied$/ })).toMatchObject({ props: { color: COLORS.gold, bold: true } })
     if (cols >= 64) expect(rows.some(r => /Bash → for f in tally\/.*… ✗ *│$/.test(r))).toBe(true)
     for (const r of rows) expect(cellWidth(r) <= cols).toBe(true)
     await ui.unmount()

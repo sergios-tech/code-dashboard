@@ -13,7 +13,7 @@ import type { Snapshot } from '../state/store'
 import { WIDE_LEFT, WIDE_RIGHT, clampWidth, pickLayout, wideColumns } from './layout'
 
 /** The log panel: the lines to draw, oldest first, and whether they are one agent's alone. */
-export type LogView = { lines: LogLine[]; isViewingAgent: boolean }
+export type LogView = { lines: LogLine[]; isViewingAgent: boolean; mainModel: string }
 
 /**
  * The info panel: the main model's effort, context, spend, rate limits and last request, in three
@@ -238,7 +238,7 @@ export function buildViewModel(s: Snapshot, ctx: ViewContext): ViewModel {
   const height = (ps: Panel[]) => ps.reduce((n, p) => n + tall[p], 0)
   // The header row, then the panels above the log: one stack, or the taller of the two columns.
   const used = 1 + (columns ? Math.max(height(columns.left), height(columns.right)) : height(shown))
-  const log = logView(s.log, ctx, used)
+  const log = logView(s.log, s.main.model ? prettyModel(s.main.model) : '', ctx, used)
   // A pane too short for the log draws none of it rather than a frame cut off at its bottom edge.
   const panels = log ? shown : shown.filter(p => p !== 'log')
   return {
@@ -439,10 +439,10 @@ function trendsView(s: Snapshot): TrendsView | null {
  * when fewer than 2 fit. `used` is the rows the header and the other panels take; each panel adds
  * its own to it.
  */
-function logView(lines: LogLine[], ctx: ViewContext, used: number): LogView | null {
+function logView(lines: LogLine[], mainModel: string, ctx: ViewContext, used: number): LogView | null {
   const rows = logRows(ctx.bodyRows, used)
   if (rows === 0) return null
   const viewed = ctx.viewedAgentId
   const shown = viewed === null ? lines : lines.filter(l => l.agentId === viewed)
-  return { lines: shown.slice(-rows), isViewingAgent: viewed !== null }
+  return { lines: shown.slice(-rows), isViewingAgent: viewed !== null, mainModel }
 }

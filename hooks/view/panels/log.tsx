@@ -1,26 +1,29 @@
-// The LOG panel: the newest session lines, each `HH:MM:SS  who  text`.
+// The LOG panel: the newest session lines, each `HH:MM:SS  actor  text`, with a state mark last.
 import type { RenderElement } from 'claude-code'
 
 import type { LogLine } from '../../../types'
-import { logText } from '../../domain/log'
-import { fmtClock, shorten } from '../../format/text'
+import { cellCount, fitCells } from '../../domain/agents'
+import { fmtClock } from '../../format/text'
 import type { Draw } from '../draw'
 import { frame } from '../frame'
 import type { LogView } from '../model'
+import { familyColor } from '../palette'
 
 const TIME_CELLS = 9
-const WHO_CELLS = 12
+const WHO_CELLS = 11
 // Border and padding on each side of a row inside the frame.
 const CHROME = 4
 
-/** A line's colour from what kind it is and who said it: errors, consults and finished work first. */
-const colorOf = (d: Draw, l: LogLine): string => {
+/** The actor as the row names it: the main loop by its model family in lower case, else as stored. */
+const actorName = (l: LogLine, mainModel: string): string => (l.who === 'main' ? ((mainModel.split(' ')[0] ?? '').toLowerCase() || 'main') : l.who)
+
+/** The actor's colour: the main loop by its model family, consults in the architect colour, agents in orange. */
+const actorTone = (d: Draw, l: LogLine, mainModel: string): string => {
   const { C } = d
-  if (l.kind === 'error') return C.error
-  if (l.kind === 'consult') return C.architect
-  if (l.kind === 'done') return C.green
-  if (l.who === 'main') return C.green
-  if (l.who === 'you' || l.who === 'engine') return C.text
+  if (l.who === 'main') return familyColor(mainModel)
+  if (l.who === 'you') return C.text
+  if (l.who === 'engine') return C.dim
+  if (l.who === 'architect' || l.kind === 'consult') return C.architect
   if (l.who === 'gate') return C.gold
   return C.orange
 }
@@ -28,7 +31,6 @@ const colorOf = (d: Draw, l: LogLine): string => {
 export const logPanel = (d: Draw, log: LogView, width: number): RenderElement => {
   const { Box, Text } = d.els
   const { C } = d
-  const textCells = Math.max(1, width - CHROME - TIME_CELLS - WHO_CELLS)
   const rows =
     log.lines.length === 0
       ? [
@@ -36,21 +38,31 @@ export const logPanel = (d: Draw, log: LogView, width: number): RenderElement =>
             nothing yet
           </Text>,
         ]
-      : log.lines.map((l, i) => (
-          <Box key={`${i}-${l.at}`}>
-            <Box width={TIME_CELLS} flexShrink={0}>
-              <Text color={C.dim}>{fmtClock(l.at)}</Text>
-            </Box>
-            <Box width={WHO_CELLS} flexShrink={0}>
-              <Text bold color={colorOf(d, l)} wrap="truncate">
-                {shorten(l.who, WHO_CELLS - 1)}
+      : log.lines.map((l, i) => {
+          // The mark keeps its cells and a space before it; only the text is cut to what is left.
+          const markCells = l.mark ? cellCount(l.mark) + 1 : 0
+          const textCells = Math.max(1, width - CHROME - TIME_CELLS - WHO_CELLS - markCells)
+          return (
+            <Box key={`${i}-${l.at}`}>
+              <Box width={TIME_CELLS} flexShrink={0}>
+                <Text color={C.dim}>{fmtClock(l.at)}</Text>
+              </Box>
+              <Box width={WHO_CELLS} flexShrink={0}>
+                <Text bold color={actorTone(d, l, log.mainModel)} wrap="truncate">
+                  {fitCells(actorName(l, log.mainModel), WHO_CELLS - 1)}
+                </Text>
+              </Box>
+              <Text color={C.text} wrap="truncate">
+                {fitCells(l.text, textCells)}
               </Text>
+              {l.mark ? (
+                <Text bold color={l.mark === '✗' ? C.error : C.gold} wrap="truncate">
+                  {` ${l.mark}`}
+                </Text>
+              ) : null}
             </Box>
-            <Text color={l.kind === 'error' ? C.error : C.text} wrap="truncate">
-              {logText(l, textCells)}
-            </Text>
-          </Box>
-        ))
+          )
+        })
   return (
     <Box key="log" marginTop={1} flexDirection="column" width={width}>
       {frame(d, { key: 'log-frame', label: log.isViewingAgent ? 'LOG · THIS AGENT' : 'LOG', width, children: rows })}
