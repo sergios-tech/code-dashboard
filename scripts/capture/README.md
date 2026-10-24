@@ -82,10 +82,11 @@ the stock 66-column dock it still draws compact.
 
 `capture.sh` sets two things, each for a reason:
 
-- `CLAUDE_CODE_TMUX_TRUECOLOR=1`, because under tmux the host draws 256 colours unless it is set
-  (the usual 24-bit terminal variable did not change that). Without 24-bit colour the palette is rounded to the
-  256-colour fallbacks, for example orange draws as `#ff8700`. Whether the variable gives 24-bit
-  captures is checked when the media is recaptured (`grep -c '38;2;'` on a snapshot).
+- `CLAUDE_CODE_TMUX_TRUECOLOR=1`, which is meant to ask the host for 24-bit colour under tmux. It
+  did not: a snapshot taken with it set (host 2.1.310) holds 0 `38;2;` sequences, so the host still
+  draws 256 colours and the media is captured in 256 colours. The palette is rounded to its
+  256-colour fallbacks, for example orange draws as `#ff8700` (`38;5;208`) and the frames as `38;5;160`.
+  Check again on a new host with `grep -c '38;2;'` on a snapshot.
 - `--settings '{"theme":"dark"}'`, because the demo profile's `dark-ansi` theme paints the pane
   bright black and distorts the colours.
 
