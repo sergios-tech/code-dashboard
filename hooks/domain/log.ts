@@ -2,6 +2,7 @@
 import type { LogLine } from '../../types'
 import { redact } from '../format/redact'
 import { shorten } from '../format/text'
+import { cellCount, fitCells } from './agents'
 
 /** The log keeps this many lines; older ones are dropped as new ones arrive. */
 export const LOG_MAX = 60
@@ -22,10 +23,27 @@ export const promptLine = (text: string): { who: string; text: string } => {
 }
 
 /**
- * How many log lines fit: what the other panels leave of `bodyRows` after the `used` rows and the
- * log's own frame and gap (3), never fewer than 4 nor more than 8.
+ * A line's text in `cells` terminal cells with its marker after it. Only the text is cut, so a
+ * failed or refused call still ends in `✗` or `· denied`, its state never shown by colour alone.
  */
-export const logRows = (bodyRows: number, used: number): number => {
-  const room = Number.isFinite(bodyRows) && Number.isFinite(used) ? Math.floor(bodyRows - used - 3) : 4
-  return Math.max(4, Math.min(8, room))
+export const logText = (l: Pick<LogLine, 'text' | 'mark'>, cells: number): string => {
+  if (l.mark === null) return fitCells(l.text, cells)
+  const room = cells - cellCount(l.mark) - 1
+  return room > 0 ? [fitCells(l.text, room), l.mark].filter(Boolean).join(' ') : fitCells(l.mark, cells)
+}
+
+/** The rows a pane that reports no height is taken to have. */
+const ASSUMED_ROWS = 40
+
+/**
+ * How many log lines fit: what the other panels leave of `bodyRows` after the `used` rows and the
+ * log's own frame and gap (3), at most 8. With room for fewer than 2 it is 0 and the log is not
+ * drawn, so its frame never runs past the pane's bottom edge. A pane of unknown height is taken to
+ * have 40 rows, and its log keeps at least 4.
+ */
+export const logRows = (bodyRows: number | undefined, used: number): number => {
+  const isKnown = bodyRows !== undefined && Number.isFinite(bodyRows)
+  const room = Number.isFinite(used) ? Math.floor((isKnown ? bodyRows : ASSUMED_ROWS) - used - 3) : 4
+  if (!isKnown) return Math.max(4, Math.min(8, room))
+  return room < 2 ? 0 : Math.min(8, room)
 }

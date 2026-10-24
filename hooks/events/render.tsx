@@ -30,7 +30,7 @@ const panel = (d: Draw, vm: ViewModel, p: Panel, expand: Expand): RenderElement 
   if (p === 'architect') return vm.architect ? architectPanel(d, vm.architect, w) : null
   if (p === 'tools') return vm.tools ? toolsPanel(d, vm.tools, w) : null
   if (p === 'trends') return vm.trends ? trendsPanel(d, vm.trends, w) : null
-  return p === 'log' ? logPanel(d, vm.log, w) : null
+  return p === 'log' && vm.log ? logPanel(d, vm.log, w) : null
 }
 
 /** The panels under the header: one column in config order, or two side by side with the log full width beneath. */

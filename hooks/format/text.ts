@@ -62,9 +62,8 @@ export const plural = (n: number, word: string): string => `${n} ${word}${n === 
 
 export const fmtUsd = (n: number): string => (n >= 100 ? `$${Math.round(n)}` : `$${n.toFixed(2)}`)
 
-/** `ttft 0.8s · 42 tok/s`; the rate is left off when it is unknown. */
-export const fmtSpeed = (s: Speed): string =>
-  `ttft ${(s.ttftMs / 1000).toFixed(1)}s` + (s.tokPerS !== null ? ` · ${Math.round(s.tokPerS)} tok/s` : '')
+/** `ttft 0.8s · 42 tok/s`; `— tok/s` when the rate could not be timed. */
+export const fmtSpeed = (s: Speed): string => `ttft ${(s.ttftMs / 1000).toFixed(1)}s · ${s.tokPerS !== null ? Math.round(s.tokPerS) : '—'} tok/s`
 
 /** Time left until a window resets, its two largest units: `25m`, `3h10m`, `4d2h`; empty when unknown or past. */
 export const fmtResetIn = (resetsAt: number | null, now: number): string => {

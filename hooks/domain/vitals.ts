@@ -10,18 +10,24 @@ export const effortLevel = (effort: string): number => (Object.hasOwn(EFFORT_LEV
 
 const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
 
+/** The shortest window a rate is read over: a quicker one times pieces arriving together, not the model's pace. */
+const MIN_DECODE_MS = 200
+/** Faster than any model streams: a window this quick for its tokens timed their delivery, not their making. */
+const MAX_TOK_PER_S = 1000
+
 /**
- * A request's speed from three clock readings: the time to the first piece of the answer, and the
- * output tokens per second from that piece to the stop. Unknown without a first piece; the rate is
- * unknown without output tokens or without any time between the first piece and the stop.
+ * A request's speed from four clock readings: the time to the first piece of the answer, and the
+ * output tokens per second from the response's start to the stop. The start is its first chunk of
+ * any kind (the envelope), since thinking that streams no text comes before the first piece yet
+ * counts among the output tokens; with no start read, the first piece is the start. Unknown without
+ * a first piece; the rate is unknown without output tokens, and when the window is too short, or too
+ * quick for its tokens, to be the model's pace: the response came in one burst and cannot be timed.
  */
-export const stepSpeed = (sentAt: number, firstAt: number | null, stopAt: number, outTokens: number | null): Speed | null => {
+export const stepSpeed = (sentAt: number, firstAt: number | null, stopAt: number, outTokens: number | null, startAt: number | null = firstAt): Speed | null => {
   if (firstAt === null || !finite(sentAt) || !finite(firstAt) || !finite(stopAt)) return null
-  const decodeMs = stopAt - firstAt
-  return {
-    ttftMs: Math.max(0, firstAt - sentAt),
-    tokPerS: finite(outTokens) && outTokens > 0 && decodeMs > 0 ? (outTokens * 1000) / decodeMs : null,
-  }
+  const decodeMs = stopAt - (finite(startAt) ? Math.min(startAt, firstAt) : firstAt)
+  const rate = finite(outTokens) && outTokens > 0 && decodeMs >= MIN_DECODE_MS ? (outTokens * 1000) / decodeMs : null
+  return { ttftMs: Math.max(0, firstAt - sentAt), tokPerS: rate !== null && rate <= MAX_TOK_PER_S ? rate : null }
 }
 
 /** A rate-limit reading as the pane keeps it, its ISO reset time turned into milliseconds since the epoch. */

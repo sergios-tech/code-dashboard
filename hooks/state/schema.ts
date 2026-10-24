@@ -13,6 +13,7 @@ import type {
   Limit,
   LogKind,
   LogLine,
+  LogMark,
   Loop,
   Main,
   Moment,
@@ -91,6 +92,7 @@ const MOMENTS: readonly Moment[] = ['before a plan', 'error repeats', 'before do
 const LAYOUTS: readonly Layout[] = ['auto', 'compact', 'wide', 'mini']
 const STATUSES: readonly AgentStatus[] = ['running', 'done', 'stopped', 'failed']
 const KINDS: readonly LogKind[] = ['info', 'error', 'consult', 'done']
+const MARKS: readonly LogMark[] = ['✗', '· denied']
 
 export const normalizeMain = (stored: unknown): Main => {
   const m = normalize(DEFAULT_MAIN, stored)
@@ -161,11 +163,22 @@ export const normalizeAgents = (stored: unknown): AgentCard[] => objects(stored)
 export const normalizeLoops = (stored: unknown): Loop[] =>
   objects(stored).map(l => ({ id: str(l.id), steps: num(l.steps), firstAt: num(l.firstAt), lastAt: num(l.lastAt), isDone: bool(l.isDone) }))
 
+/**
+ * A stored line's text and marker. A failed or refused call's line stored before the marker had a
+ * field of its own ends in it, so the marker is taken off the end of such a line's text.
+ */
+const markOf = (l: Record<string, unknown>): { text: string; mark: LogMark | null } => {
+  const text = String(l.text ?? '')
+  if (MARKS.includes(l.mark as LogMark)) return { text, mark: l.mark as LogMark }
+  const old = l.mark === undefined && l.kind === 'error' ? MARKS.find(m => text.endsWith(` ${m}`)) : undefined
+  return old ? { text: text.slice(0, -(old.length + 1)), mark: old } : { text, mark: null }
+}
+
 export const normalizeLog = (stored: unknown): LogLine[] =>
   objects(stored).map(l => ({
     at: num(l.at),
     who: String(l.who ?? ''),
-    text: String(l.text ?? ''),
+    ...markOf(l),
     agentId: strOrNull(l.agentId),
     kind: oneOf(l.kind, KINDS, 'info'),
   }))

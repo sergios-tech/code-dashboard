@@ -49,19 +49,27 @@ export const wireTurns = (on: On, cfg: Config): void => {
     }
     // The main loop's model and effort are known when its request starts, so a long first request does not read `—`.
     await beginRequest($, e.model, e.effort)
-    // Time the response as it passes: the first piece that is not the engine's envelope, then the
-    // stop chunk. Two clock reads in the stream, and nothing stored until it has ended.
+    // Time the response as it passes: its first chunk (the engine's envelope as a rule), the first
+    // piece that is not the envelope, then the stop chunk. The rate runs from the first chunk, since
+    // thinking that streams no text comes before the first piece and its tokens count. At most three
+    // clock reads in the stream, and nothing stored until it has ended.
     const sentAt = await $.clock.now()
+    let startAt: number | null = null
     let firstAt: number | null = null
     let stopAt: number | null = null
     const s = next(e)
     for await (const c of s) {
-      if (c.kind === 'stop') stopAt = await $.clock.now()
-      else if (firstAt === null && c.kind !== 'engine') firstAt = await $.clock.now()
+      const isFirstPiece = firstAt === null && c.kind !== 'engine' && c.kind !== 'stop'
+      if (startAt === null || isFirstPiece || c.kind === 'stop') {
+        const now = await $.clock.now()
+        startAt ??= now
+        if (isFirstPiece) firstAt = now
+        if (c.kind === 'stop') stopAt = now
+      }
       yield c
     }
     const result = await s.result
-    const speed = result.usage && stopAt !== null ? stepSpeed(sentAt, firstAt, stopAt, result.usage.output_tokens) : null
+    const speed = result.usage && stopAt !== null ? stepSpeed(sentAt, firstAt, stopAt, result.usage.output_tokens, startAt) : null
     if (speed) await storeSpeed($, speed)
     return result
   })

@@ -44,7 +44,16 @@ test('garbage in any stored key reads as its defaults (Review Focus 1)', () => {
     expect(normalizeLog(junk)).toEqual([])
   }
   expect(normalizeCard({ id: 'a', steps: 'x' }).tools).toEqual([])
-  expect(normalizeLog([{ at: 'x', who: 3, kind: 'weird' }])[0]).toEqual({ at: 0, who: '3', text: '', agentId: null, kind: 'info' })
+  expect(normalizeLog([{ at: 'x', who: 3, kind: 'weird' }])[0]).toEqual({ at: 0, who: '3', text: '', agentId: null, kind: 'info', mark: null })
+  // A refused or failed call's line from before the marker had its own field gives it up from its text.
+  const [denied, failed, junkMark, notMarked] = normalizeLog([
+    { at: 1, who: 'main', text: 'Bash → rm -rf build · denied', agentId: null, kind: 'error' },
+    { at: 2, who: 'main', text: 'Bash → npm test ✗', agentId: null, kind: 'error' },
+    { at: 3, who: 'main', text: 'Bash → npm test', agentId: null, kind: 'error', mark: 'nope' },
+    { at: 4, who: 'you', text: 'is this ✗', agentId: null, kind: 'info' },
+  ])
+  expect([denied?.text, denied?.mark, failed?.text, failed?.mark]).toEqual(['Bash → rm -rf build', '· denied', 'Bash → npm test', '✗'])
+  expect([junkMark?.text, junkMark?.mark, notMarked?.text, notMarked?.mark]).toEqual(['Bash → npm test', null, 'is this ✗', null])
 })
 test('wrong-typed fields and rows are repaired, and defaults are never shared', () => {
   expect(normalize(DEFAULT_MAIN, { model: 7, steps: 'x', isRunning: 1, extra: true })).toEqual(DEFAULT_MAIN)
@@ -101,7 +110,7 @@ test('reset keeps cost, limits, compactions, model, mode, trends and the offered
   await update($, main, () => ({ ...DEFAULT_MAIN, model: 'model-x', mode: 'plan', steps: 9, isRunning: true }))
   await update($, usage, () => ({ pct: 51, tokens: 100, window: 200, costUsd: 2.5, limits: [{ kind: 'five_hour', pct: 10, resetsAt: null }], compactions: 2, lastCompactAt: 8 }))
   await update($, trends, () => ({ samples: [sample], pendingCompaction: true }))
-  await update($, log, () => [{ at: 1, who: 'you', text: 'hi', agentId: null, kind: 'info' as const }])
+  await update($, log, () => [{ at: 1, who: 'you', text: 'hi', agentId: null, kind: 'info' as const, mark: null }])
   await update($, denials, () => ({ count: 3 }))
   await update($, roster, () => ({ architectTypes: ['advisor'] }))
   await update($, architect, () => ({ ...DEFAULT_ARCHITECT, ids: ['a1'], lastAdvice: 'Ship it' }))

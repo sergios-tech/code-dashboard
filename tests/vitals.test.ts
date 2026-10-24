@@ -21,6 +21,20 @@ const answering = (on: On, clock: ReturnType<typeof engine>) =>
     return { turnId: e.turnId, index: e.index, answer: 'hello', toolUses: [], stopReason: 'end_turn' as const, usage }
   })
 
+/** A model beneath the plugin that answers one request per entry: its first piece after `firstMs`, its stop `decodeMs` later, with `out` output tokens. */
+const streaming = (on: On, clock: ReturnType<typeof engine>, steps: { firstMs: number; decodeMs: number; out: number }[]) => {
+  let i = 0
+  on('turn.step', async function* (_$, e) {
+    const step = steps[i++] ?? { firstMs: 0, decodeMs: 0, out: 0 }
+    await clock.advance(step.firstMs)
+    yield { kind: 'text' as const, index: 0, text: 'the answer' }
+    await clock.advance(step.decodeMs)
+    const usage = { input_tokens: 10, output_tokens: step.out, cache_read_input_tokens: 0, cache_creation_input_tokens: 0, model: 'model-a' }
+    yield { kind: 'stop' as const, stopReason: 'end_turn' as const, usage }
+    return { turnId: e.turnId, index: e.index, answer: 'the answer', toolUses: [], stopReason: 'end_turn' as const, usage }
+  })
+}
+
 /** What the host reports as the session's usage, changeable between calls. */
 const hostUsage = (on: On, cost: { usd: number } | undefined = undefined) => {
   const state = { cost }
@@ -35,6 +49,18 @@ test("a request's speed: time to first piece, then output tokens per second to t
   expect(stepSpeed(1000, null, 3800, 120)).toBeNull(); expect(stepSpeed(1000, 1800, 1800, 120)?.tokPerS).toBeNull()
   expect(stepSpeed(1000, 1800, 3800, null)?.tokPerS).toBeNull(); expect(stepSpeed(1000, 1800, 3800, 0)?.tokPerS).toBeNull()
   expect(stepSpeed(1000, 900, 3800, 120)?.ttftMs).toBe(0)
+})
+test('a window too short or too quick for its tokens has no rate; the envelope starts the window', () => {
+  // A short answer that arrived whole 2.6 s after the request: 150 tokens in 17 ms is a burst, not a pace.
+  expect(stepSpeed(0, 2600, 2617, 150)).toEqual({ ttftMs: 2600, tokPerS: null })
+  // Longer than the shortest window, still faster than any model streams.
+  expect(stepSpeed(0, 6400, 6700, 618)?.tokPerS).toBeNull()
+  expect(stepSpeed(0, 1000, 1200, 40)?.tokPerS).toBe(200); expect(stepSpeed(0, 1000, 1199, 40)?.tokPerS).toBeNull()
+  expect(stepSpeed(0, 1000, 1500, 500)?.tokPerS).toBe(1000); expect(stepSpeed(0, 1000, 1500, 501)?.tokPerS).toBeNull()
+  // Thinking that streamed no text: the envelope at 1 s, the first piece at 6.4 s, 618 tokens over the 5.44 s since the envelope.
+  expect(Math.round(stepSpeed(0, 6400, 6440, 618, 1000)?.tokPerS ?? 0)).toBe(114)
+  // A normal stream reads the same with its envelope just ahead of the first piece; a start after it is ignored.
+  expect(stepSpeed(1000, 1800, 3800, 120, 1800)).toEqual({ ttftMs: 800, tokPerS: 60 }); expect(stepSpeed(1000, 1800, 3800, 120, 2000)?.tokPerS).toBe(60)
 })
 test('the effort scale has four steps and max shares the top one', () => {
   expect(EFFORT_LEVEL).toEqual({ low: 1, medium: 2, high: 3, xhigh: 4, max: 4 })
@@ -227,6 +253,31 @@ test('the main loop is timed per request and a subagent request is left alone', 
     expect(await ui.find({ text: /ttft 0\.8s · 60 tok\/s/ })).toBeDefined()
     await ui.unmount()
   }
+})
+test('a response that arrives in one burst reads — tok/s, and the next timed one reads its rate', async ($, on) => {
+  const clock = engine(on)
+  // A short answer delivered whole 2.6 s in, its 150 tokens 17 ms apart; then an answer streamed over 2 s.
+  streaming(on, clock, [
+    { firstMs: 2600, decodeMs: 17, out: 150 },
+    { firstMs: 800, decodeMs: 2000, out: 120 },
+  ])
+  let n = 0
+  const run = async () => {
+    const s = $.turn.step({ turnId: `B${++n}`, index: 0, model: 'model-a', messageCount: 1 })
+    for await (const _ of s) void _
+    await s.result
+  }
+  await run()
+  for (const cols of [40, 64]) {
+    const ui = await $.ui.mount({ ...pane(cols), surface: 'terminal' })
+    expect(await ui.find({ text: /last req {2}ttft 2\.6s · — tok\/s/ })).toBeDefined(); expect(await ui.find({ text: /\d tok\/s/ })).toBeUndefined()
+    for (const r of await rowsOf(ui)) expect(cellWidth(r) <= cols).toBe(true)
+    await ui.unmount()
+  }
+  await run()
+  const ui = await $.ui.mount({ ...pane(64), surface: 'terminal' })
+  expect(await ui.find({ text: /last req {2}ttft 0\.8s · 60 tok\/s/ })).toBeDefined()
+  await ui.unmount()
 })
 
 // ---------------------------------------------------------------- the TURN panel

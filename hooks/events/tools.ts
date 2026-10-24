@@ -56,11 +56,12 @@ export const wireTools = (on: On, cfg: Config): void => {
     const who = card ? whoOf(card) : e.agentId ? 'agent' : 'main'
     const agentId = e.agentId ?? null
     // The log keeps what is worth a glance: refusals, errors and edits; the rest is on the cards.
+    // The marker is stored apart from the text, so a narrow pane cuts the command and keeps it.
     if (isDenied) {
-      await say($, who, `${text} · denied`, 'error', agentId)
+      await say($, who, text, 'error', agentId, '· denied')
       await refreshStatus($, cfg)
     } else if (hasFailed) {
-      await say($, who, `${text} ✗`, 'error', agentId)
+      await say($, who, text, 'error', agentId, '✗')
     } else if (isEdit) {
       await say($, who, text, 'info', agentId)
     }

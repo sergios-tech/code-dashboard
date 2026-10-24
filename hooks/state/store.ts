@@ -2,7 +2,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface } from 'claude-code'
 
-import type { Activity, AgentCard, Architect, Denials, Layout, LogKind, LogLine, Loop, Main, Moment, Receipt, Roster, Speed, ToolNote, Trends, Turn, Usage, View } from '../../types'
+import type { Activity, AgentCard, Architect, Denials, Layout, LogKind, LogLine, LogMark, Loop, Main, Moment, Receipt, Roster, Speed, ToolNote, Trends, Turn, Usage, View } from '../../types'
 import type { Config } from '../config'
 import { recordCall } from '../domain/activity'
 import type { Call } from '../domain/activity'
@@ -149,9 +149,9 @@ export async function resetAll($: EngineInterface): Promise<void> {
   await update($, view, () => DEFAULT_VIEW)
 }
 
-/** One line into the session log, credentials masked, the log kept to its newest lines. */
-export async function say($: EngineInterface, who: string, text: string, kind: LogKind = 'info', agentId: string | null = null): Promise<void> {
-  const line: LogLine = { at: await $.clock.now(), who, text: redact(text), kind, agentId }
+/** One line into the session log, credentials masked, the log kept to its newest lines; `mark` is drawn after the text, never cut. */
+export async function say($: EngineInterface, who: string, text: string, kind: LogKind = 'info', agentId: string | null = null, mark: LogMark | null = null): Promise<void> {
+  const line: LogLine = { at: await $.clock.now(), who, text: redact(text), kind, agentId, mark }
   await update($, log, list => appendLog(normalizeLog(list), line))
 }
 

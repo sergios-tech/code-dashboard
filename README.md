@@ -79,7 +79,7 @@ Panels with nothing to show take no room, so a fresh session shows the header, V
 | **ARCHITECT** | `● advising` or `○ on call`. Consults on a one-row timeline (`◆` where one started, `━` while it ran). When the last one ran and how long it took. The inferred moment of the last consult. A `»` line with the first line of the advice. | `agent.offer`, `agent.spawn` of a matching type, matching server tools in `session.append`, `turn.complete`, the `SubagentHandback` call or hand-back turn |
 | **TOOLS & FILES** | The busiest tools (4 rows, 6 in two columns), each with calls, errors (`✗3`) and the average time per call (`avg* 0.4s`). Under `hot files`, the 5 paths touched most, each with reads and edits (`✎2`). Paths show their last two segments, and a file that only subagents touched is dimmed. | `tool.call`, `tool.check` |
 | **TRENDS** | Context fill and cumulative cost as two sparklines across the session, with a `⟲` where a compaction landed. The current percentage and total sit at the right end, followed by the last turn's cost (`+$0.41`). Appears from the second reading; when the host reports no cost, only the ctx line shows. | `session.measure` readings that change context or cost, the start-of-session reading, `session.compact` |
-| **LOG** | Prompts (first 70 characters), spawns, completions, consults and advice, edits, errors, denials, compactions and `max_tokens` hits. Each line has an `HH:MM:SS` time and a colour-coded source. It takes 4 to 8 rows, whatever the other panels leave. | all of the above |
+| **LOG** | Prompts (first 70 characters), spawns, completions, consults and advice, edits, errors, denials, compactions and `max_tokens` hits. Each line has an `HH:MM:SS` time and a colour-coded source. It takes the rows the other panels leave, up to 8. A pane too short for 2 hides it rather than cutting it off at the bottom edge. | all of the above |
 | **Status line** | `ctx 51% · agents 2/3 · architect advising · denied 1`. Each field appears only when it has something to say. With no consult open, the architect field shows the consult count. | the same state |
 
 A **denial** is a call refused by a permission rule or hook. It writes one red log line
@@ -185,8 +185,8 @@ registers and every host call it makes.
   step late.
 - **Request speed.** `ttft` and `tok/s` are timed at st-code's own `turn.step` hook, so they include
   everything beneath it: other plugins' hooks, the engine, the network and any retry. `tok/s` divides
-  the reported `output_tokens` (thinking included) by the time from the first piece of the response
-  to the stop. They are measured, but they aren't the API's own figures.
+  the reported `output_tokens` (thinking included) by the time from the response's first chunk to the
+  stop. A response that arrives in one burst can't be timed and reads `— tok/s`. They are measured, but they aren't the API's own figures.
 - **`avg*` in TOOLS & FILES.** The clock is read before and after the rest of the tool call runs, so
   the time includes other plugins' hook time on that call. Some calls are left out of the average
   because they would time something other than the tool: calls whose permission check asked for

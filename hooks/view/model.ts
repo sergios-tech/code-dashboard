@@ -172,7 +172,7 @@ export type Columns = { left: Panel[]; right: Panel[]; leftWidth: number; rightW
 export type ViewModel = {
   width: number
   layout: 'compact' | 'wide' | 'mini'
-  /** The panels to draw, in config order: enabled and with something to show. */
+  /** The panels to draw, in config order: enabled and with something to show, the log only with room for it. */
   panels: Panel[]
   /** The wide layout's columns, the log running under both; null in one column. */
   columns: Columns | null
@@ -203,8 +203,8 @@ export type ViewModel = {
   tools: ToolsView | null
   /** The trends panel, null until there are two samples with a figure to draw. */
   trends: TrendsView | null
-  /** The session log; never null, since an empty log still draws as `nothing yet`. */
-  log: LogView
+  /** The session log, an empty one drawn as `nothing yet`; null when the pane leaves it under 2 rows. */
+  log: LogView | null
   /** The inline summary, drawn instead of the panels; null outside the mini layout. */
   mini: MiniView | null
 }
@@ -215,7 +215,7 @@ export type ViewContext = {
   bodyColumns: number
   placement: 'dock' | 'inline'
   viewedAgentId: string | null
-  /** Rows the pane body can show; the log takes what the other panels leave. Defaults to 40. */
+  /** Rows the pane body can show; the log takes what the other panels leave. Unknown: 40, the log keeping 4 to 8. */
   bodyRows?: number
 }
 
@@ -236,9 +236,9 @@ export function buildViewModel(s: Snapshot, ctx: ViewContext): ViewModel {
   const trends = trendsView(s)
   // What each panel draws, null while it has nothing to show.
   const content: Record<Panel, unknown> = { vitals, trends, turn, agents, loops, architect, tools, log: s.log }
-  const panels = ctx.cfg.panels.filter(p => content[p] !== null)
+  const shown = ctx.cfg.panels.filter(p => content[p] !== null)
   const columns: Columns | null = cols
-    ? { left: panels.filter(p => WIDE_LEFT.includes(p)), right: panels.filter(p => WIDE_RIGHT.includes(p)), leftWidth: cols.left, rightWidth: cols.right, gap: cols.gap }
+    ? { left: shown.filter(p => WIDE_LEFT.includes(p)), right: shown.filter(p => WIDE_RIGHT.includes(p)), leftWidth: cols.left, rightWidth: cols.right, gap: cols.gap }
     : null
   // Each drawn panel's gap above it and its frame's two border rows around its body; the expanded
   // agent's block sits under its frame, and the loops row is one row under a gap.
@@ -254,8 +254,10 @@ export function buildViewModel(s: Snapshot, ctx: ViewContext): ViewModel {
   }
   const height = (ps: Panel[]) => ps.reduce((n, p) => n + tall[p], 0)
   // The header row, then the panels above the log: one stack, or the taller of the two columns.
-  const used = 1 + (columns ? Math.max(height(columns.left), height(columns.right)) : height(panels))
+  const used = 1 + (columns ? Math.max(height(columns.left), height(columns.right)) : height(shown))
   const log = logView(s.log, ctx, used)
+  // A pane too short for the log draws none of it rather than a frame cut off at its bottom edge.
+  const panels = log ? shown : shown.filter(p => p !== 'log')
   return {
     width,
     layout,
@@ -458,11 +460,14 @@ function trendsView(s: Snapshot): TrendsView | null {
 }
 
 /**
- * The newest lines that fit, those of the viewed agent alone while its transcript is open. `used`
- * is the rows the header and the other panels take; each panel adds its own to it.
+ * The newest lines that fit, those of the viewed agent alone while its transcript is open; null
+ * when fewer than 2 fit. `used` is the rows the header and the other panels take; each panel adds
+ * its own to it.
  */
-function logView(lines: LogLine[], ctx: ViewContext, used: number): LogView {
+function logView(lines: LogLine[], ctx: ViewContext, used: number): LogView | null {
+  const rows = logRows(ctx.bodyRows, used)
+  if (rows === 0) return null
   const viewed = ctx.viewedAgentId
   const shown = viewed === null ? lines : lines.filter(l => l.agentId === viewed)
-  return { lines: shown.slice(-logRows(ctx.bodyRows ?? 40, used)), isViewingAgent: viewed !== null }
+  return { lines: shown.slice(-rows), isViewingAgent: viewed !== null }
 }

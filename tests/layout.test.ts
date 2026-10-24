@@ -172,7 +172,7 @@ test('wide puts vitals left, agents right and the log underneath', async ($, on)
     ...FRESH,
     agents: [normalizeCard({ id: 'a', status: 'running', spawnedAt: 1 })],
     activity: recordCall(DEFAULT_ACTIVITY, { tool: 'Read', input: { file_path: '/r/a.ts' }, hasFailed: false, inSubagent: false, ms: 1, at: 1 }),
-    log: Array.from({ length: 20 }, (_, i) => ({ at: i + 1, who: 'you', text: `line ${i}`, agentId: null, kind: 'info' as const })),
+    log: Array.from({ length: 20 }, (_, i) => ({ at: i + 1, who: 'you', text: `line ${i}`, agentId: null, kind: 'info' as const, mark: null })),
   }
   const vmAt = (cols: number) => buildViewModel(s, { cfg: parseConfig({}), now: 2, bodyColumns: cols, placement: 'dock', viewedAgentId: null, bodyRows: 26 })
   const wide = vmAt(120)
@@ -180,10 +180,10 @@ test('wide puts vitals left, agents right and the log underneath', async ($, on)
   expect([wide.widths.vitals, wide.widths.tools, wide.widths.agents, wide.widths.log]).toEqual([left, left, right, 120])
   // Two cards fit side by side inside the 59-cell column's frame, so each takes half of its 55 cells.
   expect(wide.agents?.cardWidth).toBe(27)
-  // One column stacks vitals (4), agents (10) and tools (6) under the header: the log keeps its least.
-  expect(vmAt(100).columns).toBeNull(); expect(vmAt(100).log.lines).toHaveLength(4)
+  // One column stacks vitals (4), agents (10) and tools (6) under the header: the log takes the 2 rows left.
+  expect(vmAt(100).columns).toBeNull(); expect(vmAt(100).log?.lines).toHaveLength(2)
   // Two columns: the header and the taller column (10) leave the log its most.
-  expect(wide.log.lines).toHaveLength(8)
+  expect(wide.log?.lines).toHaveLength(8)
 })
 test('every atom holding garbage still draws the header and LOG (Review Focus 1)', async ($, on) => {
   engine(on)

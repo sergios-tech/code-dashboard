@@ -38,7 +38,7 @@ test('numbers, money, durations and clocks', () => {
   expect(fmtDuration(42_000)).toBe('42s'); expect(fmtDuration(102_000)).toBe('1m42s'); expect(fmtDuration(3_900_000)).toBe('1h05m')
   expect(fmtTimer(102_000)).toBe('1:42'); expect(fmtClock(0)).toBe('--:--:--')
   expect(plural(1, 'edit')).toBe('1 edit'); expect(plural(2, 'edit')).toBe('2 edits')
-  expect(fmtSpeed({ ttftMs: 800, tokPerS: 60.4 })).toBe('ttft 0.8s · 60 tok/s'); expect(fmtSpeed({ ttftMs: 800, tokPerS: null })).toBe('ttft 0.8s')
+  expect(fmtSpeed({ ttftMs: 800, tokPerS: 60.4 })).toBe('ttft 0.8s · 60 tok/s'); expect(fmtSpeed({ ttftMs: 800, tokPerS: null })).toBe('ttft 0.8s · — tok/s')
 })
 test('rate-limit labels and reset countdowns', () => {
   expect(limitLabel('five_hour')).toBe('5h'); expect(limitLabel('seven_day_opus')).toBe('7d opus')

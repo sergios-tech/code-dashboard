@@ -1,14 +1,27 @@
 import { expect, test } from 'claude-code/testing'
+import type { Engine } from 'claude-code/testing'
 
 import type { LogLine } from '../types'
 import { parseConfig } from '../hooks/config'
 import { LOG_MAX, appendLog, logRows, promptLine } from '../hooks/domain/log'
 import { statusText } from '../hooks/domain/status'
 import { DEFAULT_ARCHITECT, DEFAULT_USAGE, normalizeCard } from '../hooks/state/schema'
-import { cellWidth, engine, pane, rowsOf } from './kit'
+import { COLORS } from '../hooks/view/palette'
+import { cellWidth, engine, pane, rowsOf, spawn } from './kit'
 
 // The test kit's `$` takes the engine's full command input; only the name and arguments matter here.
 const slash = ($: { command: { run: (i: never) => Promise<{ text?: string }> } }, args: string) => $.command.run({ command: 'st-code', args } as never)
+
+/** The pane's rows at a width and a body height, unmounted again. */
+const rowsAt = async ($: Engine, cols: number, bodyRows: number) => {
+  const ui = await $.ui.mount({ ...pane(cols), props: { ...pane(cols).props, scroll: { offset: 0, bodyRows } }, surface: 'terminal' })
+  const rows = await rowsOf(ui)
+  await ui.unmount()
+  return rows
+}
+
+const ok = { result: {}, text: 'ok' }
+const failed = { isError: true as const, result: 'exit 1', text: 'exit 1' }
 
 const status = (s: Partial<Parameters<typeof statusText>[0]>, o: Record<string, unknown> = {}) =>
   statusText({ usage: DEFAULT_USAGE, agents: [], architect: DEFAULT_ARCHITECT, denials: { count: 0 }, ...s }, parseConfig(o))
@@ -26,13 +39,15 @@ test('prompts and engine-opened turns read as one log line', () => {
 })
 test('the log keeps the last 60 lines (Review Focus 5)', () => {
   let l: LogLine[] = []
-  for (let i = 0; i < 1000; i++) l = appendLog(l, { at: i, who: 'you', text: String(i), agentId: null, kind: 'info' })
+  for (let i = 0; i < 1000; i++) l = appendLog(l, { at: i, who: 'you', text: String(i), agentId: null, kind: 'info', mark: null })
   expect(l).toHaveLength(60); expect(l[59]?.text).toBe('999')
   expect(l[0]?.text).toBe('940'); expect(LOG_MAX).toBe(60)
 })
-test('the log gets what the other panels leave, between 4 and 8 rows', () => {
-  expect(logRows(70, 10)).toBe(8); expect(logRows(20, 10)).toBe(7); expect(logRows(14, 10)).toBe(4)
-  expect(logRows(3, 10)).toBe(4); expect(logRows(Number.NaN, 0)).toBe(4)
+test('the log gets what the other panels leave, at most 8 rows, and none below 2', () => {
+  expect(logRows(70, 10)).toBe(8); expect(logRows(20, 10)).toBe(7); expect(logRows(15, 10)).toBe(2)
+  expect(logRows(14, 10)).toBe(0); expect(logRows(3, 10)).toBe(0)
+  // A pane of unknown height is taken to have 40 rows, and its log keeps between 4 and 8.
+  expect(logRows(undefined, 10)).toBe(8); expect(logRows(undefined, 33)).toBe(4); expect(logRows(Number.NaN, 60)).toBe(4)
 })
 test('the status line says only what it has', () => {
   expect(statusText({ usage: DEFAULT_USAGE, agents: [], architect: DEFAULT_ARCHITECT, denials: { count: 0 } }, parseConfig({}))).toBeUndefined()
@@ -80,6 +95,57 @@ test('log rows are timed, labelled by source, one row each and within the width'
     if (cols >= 64) expect(rows[at + 2]).toContain('task notification from abcdef12')
     expect(rows[at + 3]?.startsWith('└')).toBe(true)
     for (const r of rows) expect(cellWidth(r) <= Math.max(40, cols)).toBe(true)
+    await ui.unmount()
+  }
+})
+test('a short pane shrinks the LOG to the rows left and drops it below 2, never past its bottom edge', async ($, on) => {
+  const clock = engine(on)
+  let k = 0
+  on('agent.spawn', () => ({ model: 'claude-sonnet-5-5', agentId: `bg${++k}` }))
+  on('tool.call', (_$, e) => (e.tool === 'Bash' ? failed : ok))
+  await clock.advance(1000)
+  // A busy session: a running turn, three background agents and a failed call.
+  await $.turn.start({ text: 'fan out', turnId: 'T1' })
+  for (const d of ['fix the parser', 'add docstrings', 'review the cli']) await $.agent.spawn(spawn('general-purpose', d))
+  await $.tool.call({ tool: 'Read', file_path: '/p/src/a.ts' } as never)
+  await $.tool.call({ tool: 'Bash', command: 'npm test' } as never)
+  for (const cols of [64, 120]) {
+    // In a tall pane the rows above the LOG's gap are what the header and the other panels take.
+    const used = (await rowsAt($, cols, 70)).findIndex(r => r.startsWith('┌ LOG')) - 1
+    expect(used > 10).toBe(true)
+    for (const [bodyRows, lines] of [
+      [used + 4, 0],
+      [used + 5, 2],
+      [used + 6, 3],
+    ] as const) {
+      const rows = await rowsAt($, cols, bodyRows)
+      expect(rows.length <= bodyRows).toBe(true)
+      const top = rows.findIndex(r => r.startsWith('┌ LOG'))
+      if (lines === 0) {
+        expect(top).toBe(-1); expect(rows.length).toBe(used)
+      } else {
+        expect(rows.length - top - 2).toBe(lines); expect(rows.at(-1)?.startsWith('└')).toBe(true)
+      }
+    }
+  }
+})
+test('a cut log line keeps its ✗ or · denied, so a failure is never shown by colour alone', async ($, on) => {
+  engine(on)
+  const loop = 'for f in tally/__init__.py tally/cli.py tally/parser.py tally/utils.py; do python3 -m py_compile "$f"; done'
+  const wipe = 'rm -rf build dist .cache node_modules coverage tmp/output-of-the-last-very-long-run'
+  on('tool.call', (_$, e) => (e.tool !== 'Bash' ? ok : (e as { command?: string }).command === wipe ? { deny: 'policy' } : failed))
+  await $.tool.call({ tool: 'Bash', command: loop } as never)
+  await $.tool.call({ tool: 'Bash', command: wipe } as never)
+  for (const cols of [40, 64]) {
+    const ui = await $.ui.mount({ ...pane(cols), surface: 'terminal' })
+    const rows = await rowsOf(ui)
+    // The command is cut (at 40 columns down to `Bash…`), the marker after it is whole, and the row still closes on the frame.
+    expect(rows.some(r => /main +Bash.*… ✗ *│$/.test(r))).toBe(true)
+    expect(rows.some(r => /main +Bash.*… · denied *│$/.test(r))).toBe(true)
+    expect((await ui.find({ type: 'Text', text: /^Bash.*… ✗$/ }))?.props.color).toBe(COLORS.error)
+    expect((await ui.find({ type: 'Text', text: /^Bash.*… · denied$/ }))?.props.color).toBe(COLORS.error)
+    if (cols >= 64) expect(rows.some(r => /Bash → for f in tally\/.*… ✗ *│$/.test(r))).toBe(true)
+    for (const r of rows) expect(cellWidth(r) <= cols).toBe(true)
     await ui.unmount()
   }
 })

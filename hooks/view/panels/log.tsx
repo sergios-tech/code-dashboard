@@ -2,10 +2,11 @@
 import type { RenderElement } from 'claude-code'
 
 import type { LogLine } from '../../../types'
+import { logText } from '../../domain/log'
 import { fmtClock, shorten } from '../../format/text'
 import type { Draw } from '../draw'
 import { frame } from '../frame'
-import type { ViewModel } from '../model'
+import type { LogView } from '../model'
 
 const TIME_CELLS = 9
 const WHO_CELLS = 12
@@ -24,7 +25,7 @@ const colorOf = (d: Draw, l: LogLine): string => {
   return C.agent
 }
 
-export const logPanel = (d: Draw, log: ViewModel['log'], width: number): RenderElement => {
+export const logPanel = (d: Draw, log: LogView, width: number): RenderElement => {
   const { Box, Text } = d.els
   const { C } = d
   const textCells = Math.max(1, width - CHROME - TIME_CELLS - WHO_CELLS)
@@ -46,7 +47,7 @@ export const logPanel = (d: Draw, log: ViewModel['log'], width: number): RenderE
               </Text>
             </Box>
             <Text color={l.kind === 'error' ? C.error : C.text} wrap="truncate">
-              {shorten(l.text, textCells)}
+              {logText(l, textCells)}
             </Text>
           </Box>
         ))
