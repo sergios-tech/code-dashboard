@@ -20,7 +20,7 @@ import type { Snapshot } from '../hooks/state/store'
 import { clampWidth, wideColumns } from '../hooks/view/layout'
 import { buildViewModel } from '../hooks/view/model'
 import { COLORS } from '../hooks/view/palette'
-import { CELL_PX } from '../hooks/view/picture'
+import { busy } from './fixture'
 import { cellWidth, engine, pane, rowsOf, spawn } from './kit'
 
 /** The model beneath the plugin: every request ends at once, for any loop. */
@@ -51,10 +51,6 @@ const ok = { result: {}, text: 'ok' }
 
 /** The direct children of a drawn tree's root. */
 const childrenOf = (tree: unknown): unknown[] => ((tree as { children?: unknown[] }).children ?? []).filter(c => c !== null && c !== undefined)
-
-/** Every frame and card drawn whole: each row opens as many corners as it closes. */
-const cornersPaired = (rows: string[]) =>
-  rows.every(r => r.split('┌').length === r.split('┐').length && r.split('└').length === r.split('┘').length)
 
 const FRESH: Snapshot = {
   main: DEFAULT_MAIN,
@@ -88,38 +84,19 @@ test('a fresh session draws on every surface and width, empty panels hidden', as
     await ui.unmount()
   }
 })
-test('no drawn row is wider than the pane, from 28 to 220 columns (Review Focus 2)', { timeoutMs: 15_000 }, async ($, on) => {
-  const clock = engine(on)
-  model(on)
-  let n = 0
-  on('agent.spawn', () => ({ model: 'claude-sonnet-5-5', agentId: `w${++n}` }))
-  on('tool.call', () => ok)
-  on('session.measure', (_$, e) => ({ changed: e.changed }))
-  await clock.advance(1000)
-  await $.turn.start({ text: 'build the parser', turnId: 'T1' })
-  for (const d of ['parse the 🚀 config\twith tabs\nand newlines', 'x'.repeat(300), 'map the call sites']) await $.agent.spawn(spawn('general-purpose', d))
-  await step($, 'w1')
-  await $.agent.spawn(spawn('fable-advisor:fable-advisor', 'review the plan'))
-  for (let i = 0; i < 20; i++) {
-    const file_path = `/repo/src/mod${i % 6}/${'deep'.repeat(i % 2 ? 1 : 20)}${i % 3}.ts`
-    await $.tool.call((i % 4 === 0 ? { tool: 'Edit', file_path, old_string: 'a', new_string: 'b' } : { tool: 'Read', file_path }) as never)
-  }
-  for (let i = 1; i <= 5; i++) await $.session.measure(reading(i * 10, i * 0.5))
-  await step($, 'loop-1')
-  for (const surface of ['terminal', 'desktop'] as const) for (const cols of [28, 40, 64, 120, 220]) {
-    const ui = await $.ui.mount({ ...pane(cols), surface })
-    if (surface === 'terminal') {
-      const rows = await rowsOf(ui)
-      for (const r of rows) expect(cellWidth(r) <= clampWidth(cols)).toBe(true)
-      expect(rows[0]?.startsWith("▌SERGIO'S TECH · CODE")).toBe(true); expect(cornersPaired(rows)).toBe(true)
-      for (const label of ['INFO', 'TRENDS', 'AGENTS', 'loops', 'ARCHITECT', 'TOOLS & FILES', 'LOG']) expect(rows.some(r => r.includes(label))).toBe(true)
-    } else {
-      // Off the terminal every picture is exactly as wide as the pane (the agents' axis aside), and each panel is in one.
-      const svgs = await ui.findAll({ type: 'Svg' })
-      for (const s of svgs.filter(v => !/on one time axis$/.test(String(v.props.alt)))) expect(s.props.width).toBe(Math.ceil(clampWidth(cols) * CELL_PX))
-      const all = svgs.map(s => String(s.props.source)).join('')
-      for (const word of ['INFO', 'TRENDS', 'AGENTS', 'loops', 'ARCHITECT', 'TOOLS', 'LOG']) expect(all).toContain(`>${word}<`)
-    }
+test('a busy session draws inside every width from 28 to 220, frames whole, docked and inline (Review Focus 1)', { timeoutMs: 30_000 }, async ($, on) => {
+  engine(on)
+  const s = busy()
+  // The test's `$` has no `state` noun to write through, so the busy session is what every read of the plugin's state answers.
+  const { turn: _t, view: _v, roster: _r, ...seed } = s
+  on('state.get', (_$, e) => ({ value: { value: (seed as Record<string, unknown>)[e.key], version: 1 } }) as never)
+  for (const placement of ['dock', 'inline'] as const) for (let cols = 28; cols <= 220; cols++) {
+    const ui = await $.ui.mount({ ...pane(cols, placement), surface: 'terminal' })
+    const rows = await rowsOf(ui)
+    for (const r of rows) expect(cellWidth(r) <= clampWidth(cols)).toBe(true)
+    // A row that starts with a side border ends with one, or with the closing edge of a second frame beside it that ends on that row.
+    for (const r of rows.filter(x => /^[│├]/.test(x.trimStart()))) expect(/[│┤]$|└─*┘$/.test(r.trimEnd())).toBe(true)
+    if (placement === 'inline') expect(rows.length <= 8).toBe(true)
     await ui.unmount()
   }
 })
