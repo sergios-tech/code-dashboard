@@ -45,7 +45,7 @@ The plugin keeps short summaries in session state, held by the host for the curr
 It **stores nothing across sessions**: it uses no persistent store and writes no files. `/clear` and
 `/st-code reset` empty most of the session state.
 
-Each stored list has a cap: 24 agent cards, 60 other loops, 60 log lines, 40 consults, 40 tools, 200
+Each stored list has a cap: 24 agents, 60 other loops, 60 log lines, 40 consults, 40 tools, 200
 files and 60 trend samples.
 
 Before anything is stored, credentials are masked as `•••`. That covers:
