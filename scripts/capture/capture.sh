@@ -97,10 +97,12 @@ cmd_start() {
     make_wide_copy
     plugin="$WIDE_COPY"
   fi
-  # COLORTERM makes the host draw 24-bit colour, so the palette hex survives the capture.
+  # CLAUDE_CODE_TMUX_TRUECOLOR asks the host for 24-bit colour under tmux, which otherwise gets 256
+  # colours. The dark theme is set because the demo profile's dark-ansi theme paints the pane bright
+  # black, which distorts the palette.
   tmux new-session -d -s "$SESSION" -x "$cols" -y "$rows" -c "$dir" \
-    -e "CLAUDE_CONFIG_DIR=$CLAUDE_CONFIG_DIR" -e COLORTERM=truecolor \
-    claude --plugin-dir "$plugin"
+    -e "CLAUDE_CONFIG_DIR=$CLAUDE_CONFIG_DIR" -e CLAUDE_CODE_TMUX_TRUECOLOR=1 \
+    claude --plugin-dir "$plugin" --settings '{"theme":"dark"}'
   echo "started '$SESSION' at ${cols}x${rows}"
 }
 

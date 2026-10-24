@@ -68,7 +68,7 @@ class ParseTest(unittest.TestCase):
             grid = ansi.parse(f.read())
         rows = [text(r) for r in grid]
         self.assertIn("SERGIO'S TECH", rows[0])
-        self.assertTrue(any("┌ VITALS" in r for r in rows))
+        self.assertTrue(any("┌ INFO" in r for r in rows))
 
 
 class SvgTest(unittest.TestCase):
@@ -92,7 +92,7 @@ class SvgTest(unittest.TestCase):
         self.assertIn('font-weight="bold"', self.svg(HEADER))
 
     def test_box_drawing_survives(self):
-        out = self.svg("┌ VITALS ─┐\n│ ▰▰▱ │\n└─────────┘")
+        out = self.svg("┌ INFO ─┐\n│ ▰▰▱ │\n└─────────┘")
         for char in "┌─┐│▰▱└┘":
             self.assertIn(char, out)
 

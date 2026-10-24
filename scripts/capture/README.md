@@ -80,8 +80,14 @@ The host applies `/st-code layout wide|compact` on top of this. A forced `wide` 
 two columns from a dock of 82 columns (the automatic wide layout starts at 110), so in
 the stock 66-column dock it still draws compact.
 
-`capture.sh` sets `COLORTERM=truecolor` so the host draws 24-bit colour. Without it
-the palette is rounded to 256 colours (the crimson header comes out lighter).
+`capture.sh` sets two things, each for a reason:
+
+- `CLAUDE_CODE_TMUX_TRUECOLOR=1`, because under tmux the host draws 256 colours unless it is set
+  (the usual 24-bit terminal variable did not change that). Without 24-bit colour the palette is rounded to the
+  256-colour fallbacks, for example orange draws as `#ff8700`. Whether the variable gives 24-bit
+  captures is checked when the media is recaptured (`grep -c '38;2;'` on a snapshot).
+- `--settings '{"theme":"dark"}'`, because the demo profile's `dark-ansi` theme paints the pane
+  bright black and distorts the colours.
 
 ## Render
 
@@ -99,7 +105,7 @@ $R scripts/capture/render.py $OUT/docked.ansi --svg docked.svg
 - PNG, SVG and the social card use the last frame given. A GIF uses every frame, in
   the order given (`burst` zero-pads its numbers, so a glob sorts correctly).
 - The social card is 1280x640: the pane, with trailing blank rows dropped, centred on
-  `#000000` above a crimson `#8a0000` bar.
+  `#000000` above a dark red `#8a0000` bar.
 - `render.py` stops with an error if a GIF is over 3 MB. Use fewer frames or crop.
 - PNGs are drawn at 2x. Glyphs missing from DejaVu Sans Mono (emoji and icon glyphs in
   the host's own chrome) draw as an empty box; crop to the pane to avoid them.

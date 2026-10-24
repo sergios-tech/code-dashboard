@@ -1,7 +1,7 @@
 {
   "name": "st-code",
   "version": "0.3.0",
-  "description": "Sergio's Tech Code dashboard: a live, read-only pane with vitals, turn receipt, agents, architect consults, tools and files, trends and a session log, all from real session events. Requires Claude Code 2.1.300 or newer.",
+  "description": "Sergio's Tech Code dashboard: a live, read-only pane with INFO, agents, architect consults, tools and files, trends and a session log, all from real session events. Requires Claude Code 2.1.300 or newer.",
   "author": {
     "name": "Sergio Jovanotti",
     "url": "https://github.com/sergios-tech"
@@ -54,7 +54,7 @@
     },
     "motion": {
       "title": "Motion",
-      "description": "Animate the header pulse and live elements, or keep everything still",
+      "description": "Animate the header pulse and the agents' sweep, or keep everything still",
       "type": "string",
       "options": ["on", "off"],
       "default": "on"

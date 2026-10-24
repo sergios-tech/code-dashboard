@@ -153,7 +153,7 @@ def trim_blank_rows(grid):
 
 
 def social(grid, path, *, size=(1280, 640), margin=40, bar=24):
-    """A 1280x640 card: the pane (trailing blank rows dropped) centred on black above a crimson bar."""
+    """A 1280x640 card: the pane (trailing blank rows dropped) centred on black above a dark red bar."""
     from PIL import Image, ImageDraw
     shot = image(trim_blank_rows(grid), scale=2)
     room = (size[0] - 2 * margin, size[1] - bar - 2 * margin)
