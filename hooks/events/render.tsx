@@ -11,7 +11,7 @@ import { miniPane } from '../view/mini'
 import { buildViewModel } from '../view/model'
 import type { ViewModel } from '../view/model'
 import { COLORS } from '../view/palette'
-import { agentsPanel, loopsRow } from '../view/panels/agents'
+import { agentsPanel } from '../view/panels/agents'
 import type { Expand } from '../view/panels/agents'
 import { architectPanel } from '../view/panels/architect'
 import { infoPanel } from '../view/panels/info'
@@ -24,7 +24,6 @@ const panel = (d: Draw, vm: ViewModel, p: Panel, expand: Expand): RenderElement 
   const w = vm.widths[p]
   if (p === 'info') return infoPanel(d, vm.info, w)
   if (p === 'agents') return vm.agents ? agentsPanel(d, vm.agents, w, expand) : null
-  if (p === 'loops') return vm.loops ? loopsRow(d, vm.loops, w) : null
   if (p === 'architect') return vm.architect ? architectPanel(d, vm.architect, w) : null
   if (p === 'tools') return vm.tools ? toolsPanel(d, vm.tools, w) : null
   if (p === 'trends') return vm.trends ? trendsPanel(d, vm.trends, w) : null
@@ -65,7 +64,7 @@ export const wireRender = (on: On, cfg: Config): void => {
     // VS Code's webview takes no client modules, whatever its element table holds.
     const hasClient = 'Client' in els && e.surface !== 'vscode'
     const d: Draw = { els, C: COLORS, hasClient, motion: cfg.motion, surface: e.surface, now }
-    // A card's hotkey opens its details under the frame, or closes them.
+    // An agent's hotkey opens its details inside the AGENTS frame, or closes them.
     const expand: Expand = id => () => toggleExpanded($, id)
     if (vm.mini) return miniPane(d, vm.mini, vm.width)
     const { Box } = els

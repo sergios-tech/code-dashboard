@@ -272,7 +272,7 @@ test("a background architect's advice is read from its hand-back", async ($, on)
   await step($, 'fab1')
   // The architect is a consult: no card, and its requests are not among the other loops.
   let rows = await drawn($)
-  expect(rows.some(r => r.includes('AGENTS'))).toBe(false); expect(rows.some(r => r.includes('LOOPS'))).toBe(false)
+  expect(rows.some(r => r.includes('AGENTS'))).toBe(false); expect(rows.some(r => r.includes('loops'))).toBe(false)
   expect(rows.some(r => /^│ ● advising +│$/.test(r))).toBe(true)
   expect(rows.some(r => /architect +before a plan · fable-advisor/.test(r))).toBe(true); expect(rows.some(r => r.includes('spawned ·'))).toBe(false)
 

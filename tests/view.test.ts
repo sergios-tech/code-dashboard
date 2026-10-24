@@ -50,14 +50,14 @@ test('layout picks mini inline, wide from 110 docked, compact otherwise; overrid
   expect(clampWidth(28)).toBe(40); expect(clampWidth(220)).toBe(220)
 })
 test('the wide layout puts info, trends and tools left, agents and architect right', () => {
-  expect(WIDE_LEFT).toEqual(['info', 'trends', 'tools']); expect(WIDE_RIGHT).toEqual(['agents', 'loops', 'architect'])
+  expect(WIDE_LEFT).toEqual(['info', 'trends', 'tools']); expect(WIDE_RIGHT).toEqual(['agents', 'architect'])
 })
 test('forced layouts: mini anywhere, wide only with room for two 40-column columns', () => {
   expect(pickLayout('mini', null, 'dock', 120)).toBe('mini'); expect(pickLayout('compact', 'auto', 'dock', 120)).toBe('wide')
   expect(pickLayout('wide', null, 'dock', 82)).toBe('wide'); expect(pickLayout('auto', 'wide', 'dock', 64)).toBe('compact')
   expect(clampWidth(Number.NaN)).toBe(40)
   expect(wideColumns(120)).toEqual({ left: 59, right: 59, gap: 2 }); expect(wideColumns(111)).toEqual({ left: 54, right: 55, gap: 2 })
-  expect([...WIDE_LEFT, ...WIDE_RIGHT].sort()).toEqual(['agents', 'architect', 'info', 'loops', 'tools', 'trends'])
+  expect([...WIDE_LEFT, ...WIDE_RIGHT].sort()).toEqual(['agents', 'architect', 'info', 'tools', 'trends'])
 })
 
 // ---------------------------------------------------------------- view model

@@ -4,11 +4,11 @@ import type { AgentCard, Architect, FileRow, Limit, LogLine, Moment, Sample, Spe
 import { PANELS } from '../config'
 import type { Config, Panel } from '../config'
 import { hotFiles, topTools, totalCalls } from '../domain/activity'
-import { LIST_SHOWN, cardTitle, isLoopActive, listOrder } from '../domain/agents'
+import { LIST_SHOWN, cardTitle, fitCells, isCut, isLoopActive, listOrder } from '../domain/agents'
 import { consultLine, consultTimeline, hasArchitect, isAdvising } from '../domain/architect'
 import { logRows } from '../domain/log'
 import { effortLevel } from '../domain/vitals'
-import { plural, prettyModel, shorten, wrapText } from '../format/text'
+import { kTokens, plural, prettyModel, wrapText } from '../format/text'
 import type { Snapshot } from '../state/store'
 import { WIDE_LEFT, WIDE_RIGHT, clampWidth, pickLayout, wideColumns } from './layout'
 
@@ -37,18 +37,21 @@ export type InfoView = {
   rows: number
 }
 
-/** The block under the AGENTS frame for the agent its hotkey opened: the task, facts, tools, answer. */
+/**
+ * The block inside the AGENTS frame, after a divider, for the agent its hotkey opened: the task, the
+ * facts, the last tool calls and the start of the answer.
+ */
 export type ExpandedView = {
   id: string
-  /** The full task, wrapped to at most 3 rows. */
-  description: string[]
-  /** `type · Model · status · N steps`. */
-  meta: string
+  /** The full task wrapped to at most 2 rows. */
+  task: string[]
+  /** `type · Model · status · N steps · ctx Nk · out N`; the model is left out when unknown. */
+  facts: string
   /** The last 3 tool calls, newest last. */
   tools: ToolNote[]
-  /** `» answer`, cut to 240 characters and wrapped to at most 3 rows; empty until it answers. */
-  answer: string[]
-  /** Rows the block takes. */
+  /** `» answer` fitted to one row; empty until it answers. */
+  answer: string
+  /** Rows the block takes, its divider not counted. */
   rows: number
 }
 
@@ -71,12 +74,15 @@ export type AgentsView = {
   /** Some agent is running: the frame turns green. */
   isActive: boolean
   now: number
+  /** The opened agent, only while it is among `shown`. */
   expanded: ExpandedView | null
-  /** Rows the panel body takes inside its frame. */
+  /** The model loops no agent claims, null until one has stepped. */
+  loops: LoopsView | null
+  /** Rows the panel body takes inside its frame: the list, then a divider and the opened block, then a divider and the loops row. */
   rows: number
 }
 
-/** The other loops row: model loops no card claims, and one dot each for the newest that fit. */
+/** The loops row: model loops no card claims, and one dot each for the newest that fit. */
 export type LoopsView = { seen: number; active: number; dots: ('active' | 'done' | 'idle')[] }
 
 /** The architect panel: whether it is advising, its consults on one row, the last one's timing, its moments and its advice. */
@@ -177,8 +183,6 @@ export type ViewModel = {
   info: InfoView
   /** The agents panel, null until a subagent has been spawned. */
   agents: AgentsView | null
-  /** The other loops row, null until a loop no card claims has stepped. */
-  loops: LoopsView | null
   /** The architect panel, null until an architect has been spawned or consulted. */
   architect: ArchitectView | null
   /** The tools and files panel, null until the first tool call. */
@@ -211,23 +215,20 @@ export function buildViewModel(s: Snapshot, ctx: ViewContext): ViewModel {
   const widths = Object.fromEntries(PANELS.map(p => [p, widthOf(p)])) as Record<Panel, number>
   const info = infoView(s, ctx.now)
   const agents = agentsView(s, ctx, widths.agents)
-  const loops = loopsView(s, ctx.now, widths.loops)
   const architect = architectView(s, ctx, widths.architect)
   const tools = toolsView(s, layout)
   const trends = trendsView(s)
   // What each panel draws, null while it has nothing to show.
-  const content: Record<Panel, unknown> = { info, trends, agents, loops, architect, tools, log: s.log }
+  const content: Record<Panel, unknown> = { info, trends, agents, architect, tools, log: s.log }
   const shown = ctx.cfg.panels.filter(p => content[p] !== null)
   const columns: Columns | null = cols
     ? { left: shown.filter(p => WIDE_LEFT.includes(p)), right: shown.filter(p => WIDE_RIGHT.includes(p)), leftWidth: cols.left, rightWidth: cols.right, gap: cols.gap }
     : null
-  // Each drawn panel's gap above it and its frame's two border rows around its body; the expanded
-  // agent's block sits under its frame, and the loops row is one row under a gap.
+  // Each drawn panel's gap above it and its frame's two border rows around its body.
   const tall: Record<Panel, number> = {
     info: 3 + info.rows,
     trends: trends ? 3 + trends.rows : 0,
-    agents: agents ? 3 + agents.rows + (agents.expanded?.rows ?? 0) : 0,
-    loops: loops ? 2 : 0,
+    agents: agents ? 3 + agents.rows : 0,
     architect: architect ? 3 + architect.rows : 0,
     tools: tools ? 3 + tools.rows : 0,
     log: 0,
@@ -254,12 +255,11 @@ export function buildViewModel(s: Snapshot, ctx: ViewContext): ViewModel {
     viewedAgentId: ctx.viewedAgentId,
     info,
     agents,
-    loops,
     architect,
     tools,
     trends,
     log,
-    mini: layout === 'mini' ? miniView(s, ctx, trends, loops) : null,
+    mini: layout === 'mini' ? miniView(s, ctx, trends, widths.agents) : null,
   }
 }
 
@@ -267,7 +267,7 @@ export function buildViewModel(s: Snapshot, ctx: ViewContext): ViewModel {
 const MINI_AGENTS = 3
 
 /** The inline summary: the main model's line, then each part whose panel is switched on and has something to show. */
-function miniView(s: Snapshot, ctx: ViewContext, trends: TrendsView | null, loops: LoopsView | null): MiniView {
+function miniView(s: Snapshot, ctx: ViewContext, trends: TrendsView | null, agentsWidth: number): MiniView {
   const drawn = (p: Panel) => ctx.cfg.panels.includes(p)
   const a = s.architect
   const label = ctx.cfg.architectLabel.toLowerCase()
@@ -277,6 +277,7 @@ function miniView(s: Snapshot, ctx: ViewContext, trends: TrendsView | null, loop
   // Readings that carried no context fill (cost alone) would only leave gaps in a line this short.
   const ctxs = (trends?.samples ?? []).map(x => x.ctxPct).filter((v): v is number => v !== null)
   const last = ctxs[ctxs.length - 1]
+  const loops = drawn('agents') ? loopsView(s, ctx.now, agentsWidth) : null
   return {
     model: s.main.model ? prettyModel(s.main.model) : '',
     isRunning: s.main.isRunning,
@@ -286,7 +287,7 @@ function miniView(s: Snapshot, ctx: ViewContext, trends: TrendsView | null, loop
     spark: drawn('trends') && ctxs.length >= 2 && last !== undefined ? { values: ctxs, pct: last } : null,
     agents,
     more: drawn('agents') ? s.agents.length - agents.length : 0,
-    loops: drawn('loops') && loops ? { seen: loops.seen, active: loops.active } : null,
+    loops: loops ? { seen: loops.seen, active: loops.active } : null,
   }
 }
 
@@ -317,13 +318,9 @@ function infoView(s: Snapshot, now: number): InfoView {
   }
 }
 
-/** Border and padding on each side of a row inside a frame or the expanded block. */
+/** Border and padding on each side of a row inside a frame. */
 const FRAME_CHROME = 4
-/** The expanded block's border rows, above and below its content. */
-const BLOCK_BORDER_ROWS = 2
-const DESCRIPTION_ROWS = 3
-const ANSWER_ROWS = 3
-const ANSWER_MAX = 240
+const TASK_ROWS = 2
 
 /** Hidden until the first agent; then the first six of the list, running first, and a row for those left out. */
 function agentsView(s: Snapshot, ctx: ViewContext, width: number): AgentsView | null {
@@ -332,7 +329,10 @@ function agentsView(s: Snapshot, ctx: ViewContext, width: number): AgentsView | 
   const ordered = listOrder(cards)
   const shown = ordered.slice(0, LIST_SHOWN)
   const running = cards.filter(c => c.status === 'running').length
-  const open = cards.find(c => c.id === s.view.expanded)
+  // An opened agent that is no longer among the six drawn rows is not drawn, nor is a name that no agent has.
+  const open = shown.find(c => c.id === s.view.expanded)
+  const expanded = open ? expandedView(open, width - FRAME_CHROME) : null
+  const loops = loopsView(s, ctx.now, width)
   return {
     meta: `${running} running · ${cards.length} total`,
     shown,
@@ -342,31 +342,35 @@ function agentsView(s: Snapshot, ctx: ViewContext, width: number): AgentsView | 
     viewedId: ctx.viewedAgentId,
     isActive: running > 0,
     now: ctx.now,
-    expanded: open ? expandedView(open, width - FRAME_CHROME) : null,
-    rows: shown.length + (ordered.length > shown.length ? 1 : 0),
+    expanded,
+    loops,
+    // Each of the opened block and the loops row sits after a divider row of its own.
+    rows: shown.length + (ordered.length > shown.length ? 1 : 0) + (expanded ? 1 + expanded.rows : 0) + (loops ? 2 : 0),
   }
 }
 
 function expandedView(c: AgentCard, room: number): ExpandedView {
-  const description = wrapText(cardTitle(c), room, DESCRIPTION_ROWS)
-  const status = c.lastStop === 'max_tokens' ? `${c.status} (max_tokens)` : c.status
-  const meta = [c.type, c.model ? prettyModel(c.model) : null, status, plural(c.steps, 'step')].filter((p): p is string => p !== null).join(' · ')
-  const answer = c.answer ? wrapText(`» ${shorten(c.answer, ANSWER_MAX)}`, room, ANSWER_ROWS) : []
+  const task = wrapText(cardTitle(c), room, TASK_ROWS)
+  const status = isCut(c) && c.lastStop === 'max_tokens' ? 'max_tokens' : c.status
+  const facts = [c.type, c.model ? prettyModel(c.model) : null, status, plural(c.steps, 'step'), `ctx ${kTokens(c.ctx)}`, `out ${kTokens(c.out)}`]
+    .filter((p): p is string => p !== null)
+    .join(' · ')
+  const answer = c.answer ? fitCells(`» ${c.answer}`, room) : ''
   // With no tool call yet the block says so on a row of its own.
-  const rows = BLOCK_BORDER_ROWS + description.length + 1 + Math.max(1, c.tools.length) + answer.length
-  return { id: c.id, description, meta, tools: c.tools, answer, rows }
+  const rows = task.length + 1 + Math.max(1, c.tools.length) + (answer ? 1 : 0)
+  return { id: c.id, task, facts, tools: c.tools, answer, rows }
 }
 
-/** The words of the loops row between its `LOOPS` label and its dots. */
-export const loopsWords = (seen: number, active: number): string => `  ${seen} seen · ${active} active  `
+/** The words of the loops row before its dots. */
+export const loopsWords = (seen: number, active: number): string => `loops  ${seen} seen · ${active} active  `
 
 /** Hidden until a loop no card claims has stepped; as many dots as the row has room for, newest last. */
 function loopsView(s: Snapshot, now: number, width: number): LoopsView | null {
   const list = s.loops
   if (list.length === 0) return null
   const active = list.filter(l => isLoopActive(l, now)).length
-  // The row's one-cell padding on each side, then the label and the words before the dots.
-  const room = width - 2 - Array.from(`LOOPS${loopsWords(list.length, active)}`).length
+  // The frame's border and padding on each side, then the words before the dots.
+  const room = width - FRAME_CHROME - Array.from(loopsWords(list.length, active)).length
   const dots = room > 0 ? list.slice(-room).map((l): LoopsView['dots'][number] => (isLoopActive(l, now) ? 'active' : l.isDone ? 'done' : 'idle')) : []
   return { seen: list.length, active, dots }
 }

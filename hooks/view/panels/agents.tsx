@@ -1,7 +1,7 @@
 // The AGENTS panel: one row per agent, running first, each with a status glyph, its hotkey digit and
-// title, its model tag, a status bar and a clock. The agent a hotkey opened shows its details under
-// the frame, and the surfaces that draw vectors add the agents on one time axis as an SVG. Then the
-// LOOPS row: the model loops no agent claims.
+// title, its model tag, a status bar and a clock. The agent a hotkey opened shows its details inside
+// the frame after a divider, then the loops row: the model loops no agent claims, after another
+// divider. The surfaces that draw vectors add the agents on one time axis as an SVG.
 import type { RenderElement } from 'claude-code'
 
 import type { AgentCard } from '../../../types'
@@ -9,13 +9,13 @@ import { agentGlyph, cardTitle, fitCells, modelTag } from '../../domain/agents'
 import { plural } from '../../format/text'
 import { canAnimate, clock } from '../draw'
 import type { Draw } from '../draw'
-import { frame } from '../frame'
+import { dividerRow, frame } from '../frame'
 import { loopsWords } from '../model'
 import type { AgentsView, ExpandedView, LoopsView } from '../model'
 import { familyColor } from '../palette'
 import { agentTone, svgLanes } from '../svg'
 
-/** What pressing an agent's row does: its details open under the frame, or close when they were open. */
+/** What pressing an agent's row does: its details open inside the frame, or close when they were open. */
 export type Expand = (id: string) => () => unknown
 
 /** Border and padding on each side of a row inside a frame. */
@@ -138,37 +138,58 @@ const rows = (d: Draw, a: AgentsView, width: number, expand: Expand): RenderElem
   return out
 }
 
-/** The opened agent under the frame: the whole task, its facts, the last three tools and the answer's start. */
-const expandedBlock = (d: Draw, x: ExpandedView, width: number): RenderElement => {
-  const { Box, Text } = d.els
+/** The opened agent's rows: the whole task, its facts, the last three tools and the answer's start. */
+const expandedRows = (d: Draw, x: ExpandedView): RenderElement[] => {
+  const { Text } = d.els
   const { C } = d
-  return (
-    <Box key="agent-open" flexDirection="column" width={width} borderStyle="single" borderColor={C.orange} paddingX={1}>
-      {x.description.map((row, i) => (
-        <Text key={`task-${i}`} bold color={C.text} wrap="truncate">
-          {row}
-        </Text>
-      ))}
-      <Text key="facts" color={C.dim} wrap="truncate">
-        {x.meta}
+  return [
+    ...x.task.map((row, i) => (
+      <Text key={`task-${i}`} bold color={C.text} wrap="truncate">
+        {row}
       </Text>
-      {x.tools.length === 0 ? (
-        <Text key="no-tools" color={C.dim}>
-          no tool calls yet
-        </Text>
-      ) : (
-        x.tools.map((n, i) => (
+    )),
+    <Text key="facts" color={C.dim} wrap="truncate">
+      {x.facts}
+    </Text>,
+    ...(x.tools.length === 0
+      ? [
+          <Text key="no-tools" color={C.dim}>
+            no tool calls yet
+          </Text>,
+        ]
+      : x.tools.map((n, i) => (
           <Text key={`tool-${i}`} color={n.isError ? C.error : C.text} wrap="truncate">
             {`${n.isError ? '✗' : '·'} ${n.text}`}
           </Text>
-        ))
-      )}
-      {x.answer.map((row, i) => (
-        <Text key={`answer-${i}`} color={C.text} wrap="truncate">
-          {row}
+        ))),
+    ...(x.answer
+      ? [
+          <Text key="answer" color={C.text} wrap="truncate">
+            {x.answer}
+          </Text>,
+        ]
+      : []),
+  ]
+}
+
+const LOOP_GLYPH: Record<LoopsView['dots'][number], string> = { active: '●', done: '✓', idle: '○' }
+
+/** `loops  3 seen · 1 active  ✓○●`: the row under the last divider. */
+const loopsRow = (d: Draw, l: LoopsView): RenderElement => {
+  const { Text } = d.els
+  const { C } = d
+  const toneOf = (s: LoopsView['dots'][number]) => (s === 'active' ? C.orange : s === 'done' ? C.green : C.dim)
+  return (
+    <Text key="loops" wrap="truncate">
+      <Text key="words" color={C.dim}>
+        {loopsWords(l.seen, l.active)}
+      </Text>
+      {l.dots.map((s, i) => (
+        <Text key={`dot-${i}`} color={toneOf(s)}>
+          {LOOP_GLYPH[s]}
         </Text>
       ))}
-    </Box>
+    </Text>
   )
 }
 
@@ -181,37 +202,19 @@ const axisSvg = (d: Draw, a: AgentsView, width: number): RenderElement | null =>
 
 export const agentsPanel = (d: Draw, a: AgentsView, width: number, expand: Expand): RenderElement => {
   const { Box } = d.els
+  const body = rows(d, a, width, expand)
+  const dividers: number[] = []
+  // A divider row is reserved for the frame to draw over, then the block or row it separates.
+  const divide = (key: string, after: RenderElement[]) => {
+    dividers.push(body.length)
+    body.push(dividerRow(d, key), ...after)
+  }
+  if (a.expanded) divide('divider-open', expandedRows(d, a.expanded))
+  if (a.loops) divide('divider-loops', [loopsRow(d, a.loops)])
   return (
     <Box key="agents" marginTop={1} flexDirection="column" width={width}>
-      {frame(d, { key: 'agents-frame', label: 'AGENTS', meta: a.meta, width, isActive: a.isActive, children: rows(d, a, width, expand) })}
+      {frame(d, { key: 'agents-frame', label: 'AGENTS', meta: a.meta, width, isActive: a.isActive, dividers, children: body })}
       {axisSvg(d, a, width)}
-      {a.expanded ? expandedBlock(d, a.expanded, width) : null}
-    </Box>
-  )
-}
-
-const LOOP_GLYPH: Record<LoopsView['dots'][number], string> = { active: '●', done: '✓', idle: '○' }
-
-/** `LOOPS  3 seen · 1 active  ✓○●`: frameless, one row under the agents. */
-export const loopsRow = (d: Draw, l: LoopsView, width: number): RenderElement => {
-  const { Box, Text } = d.els
-  const { C } = d
-  const toneOf = (s: LoopsView['dots'][number]) => (s === 'active' ? C.orange : s === 'done' ? C.green : C.dim)
-  return (
-    <Box key="loops" marginTop={1} paddingX={1} width={width}>
-      <Text wrap="truncate">
-        <Text key="label" bold color={C.text}>
-          LOOPS
-        </Text>
-        <Text key="words" color={C.dim}>
-          {loopsWords(l.seen, l.active)}
-        </Text>
-        {l.dots.map((s, i) => (
-          <Text key={`dot-${i}`} color={toneOf(s)}>
-            {LOOP_GLYPH[s]}
-          </Text>
-        ))}
-      </Text>
     </Box>
   )
 }

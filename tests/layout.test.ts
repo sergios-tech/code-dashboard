@@ -76,7 +76,7 @@ test('a fresh session draws on every surface and width, empty panels hidden', as
     const ui = await $.ui.mount({ ...pane(cols), surface })
     expect(await ui.find({ text: /SERGIO'S TECH · CODE/ })).toBeDefined(); expect(await ui.find({ text: /INFO/ })).toBeDefined()
     expect(await ui.find({ text: /AGENTS|TRENDS|TOOLS & FILES|ARCHITECT/ })).toBeUndefined()
-    expect(await ui.find({ type: 'Text', text: /^ LOG $/ })).toBeDefined(); expect(await ui.find({ text: /TURN|LOOPS/ })).toBeUndefined()
+    expect(await ui.find({ type: 'Text', text: /^ LOG $/ })).toBeDefined(); expect(await ui.find({ text: /TURN|loops/ })).toBeUndefined()
     await ui.unmount()
   }
 })
@@ -103,7 +103,7 @@ test('no drawn row is wider than the pane, from 28 to 220 columns (Review Focus 
     const rows = await rowsOf(ui)
     for (const r of rows) expect(cellWidth(r) <= clampWidth(cols)).toBe(true)
     expect(rows[0]?.startsWith("▌SERGIO'S TECH · CODE")).toBe(true); expect(cornersPaired(rows)).toBe(true)
-    for (const label of ['INFO', 'TRENDS', 'AGENTS', 'LOOPS', 'ARCHITECT', 'TOOLS & FILES', 'LOG']) expect(rows.some(r => r.includes(label))).toBe(true)
+    for (const label of ['INFO', 'TRENDS', 'AGENTS', 'loops', 'ARCHITECT', 'TOOLS & FILES', 'LOG']) expect(rows.some(r => r.includes(label))).toBe(true)
     await ui.unmount()
   }
 })
