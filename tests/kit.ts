@@ -3,7 +3,23 @@
 import type { AgentSpawnInput, On, RenderElement } from 'claude-code'
 import { mock } from 'claude-code/testing'
 
+import { parseConfig } from '../hooks/config'
 import { PANE_ID, PLUGIN } from '../hooks/state/atoms'
+import {
+  DEFAULT_ACTIVITY,
+  DEFAULT_ARCHITECT,
+  DEFAULT_DENIALS,
+  DEFAULT_MAIN,
+  DEFAULT_ROSTER,
+  DEFAULT_TRENDS,
+  DEFAULT_TURN,
+  DEFAULT_USAGE,
+  DEFAULT_VIEW,
+} from '../hooks/state/schema'
+import type { Snapshot } from '../hooks/state/store'
+import type { Draw } from '../hooks/view/draw'
+import { buildViewModel } from '../hooks/view/model'
+import { COLORS } from '../hooks/view/palette'
 
 /** The mocked clock, plus answers for the events the plugin passes on but the kit leaves open. */
 export const engine = (on: On) => {
@@ -42,6 +58,60 @@ export const spawn = (subagentType: string, description: string): AgentSpawnInpu
   background: true,
   fork: false,
 })
+
+// ---------------------------------------------------------------- render helpers
+//
+// Element constructors that build the same plain data a surface's table does, so a renderer can be
+// drawn without a mount, a snapshot with nothing in it, and finders over a drawn tree.
+
+export const el =
+  (type: string) =>
+  ({ children, ...props }: Record<string, unknown> & { children?: unknown[] }) =>
+    ({ type, props, children: children ?? [] }) as unknown as RenderElement
+export const ELS = { Box: el('Box'), Text: el('Text'), Client: el('Client'), Button: el('Button'), Svg: el('Svg') }
+export const draw = (o: Partial<Draw> = {}): Draw => ({ els: ELS as never, C: COLORS, hasClient: true, motion: true, surface: 'terminal', now: 0, ...o })
+
+export const FRESH: Snapshot = {
+  main: DEFAULT_MAIN,
+  usage: DEFAULT_USAGE,
+  turn: DEFAULT_TURN,
+  receipt: null,
+  agents: [],
+  loops: [],
+  architect: DEFAULT_ARCHITECT,
+  activity: DEFAULT_ACTIVITY,
+  trends: DEFAULT_TRENDS,
+  denials: DEFAULT_DENIALS,
+  log: [],
+  view: DEFAULT_VIEW,
+  roster: DEFAULT_ROSTER,
+}
+export const vmOf = (s: Partial<Snapshot>, bodyColumns = 64, placement: 'dock' | 'inline' = 'dock', now = 0) =>
+  buildViewModel({ ...FRESH, ...s }, { cfg: parseConfig({}), now, bodyColumns, placement, viewedAgentId: null })
+
+/** The props of every node of a type in a tree. */
+export const found = (tree: unknown, type: string): Record<string, unknown>[] => {
+  if (typeof tree !== 'object' || tree === null) return []
+  const n = tree as { type?: string; props?: Record<string, unknown>; children?: unknown[] }
+  return [...(n.type === type ? [n.props ?? {}] : []), ...(n.children ?? []).flatMap(c => found(c, type))]
+}
+
+/** One entry per Text node: its own string children joined, with its colour and weight. */
+export const texts = (tree: unknown): { text: string; color?: string; bold?: boolean }[] => {
+  if (typeof tree !== 'object' || tree === null) return []
+  const n = tree as { type?: string; props?: Record<string, unknown>; children?: unknown[] }
+  const kids = n.children ?? []
+  const own: { text: string; color?: string; bold?: boolean }[] = []
+  if (n.type === 'Text') {
+    const { color, bold } = n.props ?? {}
+    own.push({
+      text: kids.filter((c): c is string => typeof c === 'string').join(''),
+      ...(typeof color === 'string' ? { color } : {}),
+      ...(typeof bold === 'boolean' ? { bold } : {}),
+    })
+  }
+  return [...own, ...kids.flatMap(texts)]
+}
 
 // ---------------------------------------------------------------- text drawing
 //

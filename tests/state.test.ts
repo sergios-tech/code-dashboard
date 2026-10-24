@@ -27,13 +27,18 @@ import { loadSnapshot, resetAll } from '../hooks/state/store'
 
 test('config is read leniently: bad values fall back to defaults', () => {
   const d = parseConfig({})
-  expect(d.panels).toEqual(['vitals', 'trends', 'turn', 'agents', 'loops', 'architect', 'tools', 'log'])
+  expect(d.panels).toEqual(['info', 'trends', 'agents', 'loops', 'architect', 'tools', 'log'])
   expect(d.architect.test('fable-ADVISOR')).toBe(true); expect(d.architectLabel).toBe('ARCHITECT')
   expect(d.maxCards).toBe(3); expect(d.layout).toBe('auto'); expect(d.motion).toBe(true)
   const bad = parseConfig({ architectPattern: '([', maxCards: 99, layout: 'huge', panels: 'gate,nope', motion: 'off', moments: 'yes' })
   expect(bad.architect.test('architect')).toBe(true); expect(bad.maxCards).toBe(6); expect(bad.layout).toBe('auto')
   expect(bad.panels).toEqual(d.panels); expect(bad.motion).toBe(false); expect(bad.moments).toBe(true)
-  expect(parseConfig({ panels: 'log, vitals ,log' }).panels).toEqual(['log', 'vitals'])
+  expect(parseConfig({ panels: 'log, info ,log' }).panels).toEqual(['log', 'info'])
+})
+test('panels default to info, trends, agents, loops, architect, tools, log; old names are not aliases (Review Focus 2)', () => {
+  expect(parseConfig({}).panels).toEqual(['info', 'trends', 'agents', 'loops', 'architect', 'tools', 'log'])
+  expect(parseConfig({ panels: 'vitals,turn,log' }).panels).toEqual(['log'])
+  expect(parseConfig({ panels: 'vitals,turn' }).panels).toEqual(parseConfig({}).panels)
 })
 test('garbage in any stored key reads as its defaults (Review Focus 1)', () => {
   for (const junk of [null, 7, 'x', [], { consults: 'no' }]) {

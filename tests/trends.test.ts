@@ -162,7 +162,7 @@ test('a fresh session whose readings repeat the start draws no TRENDS until a fi
   await $.session.measure(same); await $.session.measure(same)
   const fresh = await drawn($)
   expect(fresh.some(r => r.includes('TRENDS'))).toBe(false)
-  expect(fresh.some(r => r.includes('┌ VITALS'))).toBe(true); expect(fresh.some(r => r.includes('┌ LOG'))).toBe(true)
+  expect(fresh.some(r => r.includes('┌ INFO'))).toBe(true); expect(fresh.some(r => r.includes('┌ LOG'))).toBe(true)
   await $.session.measure({ ...(same as object), cost: { usd: 0.02 } } as never)
   const rows = trendsRows(await drawn($))
   expect(rows).toHaveLength(1); expect(rows[0]).toMatch(/^│ cost +▁█ +\$0\.02 +│$/)

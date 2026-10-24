@@ -75,7 +75,7 @@ test('a fresh session draws on every surface and width, empty panels hidden', as
   engine(on)
   for (const surface of ['terminal', 'desktop', 'vscode', 'mobile'] as const) for (const cols of [40, 64, 120]) {
     const ui = await $.ui.mount({ ...pane(cols), surface })
-    expect(await ui.find({ text: /SERGIO'S TECH · CODE/ })).toBeDefined(); expect(await ui.find({ text: /VITALS/ })).toBeDefined()
+    expect(await ui.find({ text: /SERGIO'S TECH · CODE/ })).toBeDefined(); expect(await ui.find({ text: /INFO/ })).toBeDefined()
     expect(await ui.find({ text: /AGENTS|TRENDS|TOOLS & FILES|ARCHITECT/ })).toBeUndefined()
     expect(await ui.find({ type: 'Text', text: /^ LOG $/ })).toBeDefined(); expect(await ui.find({ text: /TURN|LOOPS/ })).toBeUndefined()
     await ui.unmount()
@@ -104,7 +104,7 @@ test('no drawn row is wider than the pane, from 28 to 220 columns (Review Focus 
     const rows = await rowsOf(ui)
     for (const r of rows) expect(cellWidth(r) <= clampWidth(cols)).toBe(true)
     expect(rows[0]?.startsWith("▌SERGIO'S TECH · CODE")).toBe(true); expect(cornersPaired(rows)).toBe(true)
-    for (const label of ['VITALS', 'TRENDS', 'TURN', 'AGENTS', 'LOOPS', 'ARCHITECT', 'TOOLS & FILES', 'LOG']) expect(rows.some(r => r.includes(label))).toBe(true)
+    for (const label of ['INFO', 'TRENDS', 'AGENTS', 'LOOPS', 'ARCHITECT', 'TOOLS & FILES', 'LOG']) expect(rows.some(r => r.includes(label))).toBe(true)
     await ui.unmount()
   }
 })
@@ -141,11 +141,11 @@ test('inline, the pane is a summary of at most 8 rows', async ($, on) => {
     expect(await ui.find({ text: /^\+2 more agents · \/st-code layout compact for all$/ })).toBeDefined()
     expect(rows[6]).toMatch(/^LOOPS 1 · 1 active *$/); expect(rows[7]).toMatch(/^last turn 1m12s · 5 agents/)
     // No frames, no header bar and no log.
-    expect(rows.some(r => /[┌│└]/.test(r))).toBe(false); expect(await ui.find({ text: /LOG|VITALS|SERGIO/ })).toBeUndefined()
+    expect(rows.some(r => /[┌│└]/.test(r))).toBe(false); expect(await ui.find({ text: /LOG|INFO|SERGIO/ })).toBeUndefined()
     await ui.unmount()
   }
 })
-test('wide puts vitals left, agents right and the log underneath', async ($, on) => {
+test('wide puts info, trends and tools left, agents and architect right, and the log underneath', async ($, on) => {
   const clock = engine(on)
   on('agent.spawn', () => ({ model: 'claude-sonnet-5-5', agentId: 'g1' }))
   on('tool.call', () => ok)
@@ -155,7 +155,7 @@ test('wide puts vitals left, agents right and the log underneath', async ($, on)
   const ui = await $.ui.mount({ ...pane(120), surface: 'terminal' })
   const rows = await rowsOf(ui)
   const { left, right, gap } = wideColumns(120)
-  const top = rows.findIndex(r => r.startsWith('┌ VITALS'))
+  const top = rows.findIndex(r => r.startsWith('┌ INFO'))
   const below = (from: number, at: number) => rows.findIndex((r, i) => i > from && r.slice(at).startsWith('└'))
   // Both columns start on the row under the header's gap, each frame as wide as its column.
   expect(top).toBe(2); expect(rows[top]?.indexOf('┌ AGENTS')).toBe(left + gap)
@@ -176,11 +176,11 @@ test('wide puts vitals left, agents right and the log underneath', async ($, on)
   }
   const vmAt = (cols: number) => buildViewModel(s, { cfg: parseConfig({}), now: 2, bodyColumns: cols, placement: 'dock', viewedAgentId: null, bodyRows: 26 })
   const wide = vmAt(120)
-  expect(wide.columns).toEqual({ left: ['vitals', 'tools'], right: ['agents'], leftWidth: left, rightWidth: right, gap })
-  expect([wide.widths.vitals, wide.widths.tools, wide.widths.agents, wide.widths.log]).toEqual([left, left, right, 120])
+  expect(wide.columns).toEqual({ left: ['info', 'tools'], right: ['agents'], leftWidth: left, rightWidth: right, gap })
+  expect([wide.widths.info, wide.widths.tools, wide.widths.agents, wide.widths.log]).toEqual([left, left, right, 120])
   // Two cards fit side by side inside the 59-cell column's frame, so each takes half of its 55 cells.
   expect(wide.agents?.cardWidth).toBe(27)
-  // One column stacks vitals (4), agents (10) and tools (6) under the header: the log takes the 2 rows left.
+  // One column stacks info (4), agents (10) and tools (6) under the header: the log takes the 2 rows left.
   expect(vmAt(100).columns).toBeNull(); expect(vmAt(100).log?.lines).toHaveLength(2)
   // Two columns: the header and the taller column (10) leave the log its most.
   expect(wide.log?.lines).toHaveLength(8)
@@ -211,7 +211,7 @@ test('every atom holding garbage still draws the header and LOG (Review Focus 1)
     await mini.unmount()
   }
 })
-test('config hides panels and motion off stops the pulse', { options: { panels: 'vitals,log', motion: 'off' } }, async ($, on) => {
+test('config hides panels and motion off stops the pulse', { options: { panels: 'info,log', motion: 'off' } }, async ($, on) => {
   const clock = engine(on)
   on('agent.spawn', () => ({ model: 'claude-sonnet-5-5', agentId: 'h1' }))
   on('tool.call', () => ok)
@@ -224,8 +224,8 @@ test('config hides panels and motion off stops the pulse', { options: { panels: 
   for (const cols of [64, 120]) {
     const ui = await $.ui.mount({ ...pane(cols), surface: 'terminal' })
     const rows = await rowsOf(ui)
-    expect(rows.some(r => r.includes('┌ VITALS'))).toBe(true); expect(rows.some(r => r.includes('┌ LOG'))).toBe(true)
-    for (const label of ['TURN', 'AGENTS', 'TRENDS', 'TOOLS & FILES']) expect(rows.some(r => r.includes(`┌ ${label}`))).toBe(false)
+    expect(rows.some(r => r.includes('┌ INFO'))).toBe(true); expect(rows.some(r => r.includes('┌ LOG'))).toBe(true)
+    for (const label of ['AGENTS', 'TRENDS', 'TOOLS & FILES']) expect(rows.some(r => r.includes(`┌ ${label}`))).toBe(false)
     // Work runs, yet the header's dot is plain text: no pulse module, and nothing else here ticks.
     expect(await ui.find({ type: 'Client' })).toBeUndefined()
     expect((await ui.find({ type: 'Text', text: /^●$/ }))?.props.color).toBe(COLORS.text)
@@ -238,8 +238,9 @@ test('config hides panels and motion off stops the pulse', { options: { panels: 
 })
 test('with motion off the clocks still tick', { options: { motion: 'off' } }, async ($, on) => {
   const clock = engine(on)
+  on('agent.spawn', () => ({ model: 'claude-sonnet-5-5', agentId: 'k1' }))
   await clock.advance(1000)
-  await $.turn.start({ text: 'go', turnId: 'T1' })
+  await $.agent.spawn(spawn('Explore', 'look around'))
   const ui = await $.ui.mount({ ...pane(64), surface: 'terminal' })
   expect((await ui.findAll({ type: 'Client' })).map(c => c.props.module)).toEqual(['hooks/client/elapsed.tsx'])
   await ui.unmount()

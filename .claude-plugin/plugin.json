@@ -41,9 +41,9 @@
     },
     "panels": {
       "title": "Panels",
-      "description": "Comma-separated panels in display order (compact layout): vitals, trends, turn, agents, loops, architect, tools, log. Leave one out to hide it.",
+      "description": "Comma-separated panels in display order (compact layout): info, trends, agents, loops, architect, tools, log. Leave one out to hide it.",
       "type": "string",
-      "default": "vitals,trends,turn,agents,loops,architect,tools,log"
+      "default": "info,trends,agents,loops,architect,tools,log"
     },
     "layout": {
       "title": "Layout",

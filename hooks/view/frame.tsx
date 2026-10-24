@@ -1,4 +1,4 @@
-// The square panel frame, its caps label set into the top border: `┌ VITALS ───── ○ idle ┐`.
+// The square panel frame, its caps label set into the top border: `┌ INFO ───── ○ idle ┐`.
 //
 // Shipped: the overlay. The label and meta are absolutely positioned Boxes painted over the top
 // border row. They are placed against an unbordered wrapper, not the bordered Box itself: offsets

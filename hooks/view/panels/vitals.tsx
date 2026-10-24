@@ -1,4 +1,4 @@
-// The VITALS panel: the main model's effort, context, spend, rate limits and last request. Each row
+// The INFO panel: the main model's effort, context, spend, rate limits and last request. Each row
 // is drawn only when its data exists, and a row too long for the frame loses its least important
 // parts rather than being cut mid-word.
 import type { RenderElement } from 'claude-code'
@@ -123,7 +123,7 @@ export const vitalsPanel = (d: Draw, v: VitalsView, width: number): RenderElemen
   if (rows.length === 0) rows.push(rowOf(d, 'waiting', [{ text: 'waiting for the first request', color: C.dim }]))
   return (
     <Box key="vitals" marginTop={1} flexDirection="column" width={width}>
-      {frame(d, { key: 'vitals-frame', label: 'VITALS', meta: v.isRunning ? '● working' : '○ idle', width, children: rows })}
+      {frame(d, { key: 'vitals-frame', label: 'INFO', meta: v.isRunning ? '● working' : '○ idle', width, children: rows })}
     </Box>
   )
 }

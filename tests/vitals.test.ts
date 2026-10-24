@@ -6,7 +6,7 @@ import { EDIT_TOOLS, afterCall, receiptLine, receiptOf } from '../hooks/domain/t
 import { EFFORT_LEVEL, limitOf, stepSpeed, usageFrom } from '../hooks/domain/vitals'
 import { DEFAULT_TURN, DEFAULT_USAGE } from '../hooks/state/schema'
 import { COLORS } from '../hooks/view/palette'
-import { cellWidth, engine, pane, rowsOf } from './kit'
+import { cellWidth, engine, pane, rowsOf, spawn } from './kit'
 
 const at = (ms: number) => new Date(ms).toISOString()
 
@@ -132,9 +132,9 @@ test('the elapsed clock counts from a fresh reading and holds still once it has 
   expect(timers).toHaveLength(1)
 })
 
-// ---------------------------------------------------------------- the VITALS panel
+// ---------------------------------------------------------------- the INFO panel
 
-test('VITALS shows model vitals; the gauge goes amber from 80%', async ($, on) => {
+test('INFO shows model vitals; the gauge goes amber from 80%', async ($, on) => {
   const clock = engine(on)
   answering(on, clock)
   on('session.measure', (_$, e) => ({ changed: e.changed }))
@@ -148,7 +148,7 @@ test('VITALS shows model vitals; the gauge goes amber from 80%', async ($, on) =
   for await (const _ of s) void _
   await s.result
   const ui = await $.ui.mount({ ...pane(64), surface: 'terminal' })
-  expect(await ui.find({ text: /VITALS/ })).toBeDefined(); expect(await ui.find({ text: /○ idle/ })).toBeDefined()
+  expect(await ui.find({ text: /INFO/ })).toBeDefined(); expect(await ui.find({ text: /○ idle/ })).toBeDefined()
   expect(await ui.find({ text: /^effort ▮▮▮▯ high/ })).toBeDefined(); expect(await ui.find({ text: /1 req/ })).toBeDefined()
   expect(await ui.find({ text: /^ctx ▰{9}▱ 85%/ })).toBeDefined(); expect(await ui.find({ text: /170k\/200k/ })).toBeDefined()
   expect((await ui.find({ type: 'Text', text: /^▰+$/ }))?.props.color).toBe(COLORS.gold)
@@ -198,10 +198,10 @@ test('hosts without cost, limits or context hide those fields (Review Focus 4)',
   await $.turn.start({ text: 'go', turnId: 'T1' })
   await $.turn.complete({ answer: 'ok', durationMs: 1000, isAborted: false, turnId: 'T1', reason: 'answer' })
   const ui = await $.ui.mount({ ...pane(64), surface: 'terminal' })
-  expect(await ui.find({ text: /VITALS/ })).toBeDefined()
+  expect(await ui.find({ text: /INFO/ })).toBeDefined()
   expect(await ui.find({ text: /NaN|null|undefined/ })).toBeUndefined()
   expect(await ui.find({ text: /^ctx / })).toBeUndefined(); expect(await ui.find({ text: /\$/ })).toBeUndefined()
-  expect(await ui.find({ text: /last turn 1s/ })).toBeDefined()
+  expect(await ui.find({ text: /last turn/ })).toBeUndefined()
   expect(await ui.find({ text: /\+\$/ })).toBeUndefined()
   await ui.unmount()
 })
@@ -280,48 +280,12 @@ test('a response that arrives in one burst reads — tok/s, and the next timed o
   await ui.unmount()
 })
 
-// ---------------------------------------------------------------- the TURN panel
-
-test('TURN shows the running turn, then its receipt', async ($, on) => {
-  const clock = engine(on)
-  const host = hostUsage(on, { usd: 1 })
-  const none = await $.ui.mount({ ...pane(64), surface: 'terminal' })
-  expect(await none.find({ text: /TURN/ })).toBeUndefined() // hidden before the first turn
-  await none.unmount()
-  await clock.advance(5000)
-  await $.turn.start({ text: 'fix it', turnId: 'T1' })
-  await clock.advance(3000)
-  const live = await $.ui.mount({ ...pane(64), surface: 'terminal' })
-  expect(await live.find({ text: /TURN/ })).toBeDefined(); expect(await live.find({ text: /◐ turn/ })).toBeDefined()
-  expect(await live.find({ text: /· 0 edits · 0 errors/ })).toBeDefined()
-  expect(await live.find({ text: /last turn/ })).toBeUndefined()
-  expect((await rowsOf(live)).some(r => /◐ turn 0:03/.test(r))).toBe(true) // the clock module drew the time since the start
-  await live.unmount()
-  const narrow = await $.ui.mount({ ...pane(40), surface: 'terminal' })
-  expect(await narrow.find({ text: /◐ turn/ })).toBeDefined(); expect(await narrow.find({ text: /edits/ })).toBeUndefined()
-  await narrow.unmount()
-  host.cost = { usd: 1.41 }
-  await $.turn.complete({ answer: 'done', durationMs: 72_000, isAborted: false, turnId: 'T1', reason: 'answer' })
-  for (const cols of [40, 64, 120]) {
-    const ui = await $.ui.mount({ ...pane(cols), surface: 'terminal' })
-    expect(await ui.find({ text: /◐ turn/ })).toBeUndefined()
-    const rows = (await rowsOf(ui)).join('\n')
-    expect(rows).toMatch(/✓ last turn 1m12s/); expect(rows).toMatch(/\+\$0\.41/)
-    for (const r of await rowsOf(ui)) expect(cellWidth(r) <= Math.max(40, cols)).toBe(true)
-    await ui.unmount()
-  }
-  const wide = await $.ui.mount({ ...pane(64), surface: 'terminal' })
-  expect(await wide.find({ text: /last turn 1m12s · 0 agents · 0 edits · 0 errors · \+\$0\.41/ })).toBeDefined()
-  expect((await wide.find({ type: 'Text', text: /^✓$/ }))?.props.color).toBe(COLORS.green)
-  await wide.unmount()
-})
-test('a turn that did not end in an answer reads ✗ and says why', async ($, on) => {
+test('a running turn draws no TURN panel', async ($, on) => {
   engine(on)
-  await $.turn.start({ text: 'stop me', turnId: 'T1' })
-  await $.turn.complete({ answer: '', durationMs: 5000, isAborted: true, turnId: 'T1', reason: 'aborted' })
-  const ui = await $.ui.mount({ ...pane(64), surface: 'terminal' })
-  expect((await ui.find({ type: 'Text', text: /^✗$/ }))?.props.color).toBe(COLORS.error)
-  expect(await ui.find({ text: /last turn 5s · .* · aborted/ })).toBeDefined()
+  await $.turn.start({ turnId: 'T1', text: 'go' })
+  const ui = await $.ui.mount({ ...pane(66), surface: 'terminal' })
+  const rows = await rowsOf(ui)
+  expect(rows.some(r => r.includes('TURN'))).toBe(false); expect(rows.some(r => r.includes('┌ INFO'))).toBe(true)
   await ui.unmount()
 })
 test("a subagent's turn neither restarts nor ends the main turn", async ($, on) => {
@@ -331,16 +295,17 @@ test("a subagent's turn neither restarts nor ends the main turn", async ($, on) 
   await $.turn.start({ text: 'sub work', turnId: 'T2', agentId: 'a1' })
   await $.turn.complete({ answer: '', durationMs: 10, isAborted: false, turnId: 'T2', agentId: 'a1', reason: 'answer' })
   const ui = await $.ui.mount({ ...pane(64), surface: 'terminal' })
-  expect(await ui.find({ text: /◐ turn/ })).toBeDefined(); expect(await ui.find({ text: /last turn/ })).toBeUndefined()
+  expect(await ui.find({ text: /TURN|◐ turn/ })).toBeUndefined(); expect(await ui.find({ text: /last turn/ })).toBeUndefined()
   expect(await ui.find({ text: /● working/ })).toBeDefined()
   await ui.unmount()
 })
 test('a surface without client modules draws the clock as plain text', async ($, on) => {
   const clock = engine(on)
+  on('agent.spawn', () => ({ model: 'claude-sonnet-5-5', agentId: 'c1' }))
   await clock.advance(1000)
-  await $.turn.start({ text: 'go', turnId: 'T1' })
+  await $.agent.spawn(spawn('Explore', 'look around'))
   await clock.advance(65_000)
   const ui = await $.ui.mount({ ...pane(64), surface: 'vscode' })
-  expect(await ui.find({ text: /◐ turn/ })).toBeDefined(); expect(await ui.find({ type: 'Text', text: /^1:05$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^1:05$/ })).toBeDefined()
   await ui.unmount()
 })

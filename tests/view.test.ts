@@ -1,66 +1,18 @@
 import { expect, test } from 'claude-code/testing'
-import type { RenderElement } from 'claude-code'
 
 import Pulse from '../hooks/client/pulse'
-import { parseConfig } from '../hooks/config'
-import {
-  DEFAULT_ACTIVITY,
-  DEFAULT_ARCHITECT,
-  DEFAULT_DENIALS,
-  DEFAULT_MAIN,
-  DEFAULT_ROSTER,
-  DEFAULT_TRENDS,
-  DEFAULT_TURN,
-  DEFAULT_USAGE,
-  DEFAULT_VIEW,
-  normalizeCard,
-} from '../hooks/state/schema'
-import type { Snapshot } from '../hooks/state/store'
-import type { Draw } from '../hooks/view/draw'
+import { DEFAULT_ARCHITECT, DEFAULT_MAIN, normalizeCard } from '../hooks/state/schema'
 import { frame } from '../hooks/view/frame'
 import { header } from '../hooks/view/header'
 import { WIDE_LEFT, WIDE_RIGHT, clampWidth, headerRight, pickLayout, wideColumns } from '../hooks/view/layout'
-import { buildViewModel } from '../hooks/view/model'
 import type { ViewModel } from '../hooks/view/model'
 import { COLORS, TEXT_TOKENS, contrast, familyColor, levelColor, to256 } from '../hooks/view/palette'
-import { cellWidth, drawRows, engine, pane, rowsOf } from './kit'
+import { ELS, cellWidth, draw, drawRows, engine, found, pane, rowsOf, vmOf } from './kit'
 
-// Element constructors that build the same plain data a surface's table does, so a renderer can be
-// drawn here without a mount.
-const el =
-  (type: string) =>
-  ({ children, ...props }: Record<string, unknown> & { children?: unknown[] }) =>
-    ({ type, props, children: children ?? [] }) as unknown as RenderElement
-const ELS = { Box: el('Box'), Text: el('Text'), Client: el('Client') }
-const draw = (o: Partial<Draw> = {}): Draw => ({ els: ELS as never, C: COLORS, hasClient: true, motion: true, surface: 'terminal', now: 0, ...o })
 const line = (text: string) => ELS.Text({ children: [text] })
-
-const FRESH: Snapshot = {
-  main: DEFAULT_MAIN,
-  usage: DEFAULT_USAGE,
-  turn: DEFAULT_TURN,
-  receipt: null,
-  agents: [],
-  loops: [],
-  architect: DEFAULT_ARCHITECT,
-  activity: DEFAULT_ACTIVITY,
-  trends: DEFAULT_TRENDS,
-  denials: DEFAULT_DENIALS,
-  log: [],
-  view: DEFAULT_VIEW,
-  roster: DEFAULT_ROSTER,
-}
-const vmOf = (s: Partial<Snapshot>, bodyColumns = 64, placement: 'dock' | 'inline' = 'dock') =>
-  buildViewModel({ ...FRESH, ...s }, { cfg: parseConfig({}), now: 0, bodyColumns, placement, viewedAgentId: null })
 
 const IDLE: ViewModel['header'] = { model: 'Opus 5.5', isRunning: false, isActive: false, arch: null }
 const WORKING: ViewModel['header'] = { model: 'Opus 5.5', isRunning: true, isActive: true, arch: null }
-
-const found = (tree: unknown, type: string): Record<string, unknown>[] => {
-  if (typeof tree !== 'object' || tree === null) return []
-  const n = tree as { type?: string; props?: Record<string, unknown>; children?: unknown[] }
-  return [...(n.type === type ? [n.props ?? {}] : []), ...(n.children ?? []).flatMap(c => found(c, type))]
-}
 
 // ---------------------------------------------------------------- palette and layout math
 
@@ -97,12 +49,15 @@ test('layout picks mini inline, wide from 110 docked, compact otherwise; overrid
   expect(pickLayout('auto', null, 'dock', 109)).toBe('compact'); expect(pickLayout('auto', 'compact', 'dock', 200)).toBe('compact')
   expect(clampWidth(28)).toBe(40); expect(clampWidth(220)).toBe(220)
 })
+test('the wide layout puts info, trends and tools left, agents and architect right', () => {
+  expect(WIDE_LEFT).toEqual(['info', 'trends', 'tools']); expect(WIDE_RIGHT).toEqual(['agents', 'loops', 'architect'])
+})
 test('forced layouts: mini anywhere, wide only with room for two 40-column columns', () => {
   expect(pickLayout('mini', null, 'dock', 120)).toBe('mini'); expect(pickLayout('compact', 'auto', 'dock', 120)).toBe('wide')
   expect(pickLayout('wide', null, 'dock', 82)).toBe('wide'); expect(pickLayout('auto', 'wide', 'dock', 64)).toBe('compact')
   expect(clampWidth(Number.NaN)).toBe(40)
   expect(wideColumns(120)).toEqual({ left: 59, right: 59, gap: 2 }); expect(wideColumns(111)).toEqual({ left: 54, right: 55, gap: 2 })
-  expect([...WIDE_LEFT, ...WIDE_RIGHT].sort()).toEqual(['agents', 'architect', 'loops', 'tools', 'trends', 'turn', 'vitals'])
+  expect([...WIDE_LEFT, ...WIDE_RIGHT].sort()).toEqual(['agents', 'architect', 'info', 'loops', 'tools', 'trends'])
 })
 test('the header keeps the brand and drops status words to fit', () => {
   expect(headerRight('Opus 5.5', true, 'ARCHITECT ADVISING', 60)).toBe('● OPUS 5.5 WORKING · ARCHITECT ADVISING')
@@ -116,8 +71,8 @@ test('the header keeps the brand and drops status words to fit', () => {
 
 test('the view model hides panels with nothing to show and reads the header from state', () => {
   const fresh = vmOf({})
-  // A fresh session shows Vitals and the log, which draws as `nothing yet` when empty.
-  expect([fresh.width, fresh.layout, fresh.panels, fresh.viewedAgentId]).toEqual([64, 'compact', ['vitals', 'log'], null])
+  // A fresh session shows INFO and the log, which draws as `nothing yet` when empty.
+  expect([fresh.width, fresh.layout, fresh.panels, fresh.viewedAgentId]).toEqual([64, 'compact', ['info', 'log'], null])
   expect(fresh.header).toEqual({ model: '', isRunning: false, isActive: false, arch: null })
   expect(vmOf({}, 28).width).toBe(40); expect(vmOf({}, 120).layout).toBe('wide'); expect(vmOf({}, 120, 'inline').layout).toBe('mini')
   expect(vmOf({ view: { expanded: null, layout: 'compact' } }, 120).layout).toBe('compact')
@@ -131,13 +86,13 @@ test('the view model hides panels with nothing to show and reads the header from
 // ---------------------------------------------------------------- frame, header and pulse
 
 test('a frame sets its caps label into the top border, the meta at the right', () => {
-  const rows = drawRows(frame(draw(), { key: 'f', label: 'vitals', meta: '○ idle', width: 30, children: [line('hello')] }))
-  expect(rows).toEqual([`┌ VITALS ${'─'.repeat(12)} ○ idle ┐`, `│ hello${' '.repeat(22)}│`, `└${'─'.repeat(28)}┘`])
+  const rows = drawRows(frame(draw(), { key: 'f', label: 'info', meta: '○ idle', width: 30, children: [line('hello')] }))
+  expect(rows).toEqual([`┌ INFO ${'─'.repeat(14)} ○ idle ┐`, `│ hello${' '.repeat(22)}│`, `└${'─'.repeat(28)}┘`])
   const quiet = drawRows(frame(draw(), { key: 'f', label: 'a very long section label', meta: 'meta', width: 20, children: [] }))
   expect(quiet[0]).toBe('┌ A VERY LONG SE… ─┐')
-  const tree = frame(draw(), { key: 'f', label: 'turn', width: 40, isActive: true, children: [] })
+  const tree = frame(draw(), { key: 'f', label: 'info', width: 40, isActive: true, children: [] })
   expect(found(tree, 'Box').filter(b => b.borderStyle === 'single').map(b => b.borderColor)).toEqual([COLORS.green])
-  expect(found(frame(draw(), { key: 'f', label: 'turn', width: 40, children: [] }), 'Box').some(b => b.borderColor === COLORS.frame)).toBe(true)
+  expect(found(frame(draw(), { key: 'f', label: 'info', width: 40, children: [] }), 'Box').some(b => b.borderColor === COLORS.frame)).toBe(true)
   expect(found(tree, 'Text').find(t => t.bold)?.color).toBe(COLORS.text)
 })
 test('the header dot pulses as a Client only while work runs and motion is on', () => {

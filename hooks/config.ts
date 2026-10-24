@@ -1,9 +1,9 @@
 // The plugin's `/config` values, read leniently: anything malformed falls back to its default.
 import type { Layout } from '../types'
 
-export type Panel = 'vitals' | 'trends' | 'turn' | 'agents' | 'loops' | 'architect' | 'tools' | 'log'
+export type Panel = 'info' | 'trends' | 'agents' | 'loops' | 'architect' | 'tools' | 'log'
 
-export const PANELS: readonly Panel[] = ['vitals', 'trends', 'turn', 'agents', 'loops', 'architect', 'tools', 'log']
+export const PANELS: readonly Panel[] = ['info', 'trends', 'agents', 'loops', 'architect', 'tools', 'log']
 
 export type Config = {
   architect: RegExp

@@ -29,14 +29,14 @@ export const pickLayout = (
   return width >= WIDE_FROM ? 'wide' : 'compact'
 }
 
-/** The two columns of the wide layout; the right one, holding the agent cards, takes the odd column. */
+/** The two columns of the wide layout; the right one, holding the agents, takes the odd column. */
 export const wideColumns = (width: number): { left: number; right: number; gap: 2 } => {
   const left = Math.floor((width - GAP) / 2)
   return { left, right: width - GAP - left, gap: GAP }
 }
 
-export const WIDE_LEFT: Panel[] = ['vitals', 'trends', 'architect', 'tools']
-export const WIDE_RIGHT: Panel[] = ['turn', 'agents', 'loops']
+export const WIDE_LEFT: Panel[] = ['info', 'trends', 'tools']
+export const WIDE_RIGHT: Panel[] = ['agents', 'loops', 'architect']
 
 const cells = (s: string): number => Array.from(s).length
 

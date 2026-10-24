@@ -1,13 +1,13 @@
 // The view model: everything one frame draws, worked out from one state snapshot by a pure function,
 // so the renderers only lay it out and never read state themselves.
-import type { AgentCard, Architect, FileRow, Limit, LogLine, Moment, Receipt, Sample, Speed, ToolNote, ToolRow } from '../../types'
+import type { AgentCard, Architect, FileRow, Limit, LogLine, Moment, Sample, Speed, ToolNote, ToolRow } from '../../types'
 import { PANELS } from '../config'
 import type { Config, Panel } from '../config'
 import { hotFiles, topTools, totalCalls } from '../domain/activity'
 import { cardFit, cardTitle, isLoopActive } from '../domain/agents'
 import { consultLine, consultTimeline, hasArchitect, isAdvising } from '../domain/architect'
 import { logRows } from '../domain/log'
-import { receiptLine, receiptRows } from '../domain/turn'
+import { receiptLine } from '../domain/turn'
 import { effortLevel } from '../domain/vitals'
 import { plural, prettyModel, shorten, wrapText } from '../format/text'
 import type { Snapshot } from '../state/store'
@@ -17,7 +17,7 @@ import { WIDE_LEFT, WIDE_RIGHT, clampWidth, pickLayout, wideColumns } from './la
 export type LogView = { lines: LogLine[]; isViewingAgent: boolean }
 
 /**
- * The vitals panel: the main model's effort, context, spend, rate limits and last request. Each
+ * The info panel: the main model's effort, context, spend, rate limits and last request. Each
  * `has` flag is a row with something to show; with none the panel says it is waiting.
  */
 export type VitalsView = {
@@ -34,18 +34,6 @@ export type VitalsView = {
   speed: Speed | null
   now: number
   has: { pace: boolean; ctx: boolean; spend: boolean; speed: boolean }
-  /** Rows the panel body takes. */
-  rows: number
-}
-
-/** The turn panel: the running turn's tally, or the receipt of the last one. */
-export type TurnView = {
-  isRunning: boolean
-  startedAt: number
-  edits: number
-  errors: number
-  isReviewing: boolean
-  receipt: Receipt | null
   /** Rows the panel body takes. */
   rows: number
 }
@@ -189,10 +177,8 @@ export type ViewModel = {
     arch: string | null
   }
   viewedAgentId: string | null
-  /** The vitals panel; never null, since a fresh session still shows it. */
-  vitals: VitalsView
-  /** The turn panel, null until a turn has started. */
-  turn: TurnView | null
+  /** The info panel; never null, since a fresh session still shows it. */
+  info: VitalsView
   /** The agents panel, null until a subagent has been spawned. */
   agents: AgentsView | null
   /** The other loops row, null until a loop no card claims has stepped. */
@@ -227,15 +213,14 @@ export function buildViewModel(s: Snapshot, ctx: ViewContext): ViewModel {
   const cols = layout === 'wide' ? wideColumns(width) : null
   const widthOf = (p: Panel): number => (cols === null ? width : WIDE_LEFT.includes(p) ? cols.left : WIDE_RIGHT.includes(p) ? cols.right : width)
   const widths = Object.fromEntries(PANELS.map(p => [p, widthOf(p)])) as Record<Panel, number>
-  const vitals = vitalsView(s, ctx.now)
-  const turn = turnView(s, widths.turn)
+  const info = vitalsView(s, ctx.now)
   const agents = agentsView(s, ctx, widths.agents)
   const loops = loopsView(s, ctx.now, widths.loops)
   const architect = architectView(s, ctx, widths.architect)
   const tools = toolsView(s, layout)
   const trends = trendsView(s)
   // What each panel draws, null while it has nothing to show.
-  const content: Record<Panel, unknown> = { vitals, trends, turn, agents, loops, architect, tools, log: s.log }
+  const content: Record<Panel, unknown> = { info, trends, agents, loops, architect, tools, log: s.log }
   const shown = ctx.cfg.panels.filter(p => content[p] !== null)
   const columns: Columns | null = cols
     ? { left: shown.filter(p => WIDE_LEFT.includes(p)), right: shown.filter(p => WIDE_RIGHT.includes(p)), leftWidth: cols.left, rightWidth: cols.right, gap: cols.gap }
@@ -243,9 +228,8 @@ export function buildViewModel(s: Snapshot, ctx: ViewContext): ViewModel {
   // Each drawn panel's gap above it and its frame's two border rows around its body; the expanded
   // agent's block sits under its frame, and the loops row is one row under a gap.
   const tall: Record<Panel, number> = {
-    vitals: 3 + vitals.rows,
+    info: 3 + info.rows,
     trends: trends ? 3 + trends.rows : 0,
-    turn: turn ? 3 + turn.rows : 0,
     agents: agents ? 3 + agents.rows + (agents.expanded?.rows ?? 0) : 0,
     loops: loops ? 2 : 0,
     architect: architect ? 3 + architect.rows : 0,
@@ -271,8 +255,7 @@ export function buildViewModel(s: Snapshot, ctx: ViewContext): ViewModel {
       arch: hasArchitect(s.architect) ? `${ctx.cfg.architectLabel.toUpperCase()} ${isAdvising(s.architect) ? 'ADVISING' : 'ON CALL'}` : null,
     },
     viewedAgentId: ctx.viewedAgentId,
-    vitals,
-    turn,
+    info,
     agents,
     loops,
     architect,
@@ -307,7 +290,7 @@ function miniView(s: Snapshot, ctx: ViewContext, trends: TrendsView | null, loop
     agents,
     more: drawn('agents') ? s.agents.length - agents.length : 0,
     loops: drawn('loops') && loops ? { seen: loops.seen, active: loops.active } : null,
-    lastTurn: drawn('turn') && !s.main.isRunning && s.receipt ? receiptLine(s.receipt) : null,
+    lastTurn: !s.main.isRunning && s.receipt ? receiptLine(s.receipt) : null,
   }
 }
 
@@ -340,14 +323,6 @@ function vitalsView(s: Snapshot, now: number): VitalsView {
     has,
     rows,
   }
-}
-
-/** Shown while the turn runs or once it has left a receipt; a pane that has seen no turn has none. */
-function turnView(s: Snapshot, width: number): TurnView | null {
-  const { main, turn, receipt } = s
-  if (!main.isRunning && receipt === null) return null
-  const rows = main.isRunning ? 1 + (turn.isReviewing ? 1 : 0) : receipt ? receiptRows(receipt, width).length : 1
-  return { isRunning: main.isRunning, startedAt: turn.startedAt, edits: turn.edits, errors: turn.errors, isReviewing: turn.isReviewing, receipt, rows }
 }
 
 /** Border and padding on each side of a row inside a frame, a card or the expanded block. */

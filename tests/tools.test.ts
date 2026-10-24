@@ -193,7 +193,7 @@ test('a call that waited on an approval prompt is not timed', async ($, on) => {
   const rows = toolsRows(await drawn($)).map(r => r.replace(/ +/g, ' '))
   expect(rows.slice(0, 3)).toEqual(['│ Bash 1 avg* — │', '│ Read 1 avg* 0.3s │', '│ Agent 1 avg* — │'])
 })
-test('an edit, then a consult: the turn shows the review before done', async ($, on) => {
+test('an edit, then a consult: the architect shows the review before done', async ($, on) => {
   const clock = engine(on)
   on('agent.spawn', () => ({ model: 'model-x', agentId: 'fab1' }))
   on('tool.call', (_$, e) => (e.tool === 'Bash' ? failed : ok))
@@ -204,7 +204,6 @@ test('an edit, then a consult: the turn shows the review before done', async ($,
 
   const ui = await $.ui.mount({ ...pane(64), surface: 'terminal' })
   const rows = await rowsOf(ui)
-  expect(rows.some(r => r.includes('· 1 edit · 1 error'))).toBe(true)
   expect(rows.some(r => /main +Bash → npm test ✗/.test(r))).toBe(true); expect(rows.some(r => /main +Edit → src\/fix\.ts/.test(r))).toBe(true)
   expect((await ui.findAll({ type: 'Text', text: /✗1/ })).some(t => t.props.color === COLORS.error)).toBe(true)
   expect(rows.some(r => r.includes('reviewing before done'))).toBe(false)
@@ -212,7 +211,7 @@ test('an edit, then a consult: the turn shows the review before done', async ($,
 
   await $.agent.spawn(spawn('fable-advisor:fable-advisor', 'final review'))
   const review = await drawn($)
-  expect(review.some(r => /^│ reviewing before done \(inferred\) +│$/.test(r))).toBe(true)
+  expect(review.some(r => r.includes('reviewing before done'))).toBe(false)
   expect(review.some(r => /architect +before done · fable-advisor/.test(r))).toBe(true)
 })
 test("a subagent's calls fill its card's last three tools; a hand-back is no tool work", async ($, on) => {
@@ -234,9 +233,8 @@ test("a subagent's calls fill its card's last three tools; a hand-back is no too
   expect(await ui.find({ type: 'Text', text: /^· Write → tests\/parser\.test\.ts$/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /^· Grep → parse\($/ })).toBeDefined()
   const rows = await rowsOf(ui)
-  // The hand-back is not counted, and a subagent's failure is its own, not the turn's.
+  // The hand-back is not counted, and a subagent's failure is its own.
   expect(await ui.find({ type: 'Text', text: /^ 4 calls $/ })).toBeDefined(); expect(rows.some(r => r.includes('SubagentHandback'))).toBe(false)
-  expect(rows.some(r => r.includes('· 1 edit · 0 errors'))).toBe(true)
   expect(rows.some(r => /Write the… +Bash → npm test ✗/.test(r))).toBe(true); expect(rows.some(r => /Write the… +Write → tests\/parser\.test\.ts/.test(r))).toBe(true)
   await ui.unmount()
 })
