@@ -140,20 +140,23 @@ export type TrendsView = {
  * null, or empty, while it has nothing to show or its panel is switched off.
  */
 export type MiniView = {
-  /** The main model's readable name, or empty while it is unknown. */
-  model: string
-  isRunning: boolean
+  /** The header's state: the model, the dot, and the architect words while that panel is on. */
+  header: ViewModel['header']
+  effort: string
   ctx: { pct: number; compactions: number } | null
+  /** The first two rate-limit windows, the hotter first. */
+  limits: Limit[]
   costUsd: number | null
-  /** `architect advising`, or `architect N` for the consults so far. */
-  arch: string | null
-  /** The context fill of each trend sample that has one, for the one-row sparkline, and the latest; null under two. */
-  spark: { values: number[]; pct: number } | null
-  /** Up to three agents, running ones first, then the newest. */
+  /** The samples of the ctx trend row; null under two readings or with TRENDS switched off. */
+  trend: Sample[] | null
+  /** The first 5 of the list with a trend row, 6 without; running ones first, then the newest. */
   agents: AgentCard[]
+  /** The main model's readable name: a row tags its model only when it differs. */
+  mainModel: string
   /** Agents left out of the rows above. */
-  more: number
-  loops: { seen: number; active: number } | null
+  earlier: number
+  loops: LoopsView | null
+  now: number
 }
 
 /** The wide layout's two columns, each holding its panels in config order. */
@@ -241,19 +244,20 @@ export function buildViewModel(s: Snapshot, ctx: ViewContext): ViewModel {
   const log = logView(s.log, s.main.model ? prettyModel(s.main.model) : '', ctx, used)
   // A pane too short for the log draws none of it rather than a frame cut off at its bottom edge.
   const panels = log ? shown : shown.filter(p => p !== 'log')
+  const header: ViewModel['header'] = {
+    model: s.main.model ? prettyModel(s.main.model) : '',
+    isRunning,
+    isActive: isRunning || s.agents.some(a => a.status === 'running'),
+    arch: hasArchitect(s.architect) ? `${ctx.cfg.architectLabel.toUpperCase()} ${isAdvising(s.architect) ? 'ADVISING' : 'ON CALL'}` : null,
+    isAdvising: isAdvising(s.architect),
+  }
   return {
     width,
     layout,
     panels,
     columns,
     widths,
-    header: {
-      model: s.main.model ? prettyModel(s.main.model) : '',
-      isRunning,
-      isActive: isRunning || s.agents.some(a => a.status === 'running'),
-      arch: hasArchitect(s.architect) ? `${ctx.cfg.architectLabel.toUpperCase()} ${isAdvising(s.architect) ? 'ADVISING' : 'ON CALL'}` : null,
-      isAdvising: isAdvising(s.architect),
-    },
+    header,
     viewedAgentId: ctx.viewedAgentId,
     info,
     agents,
@@ -261,35 +265,35 @@ export function buildViewModel(s: Snapshot, ctx: ViewContext): ViewModel {
     tools,
     trends,
     log,
-    mini: layout === 'mini' ? miniView(s, ctx, trends, widths.agents) : null,
+    mini: layout === 'mini' ? miniView(s, ctx, trends, header, widths.agents) : null,
   }
 }
 
-/** Agent rows in the inline summary; the rest are counted on the row under them. */
-const MINI_AGENTS = 3
+/** Agent rows in the inline summary: six, or five beside the ctx trend row. */
+const MINI_AGENTS = 6
+const MINI_AGENTS_WITH_TREND = 5
 
-/** The inline summary: the main model's line, then each part whose panel is switched on and has something to show. */
-function miniView(s: Snapshot, ctx: ViewContext, trends: TrendsView | null, agentsWidth: number): MiniView {
+/** The inline summary: the state and digest, then each part whose panel is switched on and has something to show. */
+function miniView(s: Snapshot, ctx: ViewContext, trends: TrendsView | null, header: ViewModel['header'], agentsWidth: number): MiniView {
   const drawn = (p: Panel) => ctx.cfg.panels.includes(p)
-  const a = s.architect
-  const label = ctx.cfg.architectLabel.toLowerCase()
-  const running = s.agents.filter(c => c.status === 'running')
-  const rest = s.agents.filter(c => c.status !== 'running').reverse()
-  const agents = drawn('agents') ? [...running, ...rest].slice(0, MINI_AGENTS) : []
-  // Readings that carried no context fill (cost alone) would only leave gaps in a line this short.
-  const ctxs = (trends?.samples ?? []).map(x => x.ctxPct).filter((v): v is number => v !== null)
-  const last = ctxs[ctxs.length - 1]
+  // The ctx trend repeats TRENDS' own line, so it needs two readings and a context figure among them.
+  const trend = drawn('trends') && trends?.ctx ? trends.samples : null
+  const ordered = drawn('agents') ? listOrder(s.agents) : []
+  const agents = ordered.slice(0, trend ? MINI_AGENTS_WITH_TREND : MINI_AGENTS)
   const loops = drawn('agents') ? loopsView(s, ctx.now, agentsWidth) : null
+  const heat = (l: Limit): number => (Number.isFinite(l.pct) ? l.pct : 0)
   return {
-    model: s.main.model ? prettyModel(s.main.model) : '',
-    isRunning: s.main.isRunning,
+    header: { ...header, arch: drawn('architect') ? header.arch : null },
+    effort: s.main.effort,
     ctx: s.usage.pct === null ? null : { pct: s.usage.pct, compactions: s.usage.compactions },
+    limits: s.usage.limits.slice(0, LIMITS_SHOWN).sort((x, y) => heat(y) - heat(x)),
     costUsd: s.usage.costUsd,
-    arch: drawn('architect') && hasArchitect(a) ? `${label} ${isAdvising(a) ? 'advising' : a.consults.length}` : null,
-    spark: drawn('trends') && ctxs.length >= 2 && last !== undefined ? { values: ctxs, pct: last } : null,
+    trend,
     agents,
-    more: drawn('agents') ? s.agents.length - agents.length : 0,
-    loops: loops ? { seen: loops.seen, active: loops.active } : null,
+    mainModel: s.main.model ? prettyModel(s.main.model) : '',
+    earlier: ordered.length - agents.length,
+    loops,
+    now: ctx.now,
   }
 }
 

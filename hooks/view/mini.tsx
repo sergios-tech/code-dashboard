@@ -1,93 +1,158 @@
-// The inline summary above the prompt: at most eight frameless rows. The main model's line first,
-// then the context sparkline, up to three agents with their clocks, the agents left out, the other
-// loops.
+// The inline summary above the prompt: at most eight frameless rows on the black fill. The main
+// model's state and a digest of INFO's figures first, then the context trend, up to six agents with
+// their bars and clocks, and a last row for the agents left out and the other loops.
 import type { RenderElement } from 'claude-code'
 
-import type { AgentCard } from '../../types'
-import { AGENT_GLYPH, cardTitle, cellCount, fitCells } from '../domain/agents'
-import { fmtUsd, gauge, kTokens, plural, sparkline } from '../format/text'
+import type { AgentCard, Limit } from '../../types'
+import { agentGlyph, cardTitle, cellCount, fitCells, modelTag } from '../domain/agents'
+import { fmtUsd, gauge, limitLabel, shorten } from '../format/text'
 import { clock } from './draw'
 import type { Draw } from './draw'
+import { stateDot } from './header'
 import type { MiniView } from './model'
+import { familyColor, levelColor } from './palette'
+import { LOOP_GLYPH, bar, loopTone } from './panels/agents'
+import { sparkPieces } from './panels/trends'
 import { agentTone } from './svg'
 
 type Piece = { text: string; color: string; bold?: boolean }
 
-const CTX_CELLS = 6
-/** A gauge turns amber from here, as the vitals panel's does. */
-const HOT = 80
-/** `ctx ` before the sparkline and ` 100%` after it. */
-const SPARK_CHROME = 9
+/** The most rows the summary draws. */
+const MAX_ROWS = 8
 /** An agent's glyph and the space after it. */
 const GLYPH_CELLS = 2
-/** `  ctx 41k`, padded so every row's clock starts in the same cell. */
-const COUNT_CELLS = 11
+/** The model tag's column, its name taking at most the cells before the space. */
+const TAG_CELLS = 8
+/** The tag is dropped, and the bar is 10 cells, from this width. */
+const TAG_FROM = 50
+/** The bar is 14 cells from this width, 10 from TAG_FROM, else 6. */
+const BAR_WIDE_FROM = 70
 /** An agent's clock, right-aligned: `m:ss` to `XhYY`. */
-const CLOCK_CELLS = 5
-/** A title stops growing here, so a wide terminal keeps the figures beside it. */
-const TITLE_MAX = 48
+const CLOCK_CELLS = 6
+/** The ctx trend row's `◐ ` and `ctx` padded to 7 before the cells, and the figure's 6 after. */
+const TREND_CHROME = 15
+const TREND_LABEL = 7
+const TREND_FIGURE = 6
+const CTX_GAUGE = 8
+const LIMIT_GAUGE = 6
+const LIMIT_LABEL = 7
+const EFFORT_MAX = 12
 
-/** `s` filled with spaces to `n` terminal cells. */
+const widthOf = (row: Piece[]): number => row.reduce((n, p) => n + cellCount(p.text), 0)
 const pad = (s: string, n: number): string => s + ' '.repeat(Math.max(0, n - cellCount(s)))
+const lpad = (s: string, n: number): string => ' '.repeat(Math.max(0, n - cellCount(s))) + s
 
-const rowOf = (d: Draw, key: string, row: Piece[]): RenderElement => {
+/** The figure as printed: rounded, and 0 when the reading is not a number. */
+const figureOf = (pct: number): number => (Number.isFinite(pct) ? Math.round(pct) : 0)
+
+/** `pieces` as one truncating Text of coloured runs. */
+const textOf = (d: Draw, key: string, pieces: Piece[]): RenderElement => {
   const { Text } = d.els
   return (
     <Text key={key} wrap="truncate">
-      {row.map((p, i) => (
-        <Text key={`p${i}`} color={p.color} bold={p.bold}>
-          {p.text}
-        </Text>
-      ))}
+      {pieces
+        .filter(p => p.text !== '')
+        .map((p, i) => (
+          <Text key={`p${i}`} color={p.color} bold={p.bold}>
+            {p.text}
+          </Text>
+        ))}
     </Text>
   )
 }
 
-/** `▌Opus 5.5 ● working · ctx ▰▰▰▱▱▱ 51% ⟲1 · $3.12 · architect 2`: each figure only once the host has reported it. */
-const headRow = (d: Draw, m: MiniView): Piece[] => {
+/** The groups that are not empty side by side, `gap` between. */
+const joined = (d: Draw, groups: Piece[][], gap: string): Piece[] => groups.filter(g => g.length > 0).flatMap((g, i): Piece[] => (i === 0 ? g : [{ text: gap, color: d.C.dim }, ...g]))
+
+/** The model's name in its family colour and the loop's state: the header's right side without its dot. */
+const stateWords = (d: Draw, h: MiniView['header']): Piece[] => {
+  const name = h.model.trim().toUpperCase()
+  return [...(name ? [{ text: ` ${name}`, color: familyColor(name), bold: true }] : []), { text: h.isRunning ? ' WORKING' : ' IDLE', color: d.C.dim }]
+}
+
+/**
+ * Row one: the state, then INFO's figures. The first of eight forms that fits the width, richest
+ * first: the cooler limit goes first, then the architect words, then the gauges shrink to figures,
+ * then effort, the hotter limit and ctx (which the trend row repeats). Spend stays longest and the
+ * state never drops.
+ */
+const headRow = (d: Draw, m: MiniView, width: number): RenderElement => {
+  const { Box } = d.els
   const { C } = d
-  const row: Piece[] = [{ text: '▌', color: C.brand }]
-  if (m.model) row.push({ text: `${m.model} `, color: C.green, bold: true })
-  row.push(m.isRunning ? { text: '● working', color: C.green } : { text: '○ idle', color: C.dim })
-  if (m.ctx) {
-    const g = gauge(m.ctx.pct, CTX_CELLS)
-    row.push(
-      { text: ' · ctx ', color: C.dim },
-      { text: g.on, color: m.ctx.pct >= HOT ? C.gold : C.green },
+  const state = stateWords(d, m.header)
+  const arch: Piece[] = m.header.arch ? [{ text: ` · ${m.header.arch}`, color: m.header.isAdvising ? C.architect : C.dim }] : []
+  const effort: Piece[] = m.effort ? [{ text: '◆ ', color: C.orange }, { text: shorten(m.effort, EFFORT_MAX), color: C.green, bold: true }] : []
+  const compacted: Piece[] = m.ctx && m.ctx.compactions > 0 ? [{ text: ` ↺${m.ctx.compactions}`, color: C.gold }] : []
+  const meter = (pct: number, cells: number): Piece[] => {
+    const g = gauge(pct, cells)
+    return [
+      { text: g.on, color: levelColor(pct) },
       { text: g.off, color: C.faint },
-      { text: ` ${Math.round(m.ctx.pct)}%`, color: C.text },
-    )
-    if (m.ctx.compactions > 0) row.push({ text: ` ⟲${m.ctx.compactions}`, color: C.gold })
+      { text: ` ${figureOf(pct)}%`, color: C.text, bold: true },
+    ]
   }
-  if (m.costUsd !== null) row.push({ text: ` · ${fmtUsd(m.costUsd)}`, color: C.text })
-  if (m.arch) row.push({ text: ` · ${m.arch}`, color: C.architect })
-  return row
-}
-
-/** `ctx ▁▂▃▅▇ 51%`: one cell per sample while they fit, so a short session draws a short line. */
-const sparkRow = (d: Draw, spark: NonNullable<MiniView['spark']>, width: number): Piece[] => {
-  const { C } = d
-  const cells = Math.max(1, Math.min(spark.values.length, width - SPARK_CHROME))
-  return [
-    { text: 'ctx ', color: C.dim },
-    { text: sparkline(spark.values, cells, { min: 0, max: 100 }), color: C.green },
-    { text: ` ${Math.round(spark.pct)}%`, color: C.text, bold: true },
+  const ctxGauge: Piece[] = m.ctx ? [{ text: '◐ ', color: C.orange }, ...meter(m.ctx.pct, CTX_GAUGE), ...compacted] : []
+  const ctxFigure: Piece[] = m.ctx ? [{ text: '◐ ', color: C.orange }, { text: `${figureOf(m.ctx.pct)}%`, color: levelColor(m.ctx.pct), bold: true }, ...compacted] : []
+  const label = (l: Limit): Piece => ({ text: `${shorten(limitLabel(l.kind), LIMIT_LABEL)} `, color: C.dim })
+  const limitGauge = (l: Limit): Piece[] => [label(l), ...meter(l.pct, LIMIT_GAUGE)]
+  const limitFigure = (l: Limit): Piece[] => [label(l), { text: `${figureOf(l.pct)}%`, color: levelColor(l.pct), bold: true }]
+  const [hot] = m.limits
+  const spend: Piece[] = m.costUsd === null ? [] : [{ text: '$ ', color: C.orange }, { text: fmtUsd(m.costUsd).replace(/^\$/, ''), color: C.text, bold: true }]
+  const roomy = (groups: Piece[][]) => joined(d, groups, '   ')
+  const tight = (groups: Piece[][]) => joined(d, groups, '  ')
+  const forms: [Piece[], Piece[]][] = [
+    [[...state, ...arch], roomy([effort, ctxGauge, ...m.limits.map(limitGauge), spend])],
+    [[...state, ...arch], roomy([effort, ctxGauge, hot ? limitGauge(hot) : [], spend])],
+    [state, roomy([effort, ctxGauge, hot ? limitGauge(hot) : [], spend])],
+    [state, tight([effort, ctxFigure, hot ? limitFigure(hot) : [], spend])],
+    [state, tight([ctxFigure, hot ? limitFigure(hot) : [], spend])],
+    [state, tight([ctxFigure, spend])],
+    [state, m.trend ? spend : ctxFigure],
+    [state, []],
   ]
+  const rows = forms.map(([head, digest]): Piece[] => (digest.length > 0 ? [...head, { text: '   ', color: C.dim }, ...digest] : head))
+  // The dot takes the first cell.
+  const row = rows.find(r => 1 + widthOf(r) <= width) ?? state
+  return (
+    <Box key="mini-head" width={width}>
+      {stateDot(d, m.header.isActive)}
+      {textOf(d, 'mini-state', row)}
+    </Box>
+  )
 }
 
-/** `● Map the call sites  ctx 41k  0:42`. */
-const agentRow = (d: Draw, c: AgentCard, titleCells: number): RenderElement => {
+/** `◐ ctx    ▁▂▃▅▇  51%`: the TRENDS ctx line in one row, from two readings. */
+const trendRow = (d: Draw, samples: NonNullable<MiniView['trend']>, width: number): RenderElement => {
+  const { C } = d
+  const values = samples.map(s => s.ctxPct)
+  const latest = [...values].reverse().find((v): v is number => v !== null)
+  return textOf(d, 'mini-trend', [
+    { text: '◐ ', color: C.orange },
+    { text: pad('ctx', TREND_LABEL), color: C.dim },
+    ...sparkPieces(d, samples, values, Math.max(1, width - TREND_CHROME), { min: 0, max: 100 }, levelColor),
+    { text: lpad(latest === undefined ? '' : `${figureOf(latest)}%`, TREND_FIGURE), color: C.text, bold: true },
+  ])
+}
+
+/** `● Count tests by file    Haiku    ▰▰▰▱▱▱▱▱▱▱▱▱▱▱  0:37`: the AGENTS row without its hotkey digit, the mini taking no keys. */
+const agentRow = (d: Draw, c: AgentCard, m: MiniView, width: number): RenderElement => {
   const { Box, Text } = d.els
   const { C } = d
+  const hasTag = width >= TAG_FROM
+  const barCells = width >= BAR_WIDE_FROM ? 14 : hasTag ? 10 : 6
+  const titleCells = Math.max(1, width - GLYPH_CELLS - (hasTag ? TAG_CELLS : 0) - 1 - barCells - CLOCK_CELLS)
+  const tag = hasTag ? modelTag(c, m.mainModel) : ''
   return (
-    <Box key={`mini-agent-${c.id}`}>
+    <Box key={`mini-agent-${c.id}`} width={width}>
       <Box width={GLYPH_CELLS} flexShrink={0}>
-        <Text color={agentTone(c)}>{AGENT_GLYPH[c.status]}</Text>
+        <Text color={agentTone(c)}>{agentGlyph(c)}</Text>
       </Box>
       <Text color={C.text} wrap="truncate">
         {pad(fitCells(cardTitle(c), titleCells), titleCells)}
       </Text>
-      <Text color={C.dim}>{pad(c.steps > 0 ? `  ctx ${kTokens(c.ctx)}` : '', COUNT_CELLS)}</Text>
+      {hasTag ? <Text color={tag ? familyColor(tag) : C.dim}>{pad(fitCells(tag, TAG_CELLS - 1), TAG_CELLS)}</Text> : null}
+      <Text>{' '}</Text>
+      {bar(d, c, barCells)}
       <Box width={CLOCK_CELLS} flexShrink={0} justifyContent="flex-end">
         {clock(d, `mini-clock-${c.id}`, c.spawnedAt, c.endedAt, C.dim)}
       </Box>
@@ -95,31 +160,28 @@ const agentRow = (d: Draw, c: AgentCard, titleCells: number): RenderElement => {
   )
 }
 
-export const miniPane = (d: Draw, m: MiniView, width: number): RenderElement => {
-  const { Box, Text } = d.els
+/** `+2 earlier · loops 2 seen · 1 active  ✓●`, or null when there is nothing to count. */
+const tailRow = (d: Draw, m: MiniView, width: number): RenderElement | null => {
   const { C } = d
-  const titleCells = Math.max(1, Math.min(TITLE_MAX, width - GLYPH_CELLS - COUNT_CELLS - CLOCK_CELLS))
-  const rows: RenderElement[] = [rowOf(d, 'mini-head', headRow(d, m))]
-  if (m.spark) rows.push(rowOf(d, 'mini-ctx', sparkRow(d, m.spark, width)))
-  rows.push(...m.agents.map(c => agentRow(d, c, titleCells)))
-  if (m.more > 0) {
-    rows.push(
-      <Text key="mini-more" color={C.dim} wrap="truncate">
-        {`+${plural(m.more, 'more agent')} · /st-code layout compact for all`}
-      </Text>,
-    )
-  }
-  if (m.loops) {
-    rows.push(
-      rowOf(d, 'mini-loops', [
-        { text: 'LOOPS', color: C.text, bold: true },
-        { text: ` ${m.loops.seen} · ${m.loops.active} active`, color: C.dim },
-      ]),
-    )
-  }
+  const words: Piece[] = []
+  if (m.earlier > 0) words.push({ text: `+${m.earlier} earlier`, color: C.dim })
+  if (m.loops) words.push({ text: `${m.earlier > 0 ? ' · ' : ''}loops ${m.loops.seen} seen · ${m.loops.active} active  `, color: C.dim })
+  if (words.length === 0) return null
+  // The dots are the newest that fit beside the words.
+  const room = Math.max(0, width - widthOf(words))
+  const dots = m.loops && room > 0 ? m.loops.dots.slice(-room) : []
+  return textOf(d, 'mini-tail', [...words, ...dots.map((s): Piece => ({ text: LOOP_GLYPH[s], color: loopTone(d, s) }))])
+}
+
+export const miniPane = (d: Draw, m: MiniView, width: number): RenderElement => {
+  const { Box } = d.els
+  const rows: (RenderElement | null)[] = [headRow(d, m, width)]
+  if (m.trend) rows.push(trendRow(d, m.trend, width))
+  rows.push(...m.agents.map(c => agentRow(d, c, m, width)))
+  rows.push(tailRow(d, m, width))
   return (
-    <Box flexDirection="column" width={width} backgroundColor={C.fill}>
-      {rows}
+    <Box flexDirection="column" width={width} backgroundColor={d.C.fill}>
+      {rows.filter((r): r is RenderElement => r !== null).slice(0, MAX_ROWS)}
     </Box>
   )
 }

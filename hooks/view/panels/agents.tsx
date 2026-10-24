@@ -47,7 +47,7 @@ const barCells = (inside: number): number => (inside >= BAR_WIDE_FROM ? 14 : ins
  * The status bar of one row, `w` cells: a running agent's three-cell block bouncing along the track
  * where the surface animates, else still at the start of it; an ended agent's bar full in its tone.
  */
-const bar = (d: Draw, c: AgentCard, w: number): RenderElement[] => {
+export const bar = (d: Draw, c: AgentCard, w: number): RenderElement[] => {
   const { Text } = d.els
   const { C } = d
   const tone = agentTone(c)
@@ -172,20 +172,22 @@ const expandedRows = (d: Draw, x: ExpandedView): RenderElement[] => {
   ]
 }
 
-const LOOP_GLYPH: Record<LoopsView['dots'][number], string> = { active: '●', done: '✓', idle: '○' }
+export const LOOP_GLYPH: Record<LoopsView['dots'][number], string> = { active: '●', done: '✓', idle: '○' }
+
+/** A loop dot's colour: orange while it steps, green once done, dim when idle. */
+export const loopTone = (d: Draw, s: LoopsView['dots'][number]): string => (s === 'active' ? d.C.orange : s === 'done' ? d.C.green : d.C.dim)
 
 /** `loops  3 seen · 1 active  ✓○●`: the row under the last divider. */
 const loopsRow = (d: Draw, l: LoopsView): RenderElement => {
   const { Text } = d.els
   const { C } = d
-  const toneOf = (s: LoopsView['dots'][number]) => (s === 'active' ? C.orange : s === 'done' ? C.green : C.dim)
   return (
     <Text key="loops" wrap="truncate">
       <Text key="words" color={C.dim}>
         {loopsWords(l.seen, l.active)}
       </Text>
       {l.dots.map((s, i) => (
-        <Text key={`dot-${i}`} color={toneOf(s)}>
+        <Text key={`dot-${i}`} color={loopTone(d, s)}>
           {LOOP_GLYPH[s]}
         </Text>
       ))}

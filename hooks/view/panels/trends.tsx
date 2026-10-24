@@ -5,6 +5,7 @@
 // add each line as an SVG.
 import type { RenderElement } from 'claude-code'
 
+import type { Sample } from '../../../types'
 import { compactionCells } from '../../domain/trends'
 import { fmtUsd, placeCells, plural, sparkline } from '../../format/text'
 import type { Draw } from '../draw'
@@ -50,10 +51,10 @@ const rowOf = (d: Draw, key: string, row: Piece[]): RenderElement => {
  * The sparkline in runs: neighbouring cells of one colour join, an empty cell is a space and a
  * compaction's cell is a gold `↺` of its own. `color` gives the colour of a reading's cell.
  */
-const sparkPieces = (d: Draw, v: TrendsView, values: (number | null)[], width: number, range: { min: number; max: number }, color: (reading: number) => string): Piece[] => {
+export const sparkPieces = (d: Draw, samples: Sample[], values: (number | null)[], width: number, range: { min: number; max: number }, color: (reading: number) => string): Piece[] => {
   const placed = placeCells(values, width)
   const glyphs = Array.from(sparkline(values, width, range))
-  const marks = new Set(compactionCells(v.samples, width))
+  const marks = new Set(compactionCells(samples, width))
   const out: Piece[] = []
   glyphs.forEach((glyph, i) => {
     const reading = placed[i] ?? null
@@ -99,13 +100,13 @@ export const trendsPanel = (d: Draw, v: TrendsView, width: number): RenderElemen
   const svgs: (RenderElement | null)[] = []
   if (v.ctx) {
     const change = v.ctx.change === null ? '' : fmtPoints(v.ctx.change)
-    rows.push(row('trend-ctx', '◐ ', 'ctx', sparkPieces(d, v, ctxValues, sparkWidth, ctxRange, levelColor), `${Math.round(v.ctx.pct)}%`, change))
+    rows.push(row('trend-ctx', '◐ ', 'ctx', sparkPieces(d, v.samples, ctxValues, sparkWidth, ctxRange, levelColor), `${Math.round(v.ctx.pct)}%`, change))
     svgs.push(sparkSvg(d, 'trend-ctx-svg', `context fill over ${plural(v.samples.length, 'reading')}`, ctxValues, width, C.green, ctxRange))
   }
   if (v.cost) {
     const change = v.cost.change === null ? '' : `+${fmtUsd(v.cost.change)}`
     const range = { min: v.cost.min, max: v.cost.max }
-    rows.push(row('trend-cost', '$ ', 'cost', sparkPieces(d, v, costValues, sparkWidth, range, () => C.muted), fmtUsd(v.cost.usd), change))
+    rows.push(row('trend-cost', '$ ', 'cost', sparkPieces(d, v.samples, costValues, sparkWidth, range, () => C.muted), fmtUsd(v.cost.usd), change))
     svgs.push(sparkSvg(d, 'trend-cost-svg', `cost over ${plural(v.samples.length, 'reading')}`, costValues, width, C.green, range))
   }
   return (

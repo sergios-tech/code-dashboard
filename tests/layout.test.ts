@@ -128,19 +128,17 @@ test('inline, the pane is a summary of at most 8 rows', async ($, on) => {
     const ui = await $.ui.mount({ ...pane(cols, 'inline'), surface: 'terminal' })
     expect(childrenOf(await ui.drawn()).length <= 8).toBe(true)
     const rows = await rowsOf(ui)
-    // Every part has something to say here, so every row is drawn, each within the pane.
-    expect(rows).toHaveLength(7)
+    // Every part has something to say here, so every row is drawn, each within the pane: eight rows.
+    expect(rows).toHaveLength(8)
     for (const r of rows) expect(cellWidth(r) <= cols).toBe(true)
-    expect(rows[0]).toMatch(/^▌Opus 5\.5 ○ idle · ctx ▰▰▰▱▱▱ 51%/); if (cols >= 64) expect(rows[0]).toMatch(/ 51% · \$3\.12 *$/)
-    expect((await ui.find({ type: 'Text', text: /^▌$/ }))?.props.color).toBe(COLORS.brand)
-    expect(rows[1]).toMatch(/^ctx ▂▅ 51% *$/)
-    // Running agents first, in the order they were spawned; the finished one is among those left out.
-    expect(rows.slice(2, 5).map(r => r.slice(0, 12).trimEnd())).toEqual(['● task one', '● task three', '● task four'])
-    expect(rows[2]).toMatch(/ctx 41k +\d:\d\d *$/)
-    expect(await ui.find({ text: /^\+2 more agents · \/st-code layout compact for all$/ })).toBeDefined()
-    expect(rows[6]).toMatch(/^LOOPS 1 · 1 active *$/)
+    expect(rows[0]?.trimEnd()).toBe(cols >= 64 ? '● OPUS 5.5 IDLE   ◐ ▰▰▰▰▱▱▱▱ 51%   $ 3.12' : '● OPUS 5.5 IDLE   ◐ 51%  $ 3.12')
+    expect(rows[1]).toMatch(/^◐ ctx +[▁-█ ]+ +51% *$/)
+    // Running agents first, newest first; the finished one follows them.
+    expect(rows.slice(2, 7).map(r => r.slice(0, 12).trimEnd())).toEqual(['● task five', '● task four', '● task three', '● task one', '✓ task two'])
+    expect(rows[7]).toMatch(/^loops 1 seen · 1 active +● *$/)
     // No frames, no header bar and no log.
     expect(rows.some(r => /[┌│└]/.test(r))).toBe(false); expect(await ui.find({ text: /LOG|INFO|SERGIO/ })).toBeUndefined()
+    expect(rows.some(r => r.includes('⟲'))).toBe(false)
     await ui.unmount()
   }
 })
@@ -204,7 +202,7 @@ test('every atom holding garbage still draws the header and LOG (Review Focus 1)
       await ui.unmount()
     }
     const mini = await $.ui.mount({ ...pane(64, 'inline'), surface: 'terminal' })
-    expect(await rowsOf(mini)).toEqual(['▌○ idle'.padEnd(64)])
+    expect(await rowsOf(mini)).toEqual(['○ IDLE'.padEnd(64)])
     await mini.unmount()
   }
 })
@@ -230,7 +228,7 @@ test('config hides panels and motion off stops the pulse', { options: { panels: 
   }
   // The inline summary leaves out the hidden panels' rows too.
   const mini = await $.ui.mount({ ...pane(64, 'inline'), surface: 'terminal' })
-  expect(await rowsOf(mini)).toEqual([expect.stringMatching(/^▌● working · ctx ▰▱▱▱▱▱ 20% · \$2\.00 *$/)])
+  expect(await rowsOf(mini)).toEqual([expect.stringMatching(/^● WORKING {3}◐ ▰▰▱▱▱▱▱▱ 20% {3}\$ 2\.00 *$/)])
   await mini.unmount()
 })
 test('with motion off the clocks still tick', { options: { motion: 'off' } }, async ($, on) => {

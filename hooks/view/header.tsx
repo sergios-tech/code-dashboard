@@ -9,6 +9,20 @@ import { familyColor } from './palette'
 
 const BRAND_CELLS = Array.from("▌SERGIO'S TECH · CODE").length
 
+/** The state dot: `●` green, pulsing as a client module while work runs where the surface animates, else a plain `●`; `○` dim at rest. */
+export const stateDot = (d: Draw, isActive: boolean): RenderElement => {
+  const { els, C } = d
+  const { Text } = els
+  const Client = 'Client' in els ? els.Client : null
+  return canAnimate(d) && Client && isActive ? (
+    <Client key="st-code-pulse" module="../client/pulse.tsx" width={1} height={1} props={{ active: true, color: C.green, dim: C.pulse }} />
+  ) : (
+    <Text key="st-code-dot" bold={isActive} color={isActive ? C.green : C.dim}>
+      {isActive ? '●' : '○'}
+    </Text>
+  )
+}
+
 /**
  * One unfilled row of `width` cells. Its dot marks any running work (a turn or a subagent) and
  * pulses while there is some; its words describe the main loop alone, so background agents after a
@@ -21,15 +35,7 @@ export const header = (d: Draw, vm: ViewModel['header'], width: number): RenderE
   // Flush to both edges with one space between, so 40 columns still fit `● OPUS 5.5 WORKING`.
   const fit = headerFit(vm.model, vm.isRunning, vm.arch, width - BRAND_CELLS - 1)
   const name = vm.model.trim().toUpperCase()
-  const Client = 'Client' in els ? els.Client : null
-  const dot =
-    canAnimate(d) && Client && vm.isActive ? (
-      <Client key="st-code-pulse" module="../client/pulse.tsx" width={1} height={1} props={{ active: true, color: C.green, dim: C.pulse }} />
-    ) : (
-      <Text key="st-code-dot" bold={vm.isActive} color={vm.isActive ? C.green : C.dim}>
-        {vm.isActive ? '●' : '○'}
-      </Text>
-    )
+  const dot = stateDot(d, vm.isActive)
   const showState = fit === 'state' || fit === 'arch'
   // The words are one Text of coloured runs, so the row reads as one string.
   const words: RenderElement[] = []
