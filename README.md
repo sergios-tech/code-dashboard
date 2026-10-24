@@ -1,6 +1,6 @@
 # Sergio's Tech · Code
 
-[![Release](https://img.shields.io/github/v/release/sergios-tech/sergio-tech-code-dashboard)](https://github.com/sergios-tech/sergio-tech-code-dashboard/releases/latest)
+[![Release](https://img.shields.io/github/v/release/sergios-tech/code-dashboard)](https://github.com/sergios-tech/code-dashboard/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Claude Code 2.1.300+ plugin](https://img.shields.io/badge/Claude%20Code-2.1.300%2B%20plugin-8a0000.svg)](#install)
 
@@ -22,7 +22,7 @@ your machine.
 Inside Claude Code 2.1.300 or later:
 
 ```
-/plugin marketplace add sergios-tech/sergio-tech-code-dashboard
+/plugin marketplace add sergios-tech/code-dashboard
 /plugin install st-code@sergios-tech
 /reload-plugins
 /st-code
@@ -31,15 +31,15 @@ Inside Claude Code 2.1.300 or later:
 From a terminal:
 
 ```sh
-claude plugin marketplace add sergios-tech/sergio-tech-code-dashboard
+claude plugin marketplace add sergios-tech/code-dashboard
 claude plugin install st-code@sergios-tech
 ```
 
 Or load it from a clone for one session:
 
 ```sh
-git clone https://github.com/sergios-tech/sergio-tech-code-dashboard
-claude --plugin-dir ./sergio-tech-code-dashboard
+git clone https://github.com/sergios-tech/code-dashboard
+claude --plugin-dir ./code-dashboard
 ```
 
 If the installer lists options as unset, the defaults apply. You can change them in
@@ -230,7 +230,7 @@ the LOG underneath. There, `panels` still hides panels and sets the order inside
   `/st-code` to open it at any width.
 - Look in the transcript for a dim line starting `st-code:`. It names the hook that failed or the
   reason the pane was refused. Please
-  [open an issue](https://github.com/sergios-tech/sergio-tech-code-dashboard/issues) and include it.
+  [open an issue](https://github.com/sergios-tech/code-dashboard/issues) and include it.
 
 **It stays in one column.** The dock opens at 66 columns. See [Two columns](#where-it-runs).
 

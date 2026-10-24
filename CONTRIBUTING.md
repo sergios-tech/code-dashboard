@@ -10,8 +10,8 @@ You need Claude Code 2.1.300 or later to run the plugin, and Node.js only to run
 plugin has no npm dependencies.
 
 ```sh
-git clone https://github.com/sergios-tech/sergio-tech-code-dashboard
-cd sergio-tech-code-dashboard
+git clone https://github.com/sergios-tech/code-dashboard
+cd code-dashboard
 claude --plugin-dir .
 ```
 

@@ -3,8 +3,8 @@
 ## Reporting a vulnerability
 
 Please report a vulnerability privately through a GitHub security advisory:
-[Report a vulnerability](https://github.com/sergios-tech/sergio-tech-code-dashboard/security/advisories/new)
-on `sergios-tech/sergio-tech-code-dashboard`.
+[Report a vulnerability](https://github.com/sergios-tech/code-dashboard/security/advisories/new)
+on `sergios-tech/code-dashboard`.
 
 Please don't open a public issue for a vulnerability. In the report, include:
 
