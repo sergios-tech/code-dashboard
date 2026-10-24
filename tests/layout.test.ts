@@ -173,14 +173,12 @@ test('wide puts info, trends and tools left, agents and architect right, and the
     activity: recordCall(DEFAULT_ACTIVITY, { tool: 'Read', input: { file_path: '/r/a.ts' }, hasFailed: false, inSubagent: false, ms: 1, at: 1 }),
     log: Array.from({ length: 20 }, (_, i) => ({ at: i + 1, who: 'you', text: `line ${i}`, agentId: null, kind: 'info' as const, mark: null })),
   }
-  const vmAt = (cols: number) => buildViewModel(s, { cfg: parseConfig({}), now: 2, bodyColumns: cols, placement: 'dock', viewedAgentId: null, bodyRows: 26 })
+  const vmAt = (cols: number, bodyRows = 26) => buildViewModel(s, { cfg: parseConfig({}), now: 2, bodyColumns: cols, placement: 'dock', viewedAgentId: null, bodyRows })
   const wide = vmAt(120)
   expect(wide.columns).toEqual({ left: ['info', 'tools'], right: ['agents'], leftWidth: left, rightWidth: right, gap })
   expect([wide.widths.info, wide.widths.tools, wide.widths.agents, wide.widths.log]).toEqual([left, left, right, 120])
-  // Two cards fit side by side inside the 59-cell column's frame, so each takes half of its 55 cells.
-  expect(wide.agents?.cardWidth).toBe(27)
-  // One column stacks info (4), agents (10) and tools (6) under the header: the log takes the 2 rows left.
-  expect(vmAt(100).columns).toBeNull(); expect(vmAt(100).log?.lines).toHaveLength(2)
+  // One column stacks info (4), agents (4) and tools (6) under the header: in 20 rows the log takes the 2 left.
+  expect(vmAt(100, 20).columns).toBeNull(); expect(vmAt(100, 20).log?.lines).toHaveLength(2)
   // Two columns: the header and the taller column (10) leave the log its most.
   expect(wide.log?.lines).toHaveLength(8)
 })

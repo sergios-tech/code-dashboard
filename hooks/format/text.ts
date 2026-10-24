@@ -26,6 +26,9 @@ export const prettyModel = (id: string): string => {
   return shorten(id, 22)
 }
 
+/** The family word of a model id, the first word of `prettyModel`: `claude-haiku-4-5` is `Haiku`; empty for an empty id. */
+export const modelFamily = (id: string): string => (id ? (prettyModel(id).split(' ')[0] ?? '') : '')
+
 /** One row whatever the input: whitespace and newlines collapse, and anything past `n` ends in `…`. */
 export const shorten = (s: string, n: number): string => {
   const one = oneLine(s)

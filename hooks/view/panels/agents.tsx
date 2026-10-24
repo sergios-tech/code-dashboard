@@ -1,141 +1,144 @@
-// The AGENTS panel: a bordered card per subagent side by side while they fit, else one lane per
-// agent on a shared time axis. The card a hotkey opened shows its details under the frame, and the
-// surfaces that draw vectors add the same axis as an SVG. Then the LOOPS row: the model loops no
-// card claims.
+// The AGENTS panel: one row per agent, running first, each with a status glyph, its hotkey digit and
+// title, its model tag, a status bar and a clock. The agent a hotkey opened shows its details under
+// the frame, and the surfaces that draw vectors add the agents on one time axis as an SVG. Then the
+// LOOPS row: the model loops no agent claims.
 import type { RenderElement } from 'claude-code'
 
 import type { AgentCard } from '../../../types'
-import { AGENT_GLYPH, cardTitle, fitCells, lanes, titleLines } from '../../domain/agents'
-import { kTokens, plural, prettyModel } from '../../format/text'
-import { clock } from '../draw'
+import { agentGlyph, cardTitle, fitCells, modelTag } from '../../domain/agents'
+import { plural } from '../../format/text'
+import { canAnimate, clock } from '../draw'
 import type { Draw } from '../draw'
 import { frame } from '../frame'
 import { loopsWords } from '../model'
 import type { AgentsView, ExpandedView, LoopsView } from '../model'
+import { familyColor } from '../palette'
 import { agentTone, svgLanes } from '../svg'
 
-/** What pressing a card's title does: its expanded block opens, or closes when it was open. */
+/** What pressing an agent's row does: its details open under the frame, or close when they were open. */
 export type Expand = (id: string) => () => unknown
 
-/** Border and padding on each side of a row inside a card or a frame. */
+/** Border and padding on each side of a row inside a frame. */
 const CHROME = 4
-/** A plain Button with a hotkey draws `1: ` before its label. */
-const HOTKEY_CELLS = 3
+/** The status glyph and the space after it. */
+const GLYPH_CELLS = 2
+/** The `N:` of a row and the space after it, beyond the title. */
+const NUMBER_CELLS = 3
 /** The `▶ ` before the title of the agent being viewed. */
 const MARK_CELLS = 2
-/** A lane's title, after its hotkey. */
-const LANE_TITLE_CELLS = 14
-/** A lane's glyph and the space after it. */
-const LANE_GLYPH_CELLS = 2
-/** A lane's clock, right-aligned: `m:ss` to `XhYY`. */
-const LANE_CLOCK_CELLS = 5
-/** The axis keeps a few cells however tight the row. */
-const LANE_MIN_CELLS = 4
+/** The model tag's column, and the cells its name may take. */
+const TAG_CELLS = 7
+const TAG_NAME_CELLS = 6
+/** The tag is dropped when the frame's inside is narrower than this. */
+const TAG_FROM = 50
+/** A clock, right-aligned: `m:ss` to `XhYY`. */
+const CLOCK_CELLS = 5
+/** The status bar is 14 cells from this inside width, 10 from the next, else 6. */
+const BAR_WIDE_FROM = 56
+const BAR_MID_FROM = 46
+/** The least a title column keeps, however tight the row. */
+const TITLE_MIN = 6
 /** About one terminal cell, in CSS pixels, for the width of the desktop's axis. */
 const CELL_PX = 8
 
-/** `type`, or `type · Model` when the card runs on another model than the main loop. */
-const kindOf = (c: AgentCard, mainModel: string): string => {
-  const name = c.model ? prettyModel(c.model) : ''
-  return name && name !== mainModel ? `${c.type} · ${name}` : c.type
-}
+const barCells = (inside: number): number => (inside >= BAR_WIDE_FROM ? 14 : inside >= BAR_MID_FROM ? 10 : 6)
 
-/** The status word beside the glyph: `max_tokens` replaces it once a request was cut there. */
-const statusOf = (c: AgentCard): string => `${AGENT_GLYPH[c.status]} ${c.lastStop === 'max_tokens' ? 'max_tokens' : c.status}`
-
-const mark = (d: Draw): RenderElement => {
+/**
+ * The status bar of one row, `w` cells: a running agent's three-cell block bouncing along the track
+ * where the surface animates, else still at the start of it; an ended agent's bar full in its tone.
+ */
+const bar = (d: Draw, c: AgentCard, w: number): RenderElement[] => {
   const { Text } = d.els
-  return (
-    <Text key="mark" bold color={d.C.orange}>
-      ▶{' '}
-    </Text>
-  )
+  const { C } = d
+  const tone = agentTone(c)
+  if (c.status !== 'running') {
+    return [
+      <Text key="bar" color={tone}>
+        {'▰'.repeat(w)}
+      </Text>,
+    ]
+  }
+  if (canAnimate(d) && 'Client' in d.els) {
+    const { Client } = d.els
+    return [<Client key={`sweep-${c.id}`} module="../../client/sweep.tsx" width={w} height={1} props={{ width: w, color: tone, track: C.faint }} />]
+  }
+  return [
+    <Text key="bar-on" color={tone}>
+      {'▰'.repeat(Math.min(3, w))}
+    </Text>,
+    <Text key="bar-off" color={C.faint}>
+      {'▱'.repeat(Math.max(0, w - 3))}
+    </Text>,
+  ]
 }
 
-/** One card: two title rows (the first a hotkey Button), the type, the counts, and status with a clock. */
-const card = (d: Draw, a: AgentsView, c: AgentCard, i: number, expand: Expand): RenderElement => {
+/** One row per agent, `● 1: title  Haiku  ▰▰▰▱▱▱▱▱▱▱▱▱▱▱  0:37`, and `+N earlier` above them. */
+const rows = (d: Draw, a: AgentsView, width: number, expand: Expand): RenderElement[] => {
   const { Box, Text, Button } = d.els
   const { C } = d
-  const isViewed = a.viewedId === c.id
-  const room = Math.max(1, a.cardWidth - CHROME)
-  const [first, second] = titleLines(cardTitle(c), Math.max(1, room - HOTKEY_CELLS - (isViewed ? MARK_CELLS : 0)), room)
-  const counts = c.steps > 0 ? `ctx ${kTokens(c.ctx)} · out ${kTokens(c.out)} · ${c.steps} st` : 'starting…'
-  return (
-    <Box
-      key={`card-box-${c.id}`}
-      flexDirection="column"
-      width={a.cardWidth}
-      flexShrink={0}
-      borderStyle="single"
-      borderColor={c.lastStop === 'max_tokens' ? C.error : C.orange}
-      borderDimColor={c.status !== 'running'}
-      paddingX={1}
-    >
-      <Box key="title">
-        {isViewed ? mark(d) : null}
-        <Button key={`card-${c.id}`} plain hotkey={String(i + 1)} label={first || c.type} onPress={expand(c.id)} />
-      </Box>
-      <Text key="title-2" bold color={C.text} wrap="truncate">
-        {second || ' '}
-      </Text>
-      <Text key="kind" color={C.dim} wrap="truncate">
-        {kindOf(c, a.mainModel)}
-      </Text>
-      <Text key="counts" color={C.text} wrap="truncate">
-        {counts}
-      </Text>
-      <Box key="status" columnGap={1}>
-        <Text color={agentTone(c)} wrap="truncate">
-          {statusOf(c)}
-        </Text>
-        <Box flexShrink={0}>{clock(d, `card-clock-${c.id}`, c.spawnedAt, c.endedAt, C.dim)}</Box>
-      </Box>
-    </Box>
-  )
-}
-
-/** One row per agent, `● 1: title  ···━━━···  0:42`, the newest six, under `+N earlier`. */
-const laneRows = (d: Draw, a: AgentsView, width: number, expand: Expand): RenderElement[] => {
-  const { Box, Text, Button } = d.els
-  const { C } = d
-  const titleCells = HOTKEY_CELLS + LANE_TITLE_CELLS
-  // The axis takes what the glyph, title, the spaces around the axis and the clock leave.
-  const axis = Math.max(LANE_MIN_CELLS, width - CHROME - LANE_GLYPH_CELLS - titleCells - 2 - LANE_CLOCK_CELLS)
-  const geo = lanes(a.shown, a.now, axis)
-  const rows: RenderElement[] = []
+  const inside = width - CHROME
+  const hasTag = inside >= TAG_FROM
+  const tagCells = hasTag ? TAG_CELLS : 0
+  const barWidth = barCells(inside)
+  // What the glyph, the tag, the bar with a space either side and the clock leave for the digit and title.
+  const titleCells = Math.max(TITLE_MIN, inside - GLYPH_CELLS - NUMBER_CELLS - tagCells - (barWidth + 2) - CLOCK_CELLS)
+  const out: RenderElement[] = []
   if (a.earlier > 0) {
-    rows.push(
-      <Text key="lanes-earlier" color={C.dim}>
+    out.push(
+      <Text key="agents-earlier" color={C.dim}>
         {`+${a.earlier} earlier`}
       </Text>,
     )
   }
   a.shown.forEach((c, i) => {
-    const g = geo[i] ?? { before: 0, bar: 1, after: Math.max(0, axis - 1) }
     const isViewed = a.viewedId === c.id
-    const tone = agentTone(c)
-    rows.push(
-      <Box key={`lane-${c.id}`}>
-        <Box width={LANE_GLYPH_CELLS} flexShrink={0}>
-          <Text color={tone}>{AGENT_GLYPH[c.status]}</Text>
+    const title = fitCells(cardTitle(c), titleCells - 1 - (isViewed ? MARK_CELLS : 0))
+    const tag = hasTag ? modelTag(c, a.mainModel) : ''
+    out.push(
+      <Box key={`row-${c.id}`}>
+        <Box width={GLYPH_CELLS} flexShrink={0}>
+          <Text color={agentTone(c)}>{agentGlyph(c)}</Text>
         </Box>
-        <Box width={titleCells} flexShrink={0}>
-          {isViewed ? mark(d) : null}
-          <Button key={`card-${c.id}`} plain hotkey={String(i + 1)} label={fitCells(cardTitle(c), LANE_TITLE_CELLS - (isViewed ? MARK_CELLS : 0))} onPress={expand(c.id)} />
+        <Box width={NUMBER_CELLS + titleCells} flexShrink={0}>
+          {isViewed ? (
+            <Text key="mark" bold color={C.orange}>
+              {'▶ '}
+            </Text>
+          ) : null}
+          {/* The host draws a plain Button's hotkey in its theme accent, a blue: the hotkey sits on a Button that is not drawn, and the visible one has no hotkey. */}
+          <Box key={`hot-${c.id}`} display="none">
+            <Button key={`key-${c.id}`} plain hotkey={String(i + 1)} label={title} onPress={expand(c.id)} />
+          </Box>
+          <Button key={`card-${c.id}`} plain onPress={expand(c.id)}>
+            <Text key="n" color={C.orange}>
+              {String(i + 1)}
+            </Text>
+            <Text key="c" color={C.dim}>
+              :
+            </Text>
+            <Text key="t" color={C.text}>
+              {` ${title}`}
+            </Text>
+          </Button>
         </Box>
-        <Text color={C.faint}>{` ${'·'.repeat(g.before)}`}</Text>
-        <Text color={tone}>{'━'.repeat(g.bar)}</Text>
-        <Text color={C.faint}>{`${'·'.repeat(g.after)} `}</Text>
-        <Box width={LANE_CLOCK_CELLS} flexShrink={0} justifyContent="flex-end">
-          {clock(d, `lane-clock-${c.id}`, c.spawnedAt, c.endedAt, C.dim)}
+        {hasTag ? (
+          <Box width={TAG_CELLS} flexShrink={0}>
+            <Text color={tag ? familyColor(tag) : C.dim}>{fitCells(tag, TAG_NAME_CELLS)}</Text>
+          </Box>
+        ) : null}
+        <Text>{' '}</Text>
+        {bar(d, c, barWidth)}
+        <Text>{' '}</Text>
+        <Box width={CLOCK_CELLS} flexShrink={0} justifyContent="flex-end">
+          {clock(d, `row-clock-${c.id}`, c.spawnedAt, c.endedAt, C.dim)}
         </Box>
       </Box>,
     )
   })
-  return rows
+  return out
 }
 
-/** The opened card under the frame: the whole task, its facts, the last three tools and the answer's start. */
+/** The opened agent under the frame: the whole task, its facts, the last three tools and the answer's start. */
 const expandedBlock = (d: Draw, x: ExpandedView, width: number): RenderElement => {
   const { Box, Text } = d.els
   const { C } = d
@@ -178,17 +181,9 @@ const axisSvg = (d: Draw, a: AgentsView, width: number): RenderElement | null =>
 
 export const agentsPanel = (d: Draw, a: AgentsView, width: number, expand: Expand): RenderElement => {
   const { Box } = d.els
-  const body =
-    a.mode === 'cards'
-      ? [
-          <Box key="agent-cards" columnGap={1}>
-            {a.shown.map((c, i) => card(d, a, c, i, expand))}
-          </Box>,
-        ]
-      : laneRows(d, a, width, expand)
   return (
     <Box key="agents" marginTop={1} flexDirection="column" width={width}>
-      {frame(d, { key: 'agents-frame', label: a.label, meta: a.meta, width, children: body })}
+      {frame(d, { key: 'agents-frame', label: 'AGENTS', meta: a.meta, width, isActive: a.isActive, children: rows(d, a, width, expand) })}
       {axisSvg(d, a, width)}
       {a.expanded ? expandedBlock(d, a.expanded, width) : null}
     </Box>

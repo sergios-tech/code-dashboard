@@ -4,41 +4,35 @@ import type { EngineInterface, On, RenderElement } from 'claude-code'
 
 import type { AgentCard, Loop } from '../types'
 import { parseConfig } from '../hooks/config'
+import Sweep from '../hooks/client/sweep'
 import {
   AGENTS_MAX,
+  LIST_SHOWN,
   LOOPS_MAX,
   LOOP_ACTIVE_MS,
   addCard,
+  agentGlyph,
   applyStep,
-  cardFit,
   cardTitle,
   finishCard,
   isLoopActive,
   lanes,
+  listOrder,
+  modelTag,
   newCard,
   noteTool,
   stepLoop,
-  titleLines,
 } from '../hooks/domain/agents'
-import {
-  DEFAULT_ACTIVITY,
-  DEFAULT_ARCHITECT,
-  DEFAULT_DENIALS,
-  DEFAULT_MAIN,
-  DEFAULT_ROSTER,
-  DEFAULT_TRENDS,
-  DEFAULT_TURN,
-  DEFAULT_USAGE,
-  DEFAULT_VIEW,
-} from '../hooks/state/schema'
+import { modelFamily } from '../hooks/format/text'
+import { normalizeCard } from '../hooks/state/schema'
 import { addAgent, finishAgent, loadSnapshot, noteAgentStep, noteArchitectType } from '../hooks/state/store'
 import type { Snapshot } from '../hooks/state/store'
 import type { Draw } from '../hooks/view/draw'
-import { buildViewModel } from '../hooks/view/model'
 import { COLORS } from '../hooks/view/palette'
 import { agentsPanel } from '../hooks/view/panels/agents'
-import { svgLanes } from '../hooks/view/svg'
-import { cellWidth, drawRows, engine, pane, rowsOf, spawn } from './kit'
+import { agentTone, svgLanes } from '../hooks/view/svg'
+import { NOW, busy } from './fixture'
+import { ELS, cellWidth, draw, drawRows, engine, found, pane, rowsOf, spawn, texts, vmOf } from './kit'
 
 type Usage = { input_tokens: number; cache_read_input_tokens: number; cache_creation_input_tokens: number; output_tokens: number }
 type Stop = 'end_turn' | 'max_tokens' | 'tool_use'
@@ -67,38 +61,6 @@ const end = ($: Engine, agentId: string, reason: 'answer' | 'aborted' | 'error',
 
 /** Every row of a mounted pane past the header is blank or framed on both sides: no frame was broken. */
 const framesIntact = (rows: string[]) => rows.slice(1).every(r => r.trim() === '' || /^[┌│└].*[┐│┘]$/.test(r))
-
-// Element constructors that build the plain data a surface's table does, so a renderer is drawn here
-// without a mount.
-const el =
-  (type: string) =>
-  ({ children, ...props }: Record<string, unknown> & { children?: unknown[] }) =>
-    ({ type, props, children: children ?? [] }) as unknown as RenderElement
-const ELS = { Box: el('Box'), Text: el('Text'), Button: el('Button'), Client: el('Client') }
-const draw = (): Draw => ({ els: ELS as never, C: COLORS, hasClient: true, motion: true, surface: 'terminal', now: 0 })
-type Node = { type?: string; props?: Record<string, unknown>; children?: unknown[] }
-/** Every element of a type in a drawn tree, with the text of its string children. */
-const found = (tree: unknown, type: string): { props: Record<string, unknown>; text: string }[] => {
-  if (typeof tree !== 'object' || tree === null) return []
-  const n = tree as Node
-  const text = (n.children ?? []).filter((c): c is string => typeof c === 'string').join('')
-  return [...(n.type === type ? [{ props: n.props ?? {}, text }] : []), ...(n.children ?? []).flatMap(c => found(c, type))]
-}
-
-const FRESH: Snapshot = {
-  main: DEFAULT_MAIN,
-  usage: DEFAULT_USAGE,
-  turn: DEFAULT_TURN,
-  agents: [],
-  loops: [],
-  architect: DEFAULT_ARCHITECT,
-  activity: DEFAULT_ACTIVITY,
-  trends: DEFAULT_TRENDS,
-  denials: DEFAULT_DENIALS,
-  log: [],
-  view: DEFAULT_VIEW,
-  roster: DEFAULT_ROSTER,
-}
 
 // The kit's `$` carries no `state` noun, so the store functions get a small in-memory one, and a clock.
 const memoryState = (now: number) => {
@@ -156,14 +118,25 @@ test('a card ends as done, stopped or failed, keeps its last 3 tools, and stores
   expect(t.tools.map(n => n.text)).toEqual(['c', 'd', 'password=•••']); expect(t.tools[0]?.isError).toBe(true)
   expect(cardTitle(newCard({ id: 'b', type: 'Plan', model: '', description: '  ', at: 1 }))).toBe('Plan')
 })
-test('a title fills two rows by cells; cards fit by width and the limit', () => {
-  expect(titleLines('Write the parser tests', 10, 12)).toEqual(['Write the', 'parser tests'])
-  expect(titleLines('Write the parser tests now', 10, 12)).toEqual(['Write the', 'parser test…'])
-  expect(titleLines('x'.repeat(30), 10, 12)).toEqual(['x'.repeat(10), `${'x'.repeat(11)}…`])
-  expect(titleLines('fix 🚀\n\tthe bug', 7, 12)).toEqual(['fix 🚀', 'the bug'])
-  expect([cardFit(36, 3), cardFit(60, 3), cardFit(116, 3), cardFit(116, 6), cardFit(10, 3)]).toEqual([1, 2, 3, 5, 1])
+test('the list shows running agents first, newest first, then the rest newest first; six rows', () => {
+  const at = (id: string, status: AgentCard['status']) => normalizeCard({ id, status })
+  const list = [at('a', 'done'), at('b', 'running'), at('c', 'failed'), at('d', 'running'), at('e', 'stopped')]
+  expect(listOrder(list).map(c => c.id)).toEqual(['d', 'b', 'e', 'c', 'a'])
+  expect(listOrder([])).toEqual([]); expect(LIST_SHOWN).toBe(6)
   const loop = { id: 'l', steps: 1, firstAt: 0, lastAt: 1000, isDone: false }
   expect([isLoopActive(loop, 1000 + LOOP_ACTIVE_MS - 1), isLoopActive(loop, 1000 + LOOP_ACTIVE_MS), isLoopActive({ ...loop, isDone: true }, 1000)]).toEqual([true, false, false])
+})
+test('the glyph and tone read ✗ in error for a failed agent or an ended one cut at max_tokens', () => {
+  const c = (status: AgentCard['status'], lastStop: string | null = null) => normalizeCard({ id: 'x', status, lastStop })
+  expect(['running', 'done', 'failed', 'stopped'].map(s => agentGlyph(c(s as AgentCard['status'])))).toEqual(['●', '✓', '✗', '■'])
+  expect([agentGlyph(c('done', 'max_tokens')), agentGlyph(c('stopped', 'max_tokens')), agentGlyph(c('running', 'max_tokens')), agentGlyph(c('done', 'end_turn'))]).toEqual(['✗', '✗', '●', '✓'])
+  expect([c('running'), c('done'), c('failed'), c('stopped'), c('done', 'max_tokens'), c('running', 'max_tokens')].map(agentTone))
+    .toEqual([COLORS.orange, COLORS.green, COLORS.error, COLORS.dim, COLORS.error, COLORS.orange])
+})
+test('the model tag is the family name only when it differs from the main model', () => {
+  const m = (model: string) => normalizeCard({ id: 'x', model })
+  expect(['claude-haiku-4-5', 'claude-sonnet-5-5[1m]', 'claude-fable-5-1', 'gpt-x', ''].map(modelFamily)).toEqual(['Haiku', 'Sonnet', 'Fable', 'gpt-x', ''])
+  expect([modelTag(m('claude-haiku-4-5'), 'Opus 5.5'), modelTag(m('claude-opus-5-5'), 'Opus 5.5'), modelTag(m(''), 'Opus 5.5'), modelTag(m('claude-opus-5-1'), 'Opus 5.5')]).toEqual(['Haiku', '', '', 'Opus'])
 })
 test('the SVG axis draws on OLED black in palette colours, its labels escaped', () => {
   const run = newCard({ id: 'r', type: 't', model: '', description: 'a <b> & c', at: 10 })
@@ -195,7 +168,37 @@ test('offered architect types are remembered once each; a card claims its loop; 
 
 // ---------------------------------------------------------------- the AGENTS panel
 
-test('subagents become cards, then lanes past the limit; a card expands on its hotkey', async ($, on) => {
+const agents = (s: Snapshot, w: number, o: Partial<Draw> = {}) =>
+  drawRows(agentsPanel(draw({ now: NOW, hasClient: false, motion: false, ...o }), vmOf(s, w, 'dock', NOW).agents!, w, () => () => undefined)).slice(1)
+test('AGENTS is one row per agent, running first, with counts in the meta', () => {
+  expect(agents(busy(), 66).slice(0, 6)).toEqual([
+    '┌ AGENTS ─────────────────────────────────── 2 running · 5 total ┐',
+    '│ ● 1: Count tests by file          Haiku   ▰▰▰▱▱▱▱▱▱▱▱▱▱▱  0:37 │',
+    '│ ● 2: Check versions                       ▰▰▰▱▱▱▱▱▱▱▱▱▱▱  0:59 │',
+    '│ ✗ 3: List pane structure          Fable   ▰▰▰▰▰▰▰▰▰▰▰▰▰▰  0:10 │',
+    '│ ✓ 4: Review README claims         Sonnet  ▰▰▰▰▰▰▰▰▰▰▰▰▰▰  0:11 │',
+    '│ ✓ 5: Map hooks to events          Haiku   ▰▰▰▰▰▰▰▰▰▰▰▰▰▰  0:15 │',
+  ])
+})
+test('the tag goes under 50 inside cells and the bar narrows to 10, then 6', () => {
+  const at = (w: number) => agents(busy(), w)[1] ?? ''
+  expect(at(54)).toContain('Haiku'); expect(at(53)).not.toContain('Haiku')
+  expect(at(53)).toContain(' ▰▰▰▱▱▱▱▱▱▱ '); expect(at(50)).toContain(' ▰▰▰▱▱▱▱▱▱▱ '); expect(at(49)).toContain(' ▰▰▰▱▱▱ ')
+})
+test('more than six agents leave the oldest finished ones under +N earlier at the top', () => {
+  const s = busy(); const extra = [0, 1, 2].map(i => normalizeCard({ id: `x${i}`, description: `Old ${i}`, status: 'done', spawnedAt: NOW - 300_000, endedAt: NOW - 290_000 }))
+  const rows = agents({ ...s, agents: [...extra, ...s.agents] }, 66)
+  expect(rows[1]).toContain('+2 earlier'); expect(rows.filter(r => /│ [●✓✗■] \d:/.test(r))).toHaveLength(6)
+})
+test('each hotkey sits on a hidden Button; the visible one has orange digits and no hotkey', () => {
+  const tree = agentsPanel(draw({ now: NOW }), vmOf(busy(), 66, 'dock', NOW).agents!, 66, () => () => undefined)
+  const buttons = found(tree, 'Button')
+  expect(buttons.filter(b => b.hotkey).map(b => b.hotkey)).toEqual(['1', '2', '3', '4', '5'])
+  expect(buttons.filter(b => !b.hotkey)).toHaveLength(5)
+  expect(texts(tree).find(t => t.text === '1')?.color).toBe(COLORS.orange)
+  expect(texts(tree).find(t => t.text === ':')?.color).toBe(COLORS.dim)
+})
+test('a digit or a click opens an agent under the frame, and again closes it', async ($, on) => {
   const clock = engine(on)
   model(on)
   let n = 0
@@ -205,61 +208,66 @@ test('subagents become cards, then lanes past the limit; a card expands on its h
   await step($, undefined, 'claude-opus-5-5')
   await $.agent.spawn(spawn('general-purpose', 'Write the parser tests'))
   await $.agent.spawn(spawn('Explore', 'Map the call sites'))
-
   const ui = await $.ui.mount({ ...pane(64), surface: 'terminal' })
-  expect(await ui.find({ text: /AGENTS 2\/2/ })).toBeDefined(); expect(await ui.find({ text: /1-2 expand/ })).toBeDefined()
-  const first = await ui.find({ key: 'card-ag1' })
-  expect([first?.type, first?.props.hotkey, first?.props.label]).toEqual(['Button', '1', 'Write the parser tests'])
-  expect((await ui.find({ key: 'card-ag2' }))?.props.hotkey).toBe('2')
-  expect(await ui.find({ type: 'Text', text: /^general-purpose · Sonnet 5\.5$/ })).toBeDefined() // differs from main: named
-  expect(await ui.find({ type: 'Text', text: /^Explore$/ })).toBeDefined() // the main model: the type alone
-  expect(await ui.find({ type: 'Text', text: /^starting…$/ })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /^● running$/ })).toBeDefined()
-  expect((await ui.find({ key: 'card-box-ag1' }))?.props.borderColor).toBe(COLORS.orange)
-  expect((await rowsOf(ui)).some(r => /│ ┌─+┐ ┌─+┐ +│/.test(r))).toBe(true) // two bordered cards side by side
-  expect(await ui.find({ type: 'Text', text: /^Write the parser tests$/ })).toBeUndefined()
-  await ui.press({ key: 'card-ag1' })
-  expect(await ui.find({ type: 'Text', text: /^Write the parser tests$/ })).toBeDefined() // the expanded block, full task
-  expect(await ui.find({ type: 'Text', text: /^general-purpose · Sonnet 5\.5 · running · 0 steps$/ })).toBeDefined()
+  expect(await ui.find({ text: /2 running · 2 total/ })).toBeDefined()
+  // Newest first: the second spawn takes digit 1. Its tag is blank (the main model), the first agent's reads Sonnet.
+  const rows = await rowsOf(ui)
+  expect(rows.some(r => /^│ ● 1: Map the call sites +▰▰▰/.test(r))).toBe(true)
+  expect(rows.some(r => /^│ ● 2: Write the parser tests +Sonnet +▰▰▰/.test(r))).toBe(true)
+  expect((await ui.find({ key: 'key-ag2' }))?.props.hotkey).toBe('1'); expect((await ui.find({ key: 'key-ag1' }))?.props.hotkey).toBe('2')
+  expect((await ui.find({ key: 'card-ag2' }))?.props.hotkey).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /^Map the call sites$/ })).toBeUndefined()
+  await ui.press({ key: 'card-ag2' })
+  expect(await ui.find({ type: 'Text', text: /^Map the call sites$/ })).toBeDefined() // the opened block, full task
+  expect(await ui.find({ type: 'Text', text: /^Explore · Opus 5\.5 · running · 0 steps$/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /^no tool calls yet$/ })).toBeDefined()
-  await ui.press({ key: 'card-ag1' })
+  await ui.press({ key: 'card-ag2' })
   expect(await ui.find({ type: 'Text', text: /^no tool calls yet$/ })).toBeUndefined() // pressed again: closed
   await ui.unmount()
-
-  await clock.advance(30_000)
-  await $.agent.spawn(spawn('general-purpose', 'Implement the parser'))
-  await $.agent.spawn(spawn('general-purpose', 'Review the parser'))
-  for (const surface of ['terminal', 'desktop'] as const) {
-    const lanesUi = await $.ui.mount({ ...pane(64), surface })
-    expect(await lanesUi.find({ text: /AGENTS 4\/4/ })).toBeDefined(); expect(await lanesUi.find({ text: /1-4 expand/ })).toBeDefined()
-    expect(await lanesUi.find({ type: 'Text', text: /━/ })).toBeDefined()
-    expect((await lanesUi.find({ key: 'card-ag4' }))?.props.hotkey).toBe('4')
-    expect(await lanesUi.find({ key: 'card-box-ag1' })).toBeUndefined()
-    await lanesUi.unmount()
-  }
-  // On one axis: the first agent's bar runs from the left edge, a late one's is a sliver at the right.
-  const rows = await rowsOf(await $.ui.mount({ ...pane(64), surface: 'terminal' }))
-  const bar = (title: string) => rows.find(r => r.includes(title))?.match(/━+/)?.[0].length ?? 0
-  expect(rows.some(r => /^│ ● 1: Write the par… ━{20,} +0:30 │$/.test(r))).toBe(true)
-  expect(rows.some(r => /^│ ● 4: Review the pa… ·{20,}━ +0:00 │$/.test(r))).toBe(true)
-  expect(bar('1: Write') > bar('4: Review')).toBe(true)
 })
-test('cards that cannot fit a 40-column pane fall back to lanes', async ($, on) => {
-  const clock = engine(on)
-  let n = 0
-  on('agent.spawn', () => ({ model: 'claude-opus-5-5', agentId: `w${++n}` }))
-  await clock.advance(1000)
-  await $.turn.start({ text: 'go', turnId: 'W1' })
-  for (const d of ['alpha', 'beta']) await $.agent.spawn(spawn('Explore', `task ${d}`))
-  const narrow = await $.ui.mount({ ...pane(40), surface: 'terminal' })
-  expect(await narrow.find({ type: 'Text', text: /━/ })).toBeDefined() // lanes
-  expect(await narrow.find({ key: 'card-box-w1' })).toBeUndefined()
-  for (const r of await rowsOf(narrow)) expect(cellWidth(r) <= 40).toBe(true)
-  await narrow.unmount()
-  const wide = await $.ui.mount({ ...pane(64), surface: 'terminal' })
-  expect(await wide.find({ type: 'Text', text: /━/ })).toBeUndefined() // two cards fit in 64
-  expect(await wide.find({ text: /task beta/ })).toBeDefined(); expect(await wide.find({ key: 'card-box-w2' })).toBeDefined()
-  await wide.unmount()
+test('a running bar sweeps as a Client; the frame is green while any agent runs', () => {
+  const tree = agentsPanel(draw({ now: NOW }), vmOf(busy(), 66, 'dock', NOW).agents!, 66, () => () => undefined)
+  expect(found(tree, 'Client').filter(c => String(c.module).endsWith('sweep.tsx'))).toHaveLength(2)
+  expect(found(tree, 'Box').filter(b => b.borderStyle === 'single').map(b => b.borderColor)).toEqual([COLORS.green])
+})
+test('with no agent running the frame is red and no bar sweeps', () => {
+  const s = { ...busy(), agents: busy().agents.filter(c => c.status !== 'running') }
+  const tree = agentsPanel(draw({ now: NOW }), vmOf(s, 66, 'dock', NOW).agents!, 66, () => () => undefined)
+  expect(found(tree, 'Client').filter(c => String(c.module).endsWith('sweep.tsx'))).toHaveLength(0)
+  expect(found(tree, 'Box').filter(b => b.borderStyle === 'single').map(b => b.borderColor)).toEqual([COLORS.frame])
+})
+test('the sweep moves one cell every 100 ms and bounces at the ends', () => {
+  const timers: { ms: number; fn: () => void }[] = []
+  const surface = {
+    elements: ELS,
+    state: undefined as unknown,
+    setState(next: unknown) { surface.state = next },
+    every(ms: number, fn: () => void) { timers.push({ ms, fn }); return () => undefined },
+    columns: 1,
+    rows: 1,
+  }
+  const frames = (props: { width: number; color: string; track: string }, n: number) => {
+    const out: string[] = []
+    for (let i = 0; i < n; i++) {
+      if (i > 0) timers[0]?.fn()
+      out.push(drawRows(Sweep(props, surface as never) as RenderElement)[0] ?? '')
+    }
+    return out
+  }
+  expect(frames({ width: 6, color: COLORS.orange, track: COLORS.faint }, 6)).toEqual(['▰▰▰▱▱▱', '▱▰▰▰▱▱', '▱▱▰▰▰▱', '▱▱▱▰▰▰', '▱▱▰▰▰▱', '▱▰▰▰▱▱'])
+  expect(timers.map(t => t.ms)).toEqual([100])
+})
+test('maxCards is gone (Review Focus 2)', () => expect('maxCards' in parseConfig({ maxCards: 3 })).toBe(false))
+test('a wide, emoji or 300-character title keeps the bar and clock in place; an unknown model is dim, an empty one has no tag (Review Focus 4)', () => {
+  const odd = [
+    normalizeCard({ id: 'w1', description: '日本語のタスク🚀'.repeat(20), model: 'gpt-x', status: 'running', spawnedAt: NOW - 5000 }),
+    normalizeCard({ id: 'w2', description: 'x'.repeat(300), model: '', status: 'done', spawnedAt: NOW - 9000, endedAt: NOW - 4000 }),
+  ]
+  const s = { ...busy(), agents: odd }
+  for (const r of agents(s, 66).slice(1, 3)) { expect(cellWidth(r)).toBe(66); expect(r).toMatch(/ [▰▱]{14} {1,2}\d+:\d\d │$/) }
+  const tree = agentsPanel(draw({ now: NOW, hasClient: false, motion: false }), vmOf(s, 66, 'dock', NOW).agents!, 66, () => () => undefined)
+  expect(texts(tree).find(t => t.text.trim() !== '' && t.text.trim() === modelTag(odd[0]!, 'Opus 5.5'))?.color).toBe(COLORS.dim)
+  expect(modelTag(odd[1]!, 'Opus 5.5')).toBe('')
 })
 test('a description with newlines, emoji and a 300-char word stays one row per line (Review Focus 3)', async ($, on) => {
   const clock = engine(on)
@@ -288,9 +296,13 @@ test('a description with newlines, emoji and a 300-char word stays one row per l
     const task = rows.filter(r => /^│ (fix 🚀 the|x+…?) *│$/.test(r))
     expect(task.length).toBe(3); expect(task[2]?.includes('…')).toBe(true)
   }
-  // Past the card limit the same task is one lane row.
+  // Four agents with the same task are four rows, each one line, the digits counting from the newest.
   for (let i = 0; i < 3; i++) await $.agent.spawn(spawn('general-purpose', description))
-  for (const cols of [40, 64]) expect((await check(cols, 4)).filter(r => r.includes('1: fix 🚀 the')).length).toBe(1)
+  for (const cols of [40, 64]) {
+    const rows = await check(cols, 4)
+    expect(rows.filter(r => r.includes('1: fix 🚀 the')).length).toBe(1)
+    expect(rows.filter(r => /^│ ● \d: fix 🚀 the x+…/.test(r))).toHaveLength(4)
+  }
 })
 test('desktop draws the agents as an SVG axis on black', async ($, on) => {
   const clock = engine(on)
@@ -304,7 +316,7 @@ test('desktop draws the agents as an SVG axis on black', async ($, on) => {
     const source = String(svg?.props.source ?? '')
     expect(source.startsWith('<svg')).toBe(true); expect(source).toContain('fill="#000000"')
     expect(source).toContain('Map &lt;the&gt; call &amp; sites'); expect(String(svg?.props.alt)).toMatch(/^1 agent on one time axis$/)
-    expect(await ui.find({ text: /AGENTS 1\/1/ })).toBeDefined() // the same panel above it
+    expect(await ui.find({ text: /1 running · 1 total/ })).toBeDefined() // the same panel above it
     await ui.unmount()
   }
   const terminal = await $.ui.mount({ ...pane(64), surface: 'terminal' })
@@ -322,10 +334,9 @@ test('spawns and ends are logged; max_tokens is flagged in error colour', async 
   reply.usage = { input_tokens: 1000, cache_read_input_tokens: 40_000, cache_creation_input_tokens: 0, output_tokens: 3000 }
   await step($, 'm1')
   const live = await $.ui.mount({ ...pane(100), surface: 'terminal' })
-  expect((await live.find({ key: 'card-box-m1' }))?.props.borderColor).toBe(COLORS.error)
-  expect((await live.find({ key: 'card-box-m2' }))?.props.borderColor).toBe(COLORS.orange)
-  expect(await live.find({ type: 'Text', text: /^ctx 41k · out 3k · 1 st$/ })).toBeDefined()
-  expect((await live.find({ type: 'Text', text: /^● max_tokens$/ }))?.props.color).toBe(COLORS.error)
+  // Still running when a request hit max_tokens: it stays a steady orange ●.
+  expect((await rowsOf(live)).some(r => /^│ ● 3: task one /.test(r))).toBe(true)
+  expect((await live.find({ type: 'Text', text: /^●$/ }))?.props.color).toBe(COLORS.orange)
   expect((await live.find({ type: 'Text', text: /^hit max_tokens$/ }))?.props.color).toBe(COLORS.error)
   await live.unmount()
   await clock.advance(102_000)
@@ -333,16 +344,19 @@ test('spawns and ends are logged; max_tokens is flagged in error colour', async 
   await end($, 'm2', 'aborted')
   await end($, 'm3', 'error')
   const ui = await $.ui.mount({ ...pane(100), surface: 'terminal' })
-  const rows = (await rowsOf(ui)).join('\n')
+  const all = await rowsOf(ui)
+  const rows = all.join('\n')
   expect(rows.match(/spawned · general-purpose/g)).toHaveLength(3)
   expect(rows).toMatch(/done · 1m42s/)
   expect((await ui.find({ type: 'Text', text: /^failed$/ }))?.props.color).toBe(COLORS.error)
   expect(await ui.find({ type: 'Text', text: /^stopped$/ })).toBeDefined()
-  expect(await ui.find({ text: /AGENTS 0\/3/ })).toBeDefined()
-  expect((await ui.find({ type: 'Text', text: /^✓ max_tokens$/ }))?.props.color).toBe(COLORS.error)
-  expect((await ui.find({ type: 'Text', text: /^■ stopped$/ }))?.props.color).toBe(COLORS.dim)
-  expect((await ui.find({ type: 'Text', text: /^✗ failed$/ }))?.props.color).toBe(COLORS.error)
-  expect((await ui.find({ key: 'card-box-m2' }))?.props.borderDimColor).toBe(true)
+  expect(await ui.find({ text: /0 running · 3 total/ })).toBeDefined()
+  // Ended agents list newest first; the one cut at max_tokens reads ✗ although it answered.
+  expect(all.some(r => /^│ ✗ 1: task three /.test(r))).toBe(true)
+  expect(all.some(r => /^│ ■ 2: task two /.test(r))).toBe(true)
+  expect(all.some(r => /^│ ✗ 3: task one /.test(r))).toBe(true)
+  expect((await ui.find({ type: 'Text', text: /^✗$/ }))?.props.color).toBe(COLORS.error)
+  expect((await ui.find({ type: 'Text', text: /^■$/ }))?.props.color).toBe(COLORS.dim)
   await ui.unmount()
 })
 test("a subagent's answer is masked before it is stored or drawn in the open card", async ($, on) => {
@@ -361,7 +375,7 @@ test("a subagent's answer is masked before it is stored or drawn in the open car
   expect(rows.some(r => r.startsWith('│ » Found it: use ••• to deploy.'))).toBe(true)
   await ui.unmount()
 })
-test('the agent being viewed is marked ▶, as a card and as a lane, and the log follows it', async ($, on) => {
+test('the agent being viewed is marked ▶ before its title, and the log follows it', async ($, on) => {
   const clock = engine(on)
   let n = 0
   on('agent.spawn', () => ({ model: 'claude-sonnet-5-5', agentId: `v${++n}` }))
@@ -369,22 +383,25 @@ test('the agent being viewed is marked ▶, as a card and as a lane, and the log
   await $.turn.start({ text: 'main prompt', turnId: 'T1' })
   await $.agent.spawn(spawn('Explore', 'Look around'))
   const viewing = (cols: number) => $.ui.mount({ ...pane(cols), props: { ...pane(cols).props, view: { agentId: 'v1' } }, surface: 'terminal' })
-  const card = await viewing(64)
-  expect((await rowsOf(card)).some(r => r.includes('▶ 1: Look around'))).toBe(true)
-  expect(await card.find({ text: /LOG · THIS AGENT/ })).toBeDefined(); expect(await card.find({ text: /main prompt/ })).toBeUndefined()
-  expect(await card.find({ text: /spawned · Explore/ })).toBeDefined()
-  await card.unmount()
+  const wide = await viewing(64)
+  expect((await rowsOf(wide)).some(r => r.includes('● ▶ 1: Look around'))).toBe(true)
+  expect(await wide.find({ text: /LOG · THIS AGENT/ })).toBeDefined(); expect(await wide.find({ text: /main prompt/ })).toBeUndefined()
+  expect(await wide.find({ text: /spawned · Explore/ })).toBeDefined()
+  await wide.unmount()
+  // A newer agent takes digit 1; the viewed one keeps its mark on the row it now sits in.
   await $.agent.spawn(spawn('Explore', 'Look again'))
-  const lane = await viewing(40)
-  expect((await rowsOf(lane)).some(r => r.includes('● ▶ 1: Look around'))).toBe(true)
-  await lane.unmount()
+  const narrow = await viewing(40)
+  const rows = await rowsOf(narrow)
+  expect(rows.some(r => r.includes('● ▶ 2: Look around'))).toBe(true); expect(rows.some(r => r.includes('▶ 1:'))).toBe(false)
+  for (const r of rows) expect(cellWidth(r) <= 40).toBe(true)
+  await narrow.unmount()
 })
 test('the open card shows its task, facts, last 3 tools (✗ in error colour) and the start of its answer', () => {
   let c = applyStep(newCard({ id: 'a', type: 'Explore', model: 'claude-sonnet-5-5', description: 'Map the call sites', at: 1000 }),
     { model: 'claude-sonnet-5-5', usage: { input_tokens: 10, output_tokens: 5 }, stopReason: 'end_turn' })
   for (const [text, isError] of [['Glob → **/*.ts', false], ['Bash → ls', false], ['Read → src/a.ts', true], ['Grep → parse', false]] as const) c = noteTool(c, { tool: 'x', text, isError })
   c = finishCard(c, 'answer', 'The parser handles nested blocks. '.repeat(12), 9000)
-  const vm = buildViewModel({ ...FRESH, agents: [c], view: { expanded: 'a', layout: null } }, { cfg: parseConfig({}), now: 9000, bodyColumns: 64, placement: 'dock', viewedAgentId: null })
+  const vm = vmOf({ agents: [c], view: { expanded: 'a', layout: null } }, 64, 'dock', 9000)
   const a = vm.agents
   if (!a?.expanded) throw new Error('no expanded block')
   const tree = agentsPanel(draw(), a, vm.width, () => () => undefined)
@@ -393,8 +410,7 @@ test('the open card shows its task, facts, last 3 tools (✗ in error colour) an
   expect(rows).toContain(`│ Explore · Sonnet 5.5 · done · 1 step${' '.repeat(24)} │`)
   expect(rows.some(r => r.includes('· Glob'))).toBe(false)
   expect(rows.filter(r => /^│ [·✗] (Bash|Read|Grep) → /.test(r))).toHaveLength(3)
-  const texts = found(tree, 'Text')
-  const toolColor = (s: string) => texts.find(t => t.text === s)?.props.color
+  const toolColor = (s: string) => texts(tree).find(t => t.text === s)?.color
   expect(toolColor('✗ Read → src/a.ts')).toBe(COLORS.error); expect(toolColor('· Bash → ls')).toBe(COLORS.text)
   const answer = rows.filter(r => /^│ (» )?The parser|^│ (blocks|nested|handles)/.test(r))
   expect(rows.some(r => r.startsWith('│ » The parser handles nested blocks.'))).toBe(true)
@@ -440,8 +456,10 @@ test('30 agents and 100 other loops keep their bounds, and the pane still draws 
   }
   for (const cols of [40, 64, 120]) {
     const ui = await $.ui.mount({ ...pane(cols), surface: 'terminal' })
-    expect(await ui.find({ text: /AGENTS 24\/24/ })).toBeDefined(); expect(await ui.find({ text: /^\+18 earlier$/ })).toBeDefined()
-    expect((await ui.find({ key: 'card-b30' }))?.props.hotkey).toBe('6'); expect(await ui.find({ key: 'card-b24' })).toBeUndefined()
+    expect(await ui.find({ text: /24 running · 24 total/ })).toBeDefined(); expect(await ui.find({ text: /^\+18 earlier$/ })).toBeDefined()
+    // All running: the newest takes digit 1, the sixth newest digit 6, and older ones have no row.
+    expect((await ui.find({ key: 'key-b30' }))?.props.hotkey).toBe('1'); expect((await ui.find({ key: 'key-b25' }))?.props.hotkey).toBe('6')
+    expect(await ui.find({ key: 'card-b24' })).toBeUndefined()
     const rows = await rowsOf(ui)
     expect(rows.some(r => /LOOPS {2}60 seen · 15 active/.test(r))).toBe(true)
     for (const r of rows) expect(cellWidth(r) <= cols).toBe(true)

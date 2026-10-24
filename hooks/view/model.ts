@@ -4,7 +4,7 @@ import type { AgentCard, Architect, FileRow, Limit, LogLine, Moment, Sample, Spe
 import { PANELS } from '../config'
 import type { Config, Panel } from '../config'
 import { hotFiles, topTools, totalCalls } from '../domain/activity'
-import { cardFit, cardTitle, isLoopActive } from '../domain/agents'
+import { LIST_SHOWN, cardTitle, isLoopActive, listOrder } from '../domain/agents'
 import { consultLine, consultTimeline, hasArchitect, isAdvising } from '../domain/architect'
 import { logRows } from '../domain/log'
 import { effortLevel } from '../domain/vitals'
@@ -37,7 +37,7 @@ export type InfoView = {
   rows: number
 }
 
-/** The block under the AGENTS frame for the card its hotkey opened: the task, facts, tools, answer. */
+/** The block under the AGENTS frame for the agent its hotkey opened: the task, facts, tools, answer. */
 export type ExpandedView = {
   id: string
   /** The full task, wrapped to at most 3 rows. */
@@ -53,26 +53,23 @@ export type ExpandedView = {
 }
 
 /**
- * The agents panel: cards side by side while they fit, else one lane per agent on a shared time
- * axis. `shown` are the cards or lanes drawn, each with hotkey 1 to 6 in order.
+ * The agents panel: one row per agent, running ones first. `shown` are the rows drawn, each with
+ * hotkey 1 to 6 in order.
  */
 export type AgentsView = {
-  /** `AGENTS R/T`: running, then total. */
-  label: string
-  /** `1-N expand`. */
+  /** `N running · N total`. */
   meta: string
-  mode: 'cards' | 'lanes'
   shown: AgentCard[]
-  /** Lanes left out above the last six. */
+  /** Agents left out above the six rows. */
   earlier: number
   /** Every card, for the desktop's time axis. */
   all: AgentCard[]
-  /** Cells each card takes in `cards` mode. */
-  cardWidth: number
-  /** The main model's readable name: a card names its model only when it differs. */
+  /** The main model's readable name: a row tags its model only when it differs. */
   mainModel: string
   /** The agent whose transcript is being viewed, marked `▶`. */
   viewedId: string | null
+  /** Some agent is running: the frame turns green. */
+  isActive: boolean
   now: number
   expanded: ExpandedView | null
   /** Rows the panel body takes inside its frame. */
@@ -208,7 +205,7 @@ export function buildViewModel(s: Snapshot, ctx: ViewContext): ViewModel {
   const width = clampWidth(ctx.bodyColumns)
   const isRunning = s.main.isRunning
   const layout = pickLayout(ctx.cfg.layout, s.view.layout, ctx.placement, width)
-  // In the wide layout a panel is laid out for its column, so its cards, dots and lines fit there.
+  // In the wide layout a panel is laid out for its column, so its rows, dots and lines fit there.
   const cols = layout === 'wide' ? wideColumns(width) : null
   const widthOf = (p: Panel): number => (cols === null ? width : WIDE_LEFT.includes(p) ? cols.left : WIDE_RIGHT.includes(p) ? cols.right : width)
   const widths = Object.fromEntries(PANELS.map(p => [p, widthOf(p)])) as Record<Panel, number>
@@ -320,41 +317,33 @@ function infoView(s: Snapshot, now: number): InfoView {
   }
 }
 
-/** Border and padding on each side of a row inside a frame, a card or the expanded block. */
+/** Border and padding on each side of a row inside a frame or the expanded block. */
 const FRAME_CHROME = 4
-/** Rows a card takes: its two border rows around title (2), type, counts and status. */
-const CARD_ROWS = 7
 /** The expanded block's border rows, above and below its content. */
 const BLOCK_BORDER_ROWS = 2
-/** Lanes drawn, the newest; hotkeys run 1 to 6. */
-const LANES_SHOWN = 6
 const DESCRIPTION_ROWS = 3
 const ANSWER_ROWS = 3
 const ANSWER_MAX = 240
 
-/** Hidden until the first card; cards while all of them fit side by side, lanes past that. */
+/** Hidden until the first agent; then the first six of the list, running first, and a row for those left out. */
 function agentsView(s: Snapshot, ctx: ViewContext, width: number): AgentsView | null {
   const cards = s.agents
   if (cards.length === 0) return null
-  const inner = width - FRAME_CHROME
-  const fit = cardFit(inner, ctx.cfg.maxCards)
-  const mode = cards.length > fit ? 'lanes' : 'cards'
-  const shown = mode === 'lanes' ? cards.slice(-LANES_SHOWN) : cards
+  const ordered = listOrder(cards)
+  const shown = ordered.slice(0, LIST_SHOWN)
   const running = cards.filter(c => c.status === 'running').length
   const open = cards.find(c => c.id === s.view.expanded)
   return {
-    label: `AGENTS ${running}/${cards.length}`,
-    meta: shown.length === 1 ? '1 expand' : `1-${shown.length} expand`,
-    mode,
+    meta: `${running} running · ${cards.length} total`,
     shown,
-    earlier: cards.length - shown.length,
+    earlier: ordered.length - shown.length,
     all: cards,
-    cardWidth: Math.floor((inner - (fit - 1)) / fit),
     mainModel: s.main.model ? prettyModel(s.main.model) : '',
     viewedId: ctx.viewedAgentId,
+    isActive: running > 0,
     now: ctx.now,
     expanded: open ? expandedView(open, width - FRAME_CHROME) : null,
-    rows: mode === 'cards' ? CARD_ROWS : shown.length + (cards.length > shown.length ? 1 : 0),
+    rows: shown.length + (ordered.length > shown.length ? 1 : 0),
   }
 }
 

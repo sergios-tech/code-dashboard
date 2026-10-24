@@ -324,7 +324,7 @@ test('with no architect anywhere, the panel and status field stay hidden', async
   for (const cols of [40, 64, 120]) {
     const ui = await $.ui.mount({ ...pane(cols), surface: 'terminal' })
     expect(await ui.find({ text: /ARCHITECT/ })).toBeUndefined(); expect(await ui.find({ text: /consults|on call|advising/ })).toBeUndefined()
-    expect(await ui.find({ text: /AGENTS 1\/1/ })).toBeDefined()
+    expect(await ui.find({ text: /1 running · 1 total/ })).toBeDefined()
     await ui.unmount()
   }
   await clock.advance(0)

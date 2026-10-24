@@ -1,8 +1,9 @@
 // Subagent cards and the other model loops: what a spawn, a step, a tool call and an end do to
-// them, the shared time axis of the lanes, and how a title fits a card. Pure.
+// them, the order of the AGENTS list, the shared time axis of the desktop's picture, and how a
+// title fits a row. Pure.
 import type { AgentCard, AgentStatus, Loop, ToolNote } from '../../types'
 import { redact } from '../format/redact'
-import { shorten } from '../format/text'
+import { modelFamily, prettyModel, shorten } from '../format/text'
 
 /** Cards kept; the oldest goes first. */
 export const AGENTS_MAX = 24
@@ -16,12 +17,17 @@ const TOOLS_KEPT = 3
 const DESCRIPTION_MAX = 400
 const ANSWER_MAX = 400
 const NOTE_MAX = 120
-/** Cells one card needs, and the gap between two cards. */
-const CARD_MIN = 20
-const CARD_GAP = 1
+/** Rows the AGENTS list draws, one per hotkey 1 to 6. */
+export const LIST_SHOWN = 6
 
 /** The state glyph beside every status, so a status is never told by colour alone. */
 export const AGENT_GLYPH: Record<AgentStatus, string> = { running: '●', done: '✓', failed: '✗', stopped: '■' }
+
+/** The agent failed, or ended after a request was cut at `max_tokens`. A running one is still just running. */
+export const isCut = (c: AgentCard): boolean => c.status === 'failed' || (c.status !== 'running' && c.lastStop === 'max_tokens')
+
+/** The glyph of a row: `✗` for a cut agent, else its status glyph. */
+export const agentGlyph = (c: AgentCard): string => (isCut(c) ? '✗' : AGENT_GLYPH[c.status])
 
 // ---------------------------------------------------------------- terminal cells
 
@@ -133,33 +139,11 @@ export const cardTitle = (c: AgentCard): string => flat(c.description) || c.type
 /** A card as the log names it, within the log's source column. */
 export const whoOf = (c: AgentCard): string => fitCells(cardTitle(c), 11)
 
-/**
- * A title on a card's two title rows: the words that fit `first` cells, then the rest cut to
- * `rest` cells. A first word wider than the first row is split across the two.
- */
-export const titleLines = (title: string, first: number, rest: number): [string, string] => {
-  const words = flat(title).split(' ').filter(Boolean)
-  let head = ''
-  let i = 0
-  for (; i < words.length; i++) {
-    const next = head ? `${head} ${words[i]}` : (words[i] ?? '')
-    if (cellCount(next) > first) break
-    head = next
-  }
-  let tail = words.slice(i).join(' ')
-  if (head === '' && tail !== '' && first > 0) {
-    const chars = Array.from(tail)
-    let used = 0
-    let k = 0
-    while (k < chars.length && used + cellsOf(chars[k] ?? '') <= first) used += cellsOf(chars[k++] ?? '')
-    head = chars.slice(0, k).join('')
-    tail = chars.slice(k).join('')
-  }
-  return [head, fitCells(tail, rest)]
-}
+/** The cards in list order: running ones newest first, then the rest newest first; newest is later in the stored list. */
+export const listOrder = (cards: AgentCard[]): AgentCard[] => [...cards.filter(c => c.status === 'running').reverse(), ...cards.filter(c => c.status !== 'running').reverse()]
 
-/** How many cards fit side by side in `width` cells, each at least 20 wide with a gap between. */
-export const cardFit = (width: number, maxCards: number): number => Math.max(1, Math.min(maxCards, Math.floor((width + CARD_GAP) / (CARD_MIN + CARD_GAP))))
+/** The model's family name (`Haiku`) when the card runs on another model than `mainModel`, else empty. */
+export const modelTag = (c: AgentCard, mainModel: string): string => (c.model && prettyModel(c.model) !== mainModel ? modelFamily(c.model) : '')
 
 /**
  * Each card's lane on one shared axis, `width` cells from the earliest known spawn to now: the
