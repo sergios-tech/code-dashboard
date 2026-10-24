@@ -4,7 +4,7 @@ All notable changes to this project are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
-## [0.1.0] - 2026-10-24
+## [0.3.0] - 2026-10-23
 
 The first release of `st-code`, a live, read-only session dashboard in the Sergio's Tech OLED style.
 It is a ground-up rebuild of Flightdeck by Stephen Casella (MIT). Requires host version 2.1.300 or
