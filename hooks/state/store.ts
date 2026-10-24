@@ -2,14 +2,12 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface } from 'claude-code'
 
-import type { Activity, AgentCard, Architect, Denials, Layout, LogKind, LogLine, LogMark, Loop, Main, Moment, Roster, Speed, ToolNote, Trends, Turn, Usage, View } from '../../types'
-import type { Config } from '../config'
+import type { Activity, AgentCard, Architect, Layout, LogKind, LogLine, LogMark, Loop, Main, Moment, Roster, Speed, ToolNote, Trends, Turn, Usage, View } from '../../types'
 import { recordCall } from '../domain/activity'
 import type { Call } from '../domain/activity'
 import { addCard, applyStep, finishCard, finishLoop, noteTool, stepLoop } from '../domain/agents'
 import { IDS_MAX, SEEN_MAX, endConsult, momentOf, startConsult } from '../domain/architect'
 import { appendLog } from '../domain/log'
-import { statusText } from '../domain/status'
 import { addSample, markCompaction, movesTrend } from '../domain/trends'
 import { afterCall } from '../domain/turn'
 import { usageFrom } from '../domain/vitals'
@@ -17,7 +15,6 @@ import { redact } from '../format/redact'
 import {
   DEFAULT_ACTIVITY,
   DEFAULT_ARCHITECT,
-  DEFAULT_DENIALS,
   DEFAULT_MAIN,
   DEFAULT_ROSTER,
   DEFAULT_TRENDS,
@@ -28,7 +25,6 @@ import {
   normalizeActivity,
   normalizeArchitect,
   normalizeAgents,
-  normalizeDenials,
   normalizeLog,
   normalizeLoops,
   normalizeMain,
@@ -51,7 +47,6 @@ export const loops = atom({ plugin: 'st-code', key: 'loops' } as const, [])
 export const architect = atom({ plugin: 'st-code', key: 'architect' } as const, DEFAULT_ARCHITECT)
 export const activity = atom({ plugin: 'st-code', key: 'activity' } as const, DEFAULT_ACTIVITY)
 export const trends = atom({ plugin: 'st-code', key: 'trends' } as const, DEFAULT_TRENDS)
-export const denials = atom({ plugin: 'st-code', key: 'denials' } as const, DEFAULT_DENIALS)
 export const log = atom({ plugin: 'st-code', key: 'log' } as const, [])
 export const view = atom({ plugin: 'st-code', key: 'view' } as const, DEFAULT_VIEW)
 export const roster = atom({ plugin: 'st-code', key: 'roster' } as const, DEFAULT_ROSTER)
@@ -65,7 +60,6 @@ export type Snapshot = {
   architect: Architect
   activity: Activity
   trends: Trends
-  denials: Denials
   log: LogLine[]
   view: View
   roster: Roster
@@ -73,7 +67,7 @@ export type Snapshot = {
 
 /** Every key read once, so a frame is drawn from one consistent set of values. */
 export async function loadSnapshot($: EngineInterface): Promise<Snapshot> {
-  const [m, u, t, a, l, ar, ac, tr, d, lg, v, ro] = await Promise.all([
+  const [m, u, t, a, l, ar, ac, tr, lg, v, ro] = await Promise.all([
     read($, main),
     read($, usage),
     read($, turn),
@@ -82,7 +76,6 @@ export async function loadSnapshot($: EngineInterface): Promise<Snapshot> {
     read($, architect),
     read($, activity),
     read($, trends),
-    read($, denials),
     read($, log),
     read($, view),
     read($, roster),
@@ -96,7 +89,6 @@ export async function loadSnapshot($: EngineInterface): Promise<Snapshot> {
     architect: normalizeArchitect(ar),
     activity: normalizeActivity(ac),
     trends: normalizeTrends(tr),
-    denials: normalizeDenials(d),
     log: normalizeLog(lg),
     view: normalizeView(v),
     roster: normalizeRoster(ro),
@@ -116,7 +108,6 @@ export async function migrate($: EngineInterface): Promise<void> {
   await update($, architect, normalizeArchitect)
   await update($, activity, normalizeActivity)
   await update($, trends, normalizeTrends)
-  await update($, denials, normalizeDenials)
   await update($, log, normalizeLog)
   await update($, view, normalizeView)
   await update($, roster, normalizeRoster)
@@ -137,7 +128,6 @@ export async function resetAll($: EngineInterface): Promise<void> {
   await update($, loops, () => [])
   await update($, architect, () => DEFAULT_ARCHITECT)
   await update($, activity, () => DEFAULT_ACTIVITY)
-  await update($, denials, () => DEFAULT_DENIALS)
   await update($, log, () => [])
   await update($, view, () => DEFAULT_VIEW)
 }
@@ -146,16 +136,6 @@ export async function resetAll($: EngineInterface): Promise<void> {
 export async function say($: EngineInterface, who: string, text: string, kind: LogKind = 'info', agentId: string | null = null, mark: LogMark | null = null): Promise<void> {
   const line: LogLine = { at: await $.clock.now(), who, text: redact(text), kind, agentId, mark }
   await update($, log, list => appendLog(normalizeLog(list), line))
-}
-
-/** The status line under the prompt, from what is stored now; none when it is switched off or has nothing to say. */
-export async function refreshStatus($: EngineInterface, cfg: Config): Promise<void> {
-  if (!cfg.statusLine) {
-    $.ui.status(undefined)
-    return
-  }
-  const [u, a, ar, d] = await Promise.all([read($, usage), read($, agents), read($, architect), read($, denials)])
-  $.ui.status(statusText({ usage: normalizeUsage(u), agents: normalizeAgents(a), architect: normalizeArchitect(ar), denials: normalizeDenials(d) }, cfg))
 }
 
 /** The host's own reading of the context, cost and rate limits; none where the host has no usage or throws. */
@@ -258,11 +238,6 @@ export async function noteTurnCall($: EngineInterface, c: Parameters<typeof afte
 /** One finished tool call in the session's tool and file tallies. */
 export async function recordTool($: EngineInterface, c: Call): Promise<void> {
   await update($, activity, a => recordCall(normalizeActivity(a), c))
-}
-
-/** One refused tool call, for the status line's `denied N`. */
-export async function countDenial($: EngineInterface): Promise<void> {
-  await update($, denials, d => ({ count: normalizeDenials(d).count + 1 }))
 }
 
 /** `/st-code layout`: the person's layout choice, which wins over the configured one. */

@@ -14,7 +14,6 @@ export type Config = {
   motion: boolean
   moments: boolean
   openOnStart: boolean
-  statusLine: boolean
 }
 
 const DEFAULT_PATTERN = 'advisor|architect'
@@ -58,6 +57,5 @@ export const parseConfig = (o: Readonly<Record<string, unknown>>): Config => {
     motion: flag('motion', true),
     moments: flag('moments', true),
     openOnStart: flag('openOnStart', true),
-    statusLine: flag('statusLine', true),
   }
 }

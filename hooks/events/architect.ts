@@ -7,7 +7,7 @@ import type { ApiContentBlock, EngineInterface, On } from 'claude-code'
 import type { Config } from '../config'
 import { adviceLine } from '../domain/architect'
 import { shorten } from '../format/text'
-import { addArchitectId, closeConsult, isArchitectId, markSeen, openConsult, readArchitect, refreshStatus, say, storeAdvice } from '../state/store'
+import { addArchitectId, closeConsult, isArchitectId, markSeen, openConsult, readArchitect, say, storeAdvice } from '../state/store'
 
 /** The log's name for the architect: its label, as a source column reads. */
 const whoOf = (cfg: Config): string => cfg.architectLabel.toLowerCase()
@@ -22,7 +22,6 @@ async function beginConsult($: EngineInterface, cfg: Config, id: string, via: st
   const moment = await openConsult($, id, via)
   if (moment === null) return
   await say($, whoOf(cfg), cfg.moments ? `${moment} · ${via}` : `consulted · ${via}`, 'consult')
-  await refreshStatus($, cfg)
 }
 
 /**
@@ -37,7 +36,6 @@ export async function finishConsult($: EngineInterface, cfg: Config, report: str
   if (!isOpen && !isNew) return
   await closeConsult($, advice || null, id)
   await say($, whoOf(cfg), isNew ? `advice: ${shorten(advice, LOGGED_ADVICE)}` : 'advice returned', 'consult')
-  await refreshStatus($, cfg)
 }
 
 /** A spawned architect agent: followed as a consult under its id, never as a card or a loop. */

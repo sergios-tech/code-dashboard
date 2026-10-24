@@ -14,11 +14,11 @@ import { wireTurns } from './events/turns'
 export const register: Register = (on, options) => {
   const cfg = parseConfig(options)
   wireSession(on, cfg)
-  wireCommand(on, cfg)
+  wireCommand(on)
   wireTurns(on, cfg)
   wireAgents(on, cfg)
   wireArchitect(on, cfg)
-  wireTools(on, cfg)
-  wireMeasures(on, cfg)
+  wireTools(on)
+  wireMeasures(on)
   wireRender(on, cfg)
 }

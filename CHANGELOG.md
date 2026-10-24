@@ -4,6 +4,14 @@ All notable changes to this project are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Removed
+
+- **Status line**: the plugin no longer writes `ctx · agents · architect · denied` under the prompt,
+  and the `statusLine` option is gone. Context, agents and consults stay in the pane, and a denial
+  still ends its log line with a gold `· denied`.
+
 ## [0.3.1] - 2026-10-25
 
 ### Fixed

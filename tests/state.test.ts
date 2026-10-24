@@ -3,11 +3,10 @@ import { read, update } from 'claude-code'
 import type { EngineInterface } from 'claude-code'
 
 import { parseConfig } from '../hooks/config'
-import { activity, agents, architect, denials, log, loops, main, meta, roster, trends, turn, usage, view } from '../hooks/state/atoms'
+import { activity, agents, architect, log, loops, main, meta, roster, trends, turn, usage, view } from '../hooks/state/atoms'
 import {
   DEFAULT_ACTIVITY,
   DEFAULT_ARCHITECT,
-  DEFAULT_DENIALS,
   DEFAULT_MAIN,
   DEFAULT_ROSTER,
   DEFAULT_TRENDS,
@@ -100,12 +99,12 @@ const junkOf = [null, 7, 'x', [], { consults: 'no' }, [null, 3, 'y']]
 
 test('a store full of garbage loads as all defaults', async () => {
   const $ = memoryState()
-  const atoms = [main, usage, turn, agents, loops, architect, activity, trends, denials, log, view, roster]
+  const atoms = [main, usage, turn, agents, loops, architect, activity, trends, log, view, roster]
   for (const junk of junkOf) {
     for (const a of atoms) await update($, a as never, (() => junk) as never)
     expect(await loadSnapshot($)).toEqual({
       main: DEFAULT_MAIN, usage: DEFAULT_USAGE, turn: DEFAULT_TURN, agents: [], loops: [],
-      architect: DEFAULT_ARCHITECT, activity: DEFAULT_ACTIVITY, trends: DEFAULT_TRENDS, denials: DEFAULT_DENIALS,
+      architect: DEFAULT_ARCHITECT, activity: DEFAULT_ACTIVITY, trends: DEFAULT_TRENDS,
       log: [], view: DEFAULT_VIEW, roster: DEFAULT_ROSTER,
     })
   }
@@ -124,7 +123,6 @@ test('reset keeps cost, limits, compactions, model, mode, trends and the offered
   await update($, usage, () => ({ pct: 51, tokens: 100, window: 200, costUsd: 2.5, limits: [{ kind: 'five_hour', pct: 10, resetsAt: null }], compactions: 2, lastCompactAt: 8 }))
   await update($, trends, () => ({ samples: [sample], pendingCompaction: true }))
   await update($, log, () => [{ at: 1, who: 'you', text: 'hi', agentId: null, kind: 'info' as const, mark: null }])
-  await update($, denials, () => ({ count: 3 }))
   await update($, roster, () => ({ architectTypes: ['advisor'] }))
   await update($, architect, () => ({ ...DEFAULT_ARCHITECT, ids: ['a1'], lastAdvice: 'Ship it' }))
   await resetAll($)
@@ -132,7 +130,7 @@ test('reset keeps cost, limits, compactions, model, mode, trends and the offered
   expect(s.main).toEqual({ ...DEFAULT_MAIN, model: 'model-x', mode: 'plan' })
   expect(s.usage).toEqual({ ...DEFAULT_USAGE, costUsd: 2.5, limits: [{ kind: 'five_hour', pct: 10, resetsAt: null }], compactions: 2 })
   expect(s.trends).toEqual({ samples: [sample], pendingCompaction: true })
-  expect([s.log, s.denials, s.architect]).toEqual([[], DEFAULT_DENIALS, DEFAULT_ARCHITECT])
+  expect([s.log, s.architect]).toEqual([[], DEFAULT_ARCHITECT])
   // The agent listing is not sent again after a clear, so the types it offered are kept.
   expect(s.roster).toEqual({ architectTypes: ['advisor'] })
   expect(await read($, main)).toEqual(s.main)

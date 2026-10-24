@@ -3,7 +3,7 @@
 import type { On } from 'claude-code'
 
 import type { Config } from '../config'
-import { refreshStatus, resetAll, takeSample, takeUsageReading, migrate } from '../state/store'
+import { resetAll, takeSample, takeUsageReading, migrate } from '../state/store'
 import { openPane, registerCommand } from './command'
 
 export const wireSession = (on: On, cfg: Config): void => {
@@ -14,16 +14,12 @@ export const wireSession = (on: On, cfg: Config): void => {
     await takeSample($)
     // Opening can wait on the host's layout; the session does not wait for it.
     if (cfg.openOnStart) void openPane($).catch(() => undefined)
-    await refreshStatus($, cfg)
     return next(e)
   })
 
   on('session.end', async ($, e, next) => {
     // A `/clear` keeps the process and the pane but not the conversation they described.
-    if (e.reason === 'clear') {
-      await resetAll($)
-      await refreshStatus($, cfg)
-    }
+    if (e.reason === 'clear') await resetAll($)
     return next(e)
   })
 }

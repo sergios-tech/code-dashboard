@@ -2,10 +2,7 @@ import { expect, test } from 'claude-code/testing'
 import type { Engine } from 'claude-code/testing'
 
 import type { LogLine } from '../types'
-import { parseConfig } from '../hooks/config'
 import { LOG_MAX, appendLog, logRows, promptLine } from '../hooks/domain/log'
-import { statusText } from '../hooks/domain/status'
-import { DEFAULT_ARCHITECT, DEFAULT_USAGE, normalizeCard } from '../hooks/state/schema'
 import type { LogView } from '../hooks/view/model'
 import { COLORS } from '../hooks/view/palette'
 import { logPanel } from '../hooks/view/panels/log'
@@ -25,9 +22,6 @@ const rowsAt = async ($: Engine, cols: number, bodyRows: number) => {
 
 const ok = { result: {}, text: 'ok' }
 const failed = { isError: true as const, result: 'exit 1', text: 'exit 1' }
-
-const status = (s: Partial<Parameters<typeof statusText>[0]>, o: Record<string, unknown> = {}) =>
-  statusText({ usage: DEFAULT_USAGE, agents: [], architect: DEFAULT_ARCHITECT, denials: { count: 0 }, ...s }, parseConfig(o))
 
 // ---------------------------------------------------------------- pure modules
 
@@ -51,22 +45,6 @@ test('the log gets what the other panels leave, at most 8 rows, and none below 2
   expect(logRows(14, 10)).toBe(0); expect(logRows(3, 10)).toBe(0)
   // A pane of unknown height is taken to have 40 rows, and its log keeps between 4 and 8.
   expect(logRows(undefined, 10)).toBe(8); expect(logRows(undefined, 33)).toBe(4); expect(logRows(Number.NaN, 60)).toBe(4)
-})
-test('the status line says only what it has', () => {
-  expect(statusText({ usage: DEFAULT_USAGE, agents: [], architect: DEFAULT_ARCHITECT, denials: { count: 0 } }, parseConfig({}))).toBeUndefined()
-  expect(statusText({ usage: { ...DEFAULT_USAGE, pct: 51.2 }, agents: [], architect: DEFAULT_ARCHITECT, denials: { count: 1 } }, parseConfig({}))).toBe('ctx 51% · denied 1')
-})
-test('the status line counts compactions after ctx', () => {
-  expect(status({ usage: { ...DEFAULT_USAGE, pct: 11, compactions: 1 }, denials: { count: 1 } })).toBe('ctx 11% ↺1 · denied 1')
-  expect(status({ usage: { ...DEFAULT_USAGE, pct: 11 } })).toBe('ctx 11%')
-})
-test('the status line counts running agents and names the architect by its label', () => {
-  const agents = [normalizeCard({ id: 'a', status: 'running' }), normalizeCard({ id: 'b', status: 'done' }), normalizeCard({ id: 'c', status: 'running' })]
-  const consult = { id: 'c1', at: 1, endAt: null, moment: 'before a plan' as const, via: 'advisor' }
-  const open = { ...DEFAULT_ARCHITECT, consults: [consult] }
-  expect(status({ usage: { ...DEFAULT_USAGE, pct: 51.2 }, agents, architect: open, denials: { count: 1 } })).toBe('ctx 51% · agents 2/3 · architect advising · denied 1')
-  expect(status({ architect: { ...open, consults: [{ ...consult, endAt: 4 }, { ...consult, id: 'c2', endAt: 9 }] } })).toBe('architect 2')
-  expect(status({ architect: { ...DEFAULT_ARCHITECT, ids: ['x'] } }, { architectLabel: 'Advisor' })).toBe('advisor 0')
 })
 
 const logOf = (lines: LogLine[], mainModel = 'Opus 5.5'): LogView => ({ lines, isViewingAgent: false, mainModel })

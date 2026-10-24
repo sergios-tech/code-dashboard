@@ -10,7 +10,7 @@ Please don't open a public issue for a vulnerability. In the report, include:
 
 - the plugin version and the host version
 - what you did, step by step
-- what leaked or what changed, and where you saw it: the pane, the status line or the stored state
+- what leaked or what changed, and where you saw it: the pane or the stored state
 
 ## Supported versions
 
@@ -67,7 +67,7 @@ Two more things to keep in mind:
 
 ## In scope
 
-- A credential that survives masking into stored state, the pane, the log or the status line.
+- A credential that survives masking into stored state, the pane or the log.
 - Any way the plugin changes, denies or blocks an event.
 - Any network, process or file access by the plugin.
 - Stored state that grows without bound.

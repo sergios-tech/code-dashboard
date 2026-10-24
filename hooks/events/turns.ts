@@ -10,7 +10,7 @@ import { handbackOf } from '../domain/architect'
 import { promptLine } from '../domain/log'
 import { stepSpeed } from '../domain/vitals'
 import { fmtDuration } from '../format/text'
-import { beginRequest, beginTurn, endTurn, finishAgent, isArchitectId, noteAgentStep, noteMode, refreshStatus, say, storeSpeed } from '../state/store'
+import { beginRequest, beginTurn, endTurn, finishAgent, isArchitectId, noteAgentStep, noteMode, say, storeSpeed } from '../state/store'
 import { finishConsult, handedBack } from './architect'
 
 export const wireTurns = (on: On, cfg: Config): void => {
@@ -78,7 +78,6 @@ export const wireTurns = (on: On, cfg: Config): void => {
     const done = await next(e)
     if (!e.agentId) {
       await endTurn($)
-      await refreshStatus($, cfg)
       return done
     }
     const id = e.agentId
@@ -93,7 +92,6 @@ export const wireTurns = (on: On, cfg: Config): void => {
       if (card.status === 'done') await say($, whoOf(card), `done${took}`, 'done', id)
       else if (card.status === 'failed') await say($, whoOf(card), card.status, 'error', id, '✗')
       else await say($, whoOf(card), card.status, 'info', id)
-      await refreshStatus($, cfg)
     }
     return done
   })

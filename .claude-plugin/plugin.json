@@ -70,12 +70,6 @@
       "description": "Open the pane when a session starts, in terminals of at least 144 columns",
       "type": "boolean",
       "default": true
-    },
-    "statusLine": {
-      "title": "Status line",
-      "description": "Show context, agents, consults and denials in the status line",
-      "type": "boolean",
-      "default": true
     }
   }
 }

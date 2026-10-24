@@ -2,9 +2,8 @@
 import type { EngineInterface, On } from 'claude-code'
 
 import type { Layout } from '../../types'
-import type { Config } from '../config'
 import { PANE_ID, PLUGIN } from '../state/atoms'
-import { refreshStatus, resetAll, setLayout } from '../state/store'
+import { resetAll, setLayout } from '../state/store'
 
 const TITLE = "Sergio's Tech · Code"
 const USAGE = 'Usage: /st-code [open|close|reset|layout auto|compact|wide|mini]'
@@ -24,7 +23,7 @@ export function registerCommand($: EngineInterface) {
   })
 }
 
-export const wireCommand = (on: On, cfg: Config): void => {
+export const wireCommand = (on: On): void => {
   on('command.run', { command: PLUGIN }, async ($, e) => {
     const [first = '', arg = ''] = e.args.trim().toLowerCase().split(/\s+/)
     const verb = first === '' ? 'open' : first
@@ -35,7 +34,6 @@ export const wireCommand = (on: On, cfg: Config): void => {
     }
     if (verb === 'reset') {
       await resetAll($)
-      await refreshStatus($, cfg)
       return { text: 'Dashboard reset.' }
     }
     if (verb === 'layout') {

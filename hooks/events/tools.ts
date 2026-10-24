@@ -4,13 +4,12 @@
 // the check only marks the call it belongs to; the call records everything, once.
 import type { On } from 'claude-code'
 
-import type { Config } from '../config'
 import { timedMs } from '../domain/activity'
 import { whoOf } from '../domain/agents'
 import { EDIT_TOOLS } from '../domain/turn'
 import { describeInput } from '../format/redact'
 import { shorten } from '../format/text'
-import { countDenial, noteAgentTool, noteTurnCall, recordTool, refreshStatus, say } from '../state/store'
+import { noteAgentTool, noteTurnCall, recordTool, say } from '../state/store'
 
 /** A call as the log and the cards name it, `Edit → src/main.ts`, cut to this many characters. */
 const CALL_TEXT = 64
@@ -18,7 +17,7 @@ const CALL_TEXT = 64
 /** What a call's check said about it: it waited on an approval prompt, or it was refused. */
 type Pending = { isAsked: boolean; isDenied: boolean }
 
-export const wireTools = (on: On, cfg: Config): void => {
+export const wireTools = (on: On): void => {
   // The calls under way, by id. A refusal at the check reaches the call as an error result rather
   // than a deny, so the check's verdict is the only way to tell it from a tool that failed.
   const pending = new Map<string, Pending>()
@@ -45,7 +44,6 @@ export const wireTools = (on: On, cfg: Config): void => {
     const hasFailed = didRun && ran.isError === true
     const inSubagent = Boolean(e.agentId)
     await recordTool($, { tool: e.tool, input: e, hasFailed, inSubagent, didRun, ms: timedMs(didRun, p.isAsked, e.tool, at - sentAt), at })
-    if (isDenied) await countDenial($)
     // An answered Agent call is its subagent's to report: the card, its turns and its end.
     if (e.tool === 'Agent' && !isDenied) return ran
 
@@ -59,7 +57,6 @@ export const wireTools = (on: On, cfg: Config): void => {
     // The marker is stored apart from the text, so a narrow pane cuts the command and keeps it.
     if (isDenied) {
       await say($, who, text, 'error', agentId, '· denied')
-      await refreshStatus($, cfg)
     } else if (hasFailed) {
       await say($, who, text, 'error', agentId, '✗')
     } else if (isEdit) {

@@ -7,7 +7,6 @@ import type {
   AgentStatus,
   Architect,
   Consult,
-  Denials,
   FileRow,
   Layout,
   Limit,
@@ -37,7 +36,6 @@ export const DEFAULT_TURN: Turn = { edits: 0, errorStreak: 0 }
 export const DEFAULT_ARCHITECT: Architect = { consults: [], ids: [], seen: [], lastAdvice: '' }
 export const DEFAULT_ACTIVITY: Activity = { tools: [], files: [], calls: 0 }
 export const DEFAULT_TRENDS: Trends = { samples: [], pendingCompaction: false }
-export const DEFAULT_DENIALS: Denials = { count: 0 }
 export const DEFAULT_VIEW: View = { expanded: null, layout: null }
 export const DEFAULT_ROSTER: Roster = { architectTypes: [] }
 
@@ -202,8 +200,6 @@ export const normalizeTrends = (stored: unknown): Trends => {
     pendingCompaction: bool(o.pendingCompaction),
   }
 }
-
-export const normalizeDenials = (stored: unknown): Denials => ({ count: Math.max(0, num(isObject(stored) ? stored.count : 0)) })
 
 export const normalizeView = (stored: unknown): View => {
   const o = isObject(stored) ? stored : {}

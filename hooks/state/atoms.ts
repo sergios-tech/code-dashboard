@@ -4,4 +4,4 @@
 export const PLUGIN = 'st-code'
 export const PANE_ID = 'st-code'
 
-export { activity, agents, architect, denials, log, loops, main, meta, roster, trends, turn, usage, view } from './store'
+export { activity, agents, architect, log, loops, main, meta, roster, trends, turn, usage, view } from './store'

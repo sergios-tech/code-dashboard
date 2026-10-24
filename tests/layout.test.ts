@@ -7,7 +7,6 @@ import { recordCall } from '../hooks/domain/activity'
 import {
   DEFAULT_ACTIVITY,
   DEFAULT_ARCHITECT,
-  DEFAULT_DENIALS,
   DEFAULT_MAIN,
   DEFAULT_ROSTER,
   DEFAULT_TRENDS,
@@ -61,7 +60,6 @@ const FRESH: Snapshot = {
   architect: DEFAULT_ARCHITECT,
   activity: DEFAULT_ACTIVITY,
   trends: DEFAULT_TRENDS,
-  denials: DEFAULT_DENIALS,
   log: [],
   view: DEFAULT_VIEW,
   roster: DEFAULT_ROSTER,
@@ -202,7 +200,7 @@ test('every atom holding garbage still draws the header and LOG (Review Focus 1)
       reads = 0
       const ui = await $.ui.mount({ ...pane(cols), surface: 'terminal' })
       // One read per stored key: the whole snapshot came from junk.
-      expect(reads >= 12).toBe(true)
+      expect(reads >= 11).toBe(true)
       expect(await ui.find({ type: 'Text', text: /SERGIO'S TECH · CODE/ })).toBeDefined(); expect(await ui.find({ type: 'Text', text: /^ LOG $/ })).toBeDefined()
       expect(await ui.find({ text: /nothing yet/ })).toBeDefined(); expect(await ui.find({ text: /NaN|undefined|null|object/ })).toBeUndefined()
       for (const r of await rowsOf(ui)) expect(cellWidth(r) <= cols).toBe(true)

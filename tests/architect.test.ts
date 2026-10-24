@@ -20,7 +20,6 @@ import {
 import {
   DEFAULT_ACTIVITY,
   DEFAULT_ARCHITECT,
-  DEFAULT_DENIALS,
   DEFAULT_MAIN,
   DEFAULT_ROSTER,
   DEFAULT_TRENDS,
@@ -94,7 +93,6 @@ const FRESH: Snapshot = {
   architect: DEFAULT_ARCHITECT,
   activity: DEFAULT_ACTIVITY,
   trends: DEFAULT_TRENDS,
-  denials: DEFAULT_DENIALS,
   log: [],
   view: DEFAULT_VIEW,
   roster: DEFAULT_ROSTER,
@@ -211,7 +209,6 @@ test('the server-side advisor is read from assistant rows: advising, then on cal
   expect(await mid.find({ type: 'Text', text: / WORKING · ARCHITECT ADVISING$/ })).toBeDefined()
   expect((await rowsOf(mid)).filter(r => /architect +before a plan · advisor tool/.test(r))).toHaveLength(1)
   await mid.unmount()
-  expect(statuses.at(-1)).toBe('architect advising')
 
   await clock.advance(14_000)
   await reply($, [advisorResult('srv1')])
@@ -224,7 +221,7 @@ test('the server-side advisor is read from assistant rows: advising, then on cal
   expect(rows.some(r => /^│ ◆━{6}─{53} │$/.test(r))).toBe(true) // 14s of 2m14s, across the 60 cells inside the frame
   expect(rows.some(r => /architect +advice returned/.test(r))).toBe(true)
   await after.unmount()
-  expect(statuses.at(-1)).toBe('architect 1')
+  expect(statuses).toEqual([])
 })
 test('a consult whose start and result share one row closes there; other server tools are left alone', async ($, on) => {
   const clock = engine(on)
@@ -291,7 +288,7 @@ test("an architect's answer at its end is its advice", async ($, on) => {
   expect(rows.some(r => /^│ last 0s ago · took 9s +│$/.test(r))).toBe(true)
   expect(rows.some(r => /architect +advice: Keep the store flat\./.test(r))).toBe(true)
 })
-test('with no architect anywhere, the panel and status field stay hidden', async ($, on) => {
+test('with no architect anywhere, the panel stays hidden and no status line is set', async ($, on) => {
   const { clock, statuses } = watched(on)
   on('agent.spawn', () => ({ model: 'model-x', agentId: 'g1' }))
   await clock.advance(1000)
@@ -306,7 +303,7 @@ test('with no architect anywhere, the panel and status field stay hidden', async
     await ui.unmount()
   }
   await clock.advance(0)
-  expect(statuses.at(-1)).toBe('agents 1/1'); expect(statuses.some(t => /architect/.test(t ?? ''))).toBe(false)
+  expect(statuses).toEqual([])
 })
 test('config renames the architect and turns the moments off', { options: { architectLabel: 'REVIEWER', moments: false } }, async ($, on) => {
   const { clock, statuses } = watched(on)
@@ -320,7 +317,7 @@ test('config renames the architect and turns the moments off', { options: { arch
   expect(await ui.find({ text: /\(inferred\)/ })).toBeUndefined(); expect(await ui.find({ text: /before a plan/ })).toBeUndefined()
   expect((await rowsOf(ui)).some(r => /reviewer +consulted · fable-advisor/.test(r))).toBe(true)
   await ui.unmount()
-  expect(statuses.at(-1)).toBe('reviewer advising')
+  expect(statuses).toEqual([])
 })
 test('an architect type offered before /clear is still known after it', { options: { matchDescriptions: true } }, async ($, on) => {
   const clock = engine(on)

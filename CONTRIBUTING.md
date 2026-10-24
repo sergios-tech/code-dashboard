@@ -54,7 +54,7 @@ python3 -I -m unittest discover -s scripts/capture
 | `hooks/config.ts` | `parseConfig`: options read leniently, with a default for anything malformed |
 | `hooks/events/` | one module per concern (session, command, turns, agents, architect, tools, measures, render), wiring host events to reducers and store helpers |
 | `hooks/state/` | atoms, defaults, normalizers and the schema version; `store.ts` holds every state read and write |
-| `hooks/domain/` | pure reducers: the main model's vitals, the turn tally (kept for the architect's moments), agents and loops, architect, activity (tools and files), trends, log, status line |
+| `hooks/domain/` | pure reducers: the main model's vitals, the turn tally (kept for the architect's moments), agents and loops, architect, activity (tools and files), trends, log |
 | `hooks/format/` | pure text helpers: model names, durations, tokens, USD, gauges, sparklines, and `redact()` |
 | `hooks/view/` | palette, frame, header, layout math, the view model, the mini layout, the cell layout and pictures for the desktop app and VS Code, and the time-axis SVG; `panels/` has one renderer per panel |
 | `hooks/client/` | client modules: the ticking clock, the header pulse and the AGENTS sweep |

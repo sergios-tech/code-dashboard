@@ -8,7 +8,6 @@ import { PANE_ID, PLUGIN } from '../hooks/state/atoms'
 import {
   DEFAULT_ACTIVITY,
   DEFAULT_ARCHITECT,
-  DEFAULT_DENIALS,
   DEFAULT_MAIN,
   DEFAULT_ROSTER,
   DEFAULT_TRENDS,
@@ -25,7 +24,6 @@ import { COLORS } from '../hooks/view/palette'
 /** The mocked clock, plus answers for the events the plugin passes on but the kit leaves open. */
 export const engine = (on: On) => {
   const clock = mock.clock(on)
-  on('ui.status', () => ({ value: undefined }))
   on('turn.start', (_$, e) => ({ turnId: e.turnId }))
   on('turn.complete', () => ({ text: '' }))
   return clock
@@ -81,7 +79,6 @@ export const FRESH: Snapshot = {
   architect: DEFAULT_ARCHITECT,
   activity: DEFAULT_ACTIVITY,
   trends: DEFAULT_TRENDS,
-  denials: DEFAULT_DENIALS,
   log: [],
   view: DEFAULT_VIEW,
   roster: DEFAULT_ROSTER,

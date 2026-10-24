@@ -5,7 +5,7 @@ import type { AgentSpawnInput, EngineInterface, On } from 'claude-code'
 
 import type { Config } from '../config'
 import { newCard, whoOf } from '../domain/agents'
-import { addAgent, isOfferedArchitect, noteArchitectType, refreshStatus, say } from '../state/store'
+import { addAgent, isOfferedArchitect, noteArchitectType, say } from '../state/store'
 import { architectSpawned } from './architect'
 
 /**
@@ -37,7 +37,6 @@ export const wireAgents = (on: On, cfg: Config): void => {
     const card = newCard({ id: started.agentId, type: e.name ?? e.subagentType, model: started.model, description: e.description, at: await $.clock.now() })
     await addAgent($, card)
     await say($, whoOf(card), `spawned · ${card.type}`, 'info', card.id)
-    await refreshStatus($, cfg)
     return started
   })
 }

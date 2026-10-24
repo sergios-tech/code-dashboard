@@ -7,7 +7,6 @@ import {
   normalizeActivity,
   normalizeAgents,
   normalizeArchitect,
-  normalizeDenials,
   normalizeLog,
   normalizeLoops,
   normalizeMain,
@@ -79,7 +78,6 @@ export const busy = (now: number = NOW): Snapshot => ({
       isCompaction: i === 20,
     })),
   }),
-  denials: normalizeDenials({ count: 1 }),
   log: normalizeLog([
     { at: now - 178 * S, who: 'you', text: 'Review the pane against the README', agentId: null, kind: 'info', mark: null },
     { at: now - 140 * S, who: 'Explore 1', text: 'spawned · Explore', agentId: 'a1', kind: 'info', mark: null },

@@ -21,7 +21,6 @@ export type LogMark = '✗' | '· denied'
 export type LogLine = { at: number; who: string; text: string; agentId: string | null; kind: LogKind; mark: LogMark | null }
 export type View = { expanded: string | null; layout: Layout | null }
 export type Roster = { architectTypes: string[] }
-export type Denials = { count: number }
 
 declare module 'claude-code' {
   interface PluginState {
@@ -29,7 +28,7 @@ declare module 'claude-code' {
       meta: { schemaVersion: number }
       main: Main; usage: Usage; turn: Turn
       agents: AgentCard[]; loops: Loop[]; architect: Architect
-      activity: Activity; trends: Trends; denials: Denials
+      activity: Activity; trends: Trends
       log: LogLine[]; view: View; roster: Roster
     }
   }

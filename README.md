@@ -81,11 +81,10 @@ Panels with nothing to show take no room, so a fresh session shows the header, I
 | **ARCHITECT** | `● advising` or `○ on call`. Consults on a one-row timeline (`◆` where one started, `━` while it ran). When the last one ran and how long it took. The inferred moment of the last consult. A `»` line with the first line of the advice. The frame is green while it advises. | `agent.offer`, `agent.spawn` of a matching type, matching server tools in `session.append`, `turn.complete`, the `SubagentHandback` call or hand-back turn |
 | **TOOLS & FILES** | A table of the busiest tools (4 rows, 6 in two columns): a glyph for the tool's family (`›` read, `✎` edit, `▸` run, `●` agent, `·` other), the name (an MCP tool as `server:tool`), calls, errors (`✗3`) and the average time per call under `avg*`. After a divider, the 5 paths touched most, each with reads and edits (`✎2`). Paths show their last two segments, and a file that only subagents touched is dimmed. | `tool.call`, `tool.check` |
 | **LOG** | Prompts (first 70 characters), spawns, completions, consults and advice, edits, errors, denials, compactions and `max_tokens` hits. Each line has an `HH:MM:SS` time, an actor (`opus` for the main loop, named by its model, then `you`, an agent such as `Explore 1`, or `architect`) and its text. Only the mark after the text carries a state: `✗` in coral, `· denied` in gold. It takes the rows the other panels leave, up to 8. A pane too short for 2 hides it rather than cutting it off at the bottom edge. | all of the above |
-| **Status line** | `ctx 51% ↺1 · agents 2/3 · architect advising · denied 1`. Each field appears only when it has something to say. With no consult open, the architect field shows the consult count. | the same state |
 
 A **denial** is a call refused by a permission rule or hook. It writes one log line that ends with a
-gold `· denied` (`Bash → rm -rf build · denied`) and adds to `denied N` in the status line. Declining an approval prompt
-is not a denial: that call counts as a failed call (`✗`) in TOOLS & FILES and the log.
+gold `· denied` (`Bash → rm -rf build · denied`). Declining an approval prompt is not a denial: that
+call counts as a failed call (`✗`) in TOOLS & FILES and the log.
 
 ## Use
 
@@ -214,7 +213,6 @@ malformed value falls back to its default.
 | `motion` | `on` | `on` or `off` |
 | `moments` | `true` | Show the inferred consult moments |
 | `openOnStart` | `true` | Open the pane at session start, in terminals ≥ 144 columns |
-| `statusLine` | `true` | Status line fields |
 
 `motion: off` stops the header pulse and the AGENTS sweep, but the clocks keep ticking. The wide layout
 puts INFO, TRENDS and TOOLS & FILES in the left column and AGENTS and ARCHITECT in the right, with

@@ -189,7 +189,7 @@ test('hot files rank by touches; subagent-only files are dimmed', async ($, on) 
     for (const r of rows) expect(cellWidth(r) <= cols).toBe(true)
   }
 })
-test('a denied call writes one log line ending in a gold mark, and a status field', async ($, on) => {
+test('a denied call writes one log line ending in a gold mark, and no status line', async ($, on) => {
   const { clock, statuses } = watched(on)
   // A rule refuses Bash at the check: the call then comes back as an error result, not a deny.
   on('tool.check', { tool: 'Bash' }, () => ({ decision: 'deny', reason: 'rule' }))
@@ -205,14 +205,13 @@ test('a denied call writes one log line ending in a gold mark, and a status fiel
   expect((await ui.find({ type: 'Text', text: /^Bash → rm -rf build$/ }))?.props.color).toBe(COLORS.text)
   expect(await ui.find({ type: 'Text', text: /^ · denied$/ })).toMatchObject({ props: { color: COLORS.gold, bold: true } })
   expect(rows.some(r => r.includes('✗'))).toBe(false) // a refusal is not a failure
-  expect(statuses.at(-1)).toBe('denied 1')
   await ui.unmount()
 
   await $.tool.call({ tool: 'Write', file_path: '/p/src/new.ts', content: 'x' } as never)
   const after = await drawn($)
   expect(after.filter(r => / · denied/.test(r))).toHaveLength(2)
   expect(after.some(r => /main +Write → src\/new\.ts · denied/.test(r))).toBe(true)
-  expect(statuses.at(-1)).toBe('denied 2')
+  expect(statuses).toEqual([])
   // Refused calls still count, are not timed, and touch no file.
   expect(toolsRows(after).map(r => r.replace(/ +/g, ' '))).toEqual(['│ tool calls err avg* │', '│ ▸ Bash 1 · — │', '│ ✎ Write 1 · — │'])
 })
