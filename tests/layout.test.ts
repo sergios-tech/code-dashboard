@@ -100,6 +100,20 @@ test('a busy session draws inside every width from 28 to 220, frames whole, dock
     await ui.unmount()
   }
 })
+test('docked, the black fill covers every body row; inline, the frame fits the tree', async ($, on) => {
+  engine(on)
+  on('ui.open', () => ({ value: { isPlaced: true } }) as never)
+  const fillOf = async (placement: 'dock' | 'inline', layout?: string) => {
+    if (layout) await $.command.run({ command: 'st-code', args: `layout ${layout}` } as never)
+    const ui = await $.ui.mount({ ...pane(120, placement), surface: 'terminal' })
+    const root = (await ui.drawn()) as unknown as { props: Record<string, unknown> }
+    await ui.unmount()
+    return [root.props.backgroundColor, root.props.minHeight]
+  }
+  expect(await fillOf('dock')).toEqual([COLORS.fill, 70])
+  expect(await fillOf('inline')).toEqual([COLORS.fill, undefined])
+  expect(await fillOf('dock', 'mini')).toEqual([COLORS.fill, 70])
+})
 test('inline, the pane is a summary of at most 8 rows', async ($, on) => {
   const clock = engine(on)
   model(on)

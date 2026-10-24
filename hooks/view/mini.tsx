@@ -173,14 +173,15 @@ const tailRow = (d: Draw, m: MiniView, width: number): RenderElement | null => {
   return textOf(d, 'mini-tail', [...words, ...dots.map((s): Piece => ({ text: LOOP_GLYPH[s], color: loopTone(d, s) }))])
 }
 
-export const miniPane = (d: Draw, m: MiniView, width: number): RenderElement => {
+/** The summary rows on black; `fillRows`, given when docked, carries the black down to that many rows. */
+export const miniPane = (d: Draw, m: MiniView, width: number, fillRows?: number): RenderElement => {
   const { Box } = d.els
   const rows: (RenderElement | null)[] = [headRow(d, m, width)]
   if (m.trend) rows.push(trendRow(d, m.trend, width))
   rows.push(...m.agents.map(c => agentRow(d, c, m, width)))
   rows.push(tailRow(d, m, width))
   return (
-    <Box flexDirection="column" width={width} backgroundColor={d.C.fill}>
+    <Box flexDirection="column" width={width} minHeight={fillRows} backgroundColor={d.C.fill}>
       {rows.filter((r): r is RenderElement => r !== null).slice(0, MAX_ROWS)}
     </Box>
   )

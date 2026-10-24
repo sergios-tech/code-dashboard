@@ -69,11 +69,13 @@ export const wireRender = (on: On, cfg: Config): void => {
     // An agent's hotkey opens its details inside the AGENTS frame, or closes them.
     const expand: Expand = id => () => toggleExpanded($, id)
     const { Box } = els
-    // The OLED black is filled in rather than left to the host's pane colour.
+    // The OLED black is filled in rather than left to the host's pane colour. Docked, it fills every
+    // body row, not only the rows the panels take: the dark-ansi theme paints the dock bright black.
     if (!d.isPicture) {
-      if (vm.mini) return miniPane(d, vm.mini, vm.width)
+      const fillRows = e.props.placement === 'dock' ? e.props.scroll?.bodyRows : undefined
+      if (vm.mini) return miniPane(d, vm.mini, vm.width, fillRows)
       return (
-        <Box flexDirection="column" width={vm.width} backgroundColor={COLORS.fill}>
+        <Box flexDirection="column" width={vm.width} minHeight={fillRows} backgroundColor={COLORS.fill}>
           {header(d, vm.header, vm.width)}
           {body(d, vm, expand)}
         </Box>

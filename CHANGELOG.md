@@ -4,6 +4,14 @@ All notable changes to this project are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.3.1] - 2026-10-25
+
+### Fixed
+
+- **Docked fill**: the black fill now covers every row of the docked pane, not only the rows the
+  panels take. Under the `dark-ansi` theme the host paints the dock bright black, so the rows below
+  the panels showed grey. The one-cell edge the host draws around the dock keeps the theme's colour.
+
 ## [0.3.0] - 2026-10-23
 
 The first release of `st-code`, a live, read-only session dashboard in the Sergio's Tech OLED style.
