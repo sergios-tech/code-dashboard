@@ -73,7 +73,7 @@ export const architectPanel = (d: Draw, v: ArchitectView, width: number): Render
   if (v.advice) rows.push(rowOf(d, 'arch-advice', [{ text: `» ${fitCells(v.advice, room - 2)}`, color: C.architect }]))
   return (
     <Box key="architect" marginTop={1} flexDirection="column" width={width}>
-      {frame(d, { key: 'architect-frame', label: v.label, meta: v.meta, width, children: rows })}
+      {frame(d, { key: 'architect-frame', label: v.label, meta: v.meta, width, isActive: v.isAdvising, children: rows })}
       {timelineSvg(d, v, width)}
     </Box>
   )

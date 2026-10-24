@@ -1,6 +1,6 @@
 import { expect, mock, test } from 'claude-code/testing'
 import type { Engine } from 'claude-code/testing'
-import type { EngineInterface, On, RenderElement } from 'claude-code'
+import type { EngineInterface, On } from 'claude-code'
 
 import type { Architect } from '../types'
 import { parseConfig } from '../hooks/config'
@@ -30,12 +30,12 @@ import {
 } from '../hooks/state/schema'
 import { addArchitectId, loadSnapshot, markSeen } from '../hooks/state/store'
 import type { Snapshot } from '../hooks/state/store'
-import type { Draw } from '../hooks/view/draw'
 import { buildViewModel } from '../hooks/view/model'
 import { COLORS } from '../hooks/view/palette'
 import { architectPanel } from '../hooks/view/panels/architect'
 import { svgTimeline } from '../hooks/view/svg'
-import { cellWidth, drawRows, engine, pane, rowsOf, spawn } from './kit'
+import { busy, NOW } from './fixture'
+import { cellWidth, draw, drawRows, engine, found, pane, rowsOf, spawn, texts, vmOf } from './kit'
 
 /** The stand-ins of kit.engine, with every status line the plugin sets recorded. */
 const watched = (on: On) => {
@@ -85,15 +85,6 @@ const drawn = async ($: Engine, cols = 100, surface: 'terminal' | 'desktop' = 't
   await ui.unmount()
   return rows
 }
-
-// Element constructors that build the plain data a surface's table does, so a renderer is drawn here
-// without a mount.
-const el =
-  (type: string) =>
-  ({ children, ...props }: Record<string, unknown> & { children?: unknown[] }) =>
-    ({ type, props, children: children ?? [] }) as unknown as RenderElement
-const ELS = { Box: el('Box'), Text: el('Text'), Client: el('Client') }
-const draw = (): Draw => ({ els: ELS as never, C: COLORS, hasClient: true, motion: true, surface: 'terminal', now: 0 })
 
 const FRESH: Snapshot = {
   main: DEFAULT_MAIN,
@@ -374,4 +365,24 @@ test('desktop adds the consult timeline as an SVG on black', async ($, on) => {
   const terminal = await $.ui.mount({ ...pane(64), surface: 'terminal' })
   expect(await terminal.find({ type: 'Svg' })).toBeUndefined()
   await terminal.unmount()
+})
+
+// ---------------------------------------------------------------- the ARCHITECT panel, recoloured
+
+test('ARCHITECT keeps its rows in architect gold', () => {
+  const tree = architectPanel(draw(), vmOf(busy(), 66, 'dock', NOW).architect!, 66)
+  const rows = drawRows(tree).slice(1)
+  expect(rows[0]).toBe('┌ ARCHITECT ───────────────────────────────────────── consults 1 ┐')
+  const content = rows.slice(1, 6).map(r => r.slice(2, -2).trimEnd())
+  expect(content[1]).toMatch(/^◆━+─+$/)
+  expect([content[0], content[2], content[3], content[4]]).toEqual(['○ on call', 'last 1m ago · took 30s', '◆ before a plan  ◇ error repeats  ◇ before done  (inferred)', '» Lock the palette before the frames.'])
+  expect(texts(tree).find(t => t.text === '◆ before a plan')).toMatchObject({ color: COLORS.architect, bold: true })
+  expect(texts(tree).find(t => t.text === '○ on call')?.color).toBe(COLORS.dim)
+  expect(found(tree, 'Box').filter(b => b.borderStyle === 'single').map(b => b.borderColor)).toEqual([COLORS.frame])
+})
+test('while the architect advises, its whole frame is green', () => {
+  const s = busy(); const open = { ...s, architect: { ...s.architect, consults: [{ ...s.architect.consults[0]!, endAt: null }] } }
+  const tree = architectPanel(draw(), vmOf(open, 66, 'dock', NOW).architect!, 66)
+  expect(found(tree, 'Box').filter(b => b.borderStyle === 'single').map(b => b.borderColor)).toEqual([COLORS.green])
+  expect(texts(tree).find(t => t.text === '● advising')).toMatchObject({ color: COLORS.architect, bold: true })
 })
