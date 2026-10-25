@@ -59,9 +59,9 @@ const textOf = (d: Draw, key: string, pieces: Piece[]): RenderElement => {
 const joined = (d: Draw, groups: Piece[][], gap: string): Piece[] => groups.filter(g => g.length > 0).flatMap((g, i): Piece[] => (i === 0 ? g : [{ text: gap, color: d.C.dim }, ...g]))
 
 /** The model's name in its family colour and the loop's state, `idle` with nothing running: the header's right side without its dot. */
-const stateWords = (d: Draw, h: MiniView['header']): Piece[] => {
-  const name = h.model.trim().toUpperCase()
-  return [...(name ? [{ text: ` ${name}`, color: familyColor(name), bold: true }] : []), { text: h.isRunning ? ' WORKING' : ' IDLE', color: h.isActive ? d.C.dim : d.C.idle }]
+const stateWords = (d: Draw, header: MiniView['header']): Piece[] => {
+  const name = header.model.trim().toUpperCase()
+  return [...(name ? [{ text: ` ${name}`, color: familyColor(name), bold: true }] : []), { text: header.isRunning ? ' WORKING' : ' IDLE', color: header.isActive ? d.C.dim : d.C.idle }]
 }
 
 /**
