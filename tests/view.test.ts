@@ -18,9 +18,11 @@ const WORKING: ViewModel['header'] = { model: 'Opus 5.5', isRunning: true, isAct
 // ---------------------------------------------------------------- palette and layout math
 
 test('the palette holds the Signal tokens and their 256-colour fallbacks', () => {
-  expect(COLORS).toEqual({ fill: '#000000', text: '#d0d0d0', dim: '#9e9e9e', faint: '#303030', frame: '#d70000', idle: '#800000', brand: '#ff0000', orange: '#ff7f00', green: '#5fd75f', pulse: '#5f875f', gold: '#ffd700', architect: '#d7af00', error: '#ff5f5f' })
+  expect(COLORS).toEqual({ fill: '#000000', text: '#d0d0d0', dim: '#9e9e9e', faint: '#303030', frame: '#d70000', idle: '#7f0000', brand: '#ff0000', orange: '#ff7f00', green: '#5fd75f', pulse: '#5f875f', gold: '#ffd700', architect: '#d7af00', error: '#ff5f5f' })
   const fallback = Object.fromEntries(Object.entries(COLORS).map(([k, v]) => [k, to256(v)]))
-  expect(fallback).toEqual({ fill: '#000000', text: '#c6c6c6', dim: '#9e9e9e', faint: '#303030', frame: '#d70000', idle: '#af0000', brand: '#ff0000', orange: '#ff8700', green: '#87d787', pulse: '#87af87', gold: '#ffd700', architect: '#d7af00', error: '#ff8787' })
+  // The idle red sits one step under the themes' #800000, which 256 colours would round up to #af0000, next to the frame's #d70000.
+  expect([to256('#800000'), to256(COLORS.idle)]).toEqual(['#af0000', '#870000'])
+  expect(fallback).toEqual({ fill: '#000000', text: '#c6c6c6', dim: '#9e9e9e', faint: '#303030', frame: '#d70000', idle: '#870000', brand: '#ff0000', orange: '#ff8700', green: '#87d787', pulse: '#87af87', gold: '#ffd700', architect: '#d7af00', error: '#ff8787' })
 })
 test('every text token reads at 4.5:1 on black in both colour depths; faint and frame never carry text, idle only the resting header', () => {
   for (const k of TEXT_TOKENS) {

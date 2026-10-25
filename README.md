@@ -70,8 +70,8 @@ green and pulses while a turn or a subagent is running, and the words follow the
 background agents after a turn read `● HAIKU 5.5 IDLE`. A frame turns green while its panel holds
 running work: INFO while the main loop works, AGENTS while an agent runs, ARCHITECT while the
 architect advises. When nothing runs at all, neither a turn nor a subagent, every frame and the
-`○` and `IDLE` of the header and the inline summary turn dark red (`#800000`, the dark red of the
-Sergio's Tech themes).
+`○` and `IDLE` of the header and the inline summary turn dark red (`#7f0000`, a step under the
+Sergio's Tech themes' `#800000`).
 
 Panels with nothing to show take no room, so a fresh session shows the header, INFO and LOG. The
 wide layout is the exception: it shows AGENTS beside INFO from the start, reading `no agents yet`.
@@ -236,9 +236,10 @@ with nothing to show, the other takes the full width.
 
 **The colours look wrong.** The palette is fixed and made for a black background. Under tmux the host
 draws 256 colours unless `CLAUDE_CODE_TMUX_TRUECOLOR=1` is set, and VS Code's integrated terminal is
-capped at 256. In 256 colours, orange draws as `#ff8700`, the idle dark red as `#af0000`, and the
-reds and greens shift slightly. Every text colour but the resting `○ IDLE` still reaches 4.5:1
-contrast.
+capped at 256. So is WSL in Windows Terminal, which sets no `COLORTERM`: add
+`export COLORTERM=truecolor` to your shell's profile and restart for exact colours. In 256 colours,
+orange draws as `#ff8700`, the idle dark red as `#870000`, and the reds and greens shift slightly.
+Every text colour but the resting `○ IDLE` still reaches 4.5:1 contrast.
 
 **There's too much motion.** Set `motion` to `off`.
 

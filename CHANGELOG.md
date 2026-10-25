@@ -4,6 +4,16 @@ All notable changes to this project are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- **Idle frames**: the idle dark red is now `#7f0000`, one step under the themes' `#800000`.
+  Terminals drawn in 256 colours (tmux, VS Code, WSL in Windows Terminal) rounded `#800000` up to
+  `#af0000`, barely darker than the normal frame red; they now draw `#870000`. In truecolor the two
+  look the same. The README notes that WSL in Windows Terminal draws 256 colours unless
+  `COLORTERM=truecolor` is set.
+
 ## [0.5.2] - 2026-10-25
 
 ### Changed
