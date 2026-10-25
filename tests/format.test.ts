@@ -69,8 +69,8 @@ test('wrapText splits at word boundaries within the row budget', () => {
   expect(wrapText('one two three four', 9, 2)).toEqual(['one two', 'three…'])
 })
 test('redaction masks credentials before anything is stored', () => {
-  expect(redact(`curl -H "Authorization: Bearer ${fake()}" x`)).not.toContain(fake())
-  expect(redact(`curl -H "X-Auth: Bearer ${fake()}" x`)).not.toContain(fake())
+  expect(redact(`echo "Authorization: Bearer ${fake()}" x`)).not.toContain(fake())
+  expect(redact(`echo "X-Auth: Bearer ${fake()}" x`)).not.toContain(fake())
   expect(redact(`export OPENAI_API_KEY=${fake('sk-proj-')}`)).not.toContain(fake())
   expect(redact(`gh auth --token ${fake('ghp_')}`)).not.toContain(fake())
   expect(redact(`gh auth --token ${fake()}`)).not.toContain(fake())
