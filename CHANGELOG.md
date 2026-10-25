@@ -17,6 +17,9 @@ All notable changes to this project are listed here. The format follows
 - **Glyphs and counts**: the edits and errors columns put a space after `✎` and `✗` (`✎ 2`,
   `✗ 3`). Terminals whose font draws those glyphs wider than one cell overlapped them with the
   count. The errors column is a cell wider, so `✗ 120` still leaves a gap after the calls.
+- **Pastes in the LOG**: a prompt's pasted text reads as `[pasted 69 lines]` after your own words,
+  instead of the paste's wrapper and its first lines. A prompt that is only a paste is logged as
+  yours, not as an engine line.
 
 ## [0.5.4] - 2026-10-25
 

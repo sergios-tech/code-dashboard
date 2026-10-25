@@ -1,7 +1,7 @@
 // The session log: what a line says and how many fit. Pure, so it is tested without an engine.
 import type { AgentCard, LogLine } from '../../types'
 import { redact } from '../format/redact'
-import { shorten } from '../format/text'
+import { plural, shorten } from '../format/text'
 import { whoOf } from './agents'
 
 /** The log keeps this many lines; older ones are dropped as new ones arrive. */
@@ -13,16 +13,24 @@ export const LINE_MAX = 400
 /** `list` with `line` last, kept to the newest LOG_MAX. */
 export const appendLog = (list: LogLine[], line: LogLine): LogLine[] => [...list, line].slice(-LOG_MAX)
 
+/** A paste in a prompt as the host wraps it. Only its own id closes it, so a wrapper escaped inside it (`<\pasted_content`) does not. */
+const PASTE = /<pasted_content id="([^"]*)">\n?([\s\S]*?)\n?<\/pasted_content id="\1">/g
+
+/** `text` with each paste as `[pasted N lines]`: the person's words stay, what they pasted does not. */
+const collapsePastes = (text: string): string => text.replace(PASTE, (_all, _id, body: string) => `[pasted ${plural(body.split('\n').length, 'line')}]`)
+
 /**
- * What a turn's opening text was, for the log: the person's words, or for a turn the engine
- * opened with a tagged message (a subagent's hand-back, a task notification), that message's kind.
- * A message from an agent `cardOf` knows is logged under that agent's title and id; any other names
- * the start of its sender's id. Credentials are masked before the text is cut, so a cut never leaves
- * half a token showing.
+ * What a turn's opening text was, for the log: the person's words, each paste in them as a marker,
+ * or for a turn the engine opened with a tagged message (a subagent's hand-back, a task
+ * notification), that message's kind. A message from an agent `cardOf` knows is logged under that
+ * agent's title and id; any other names the start of its sender's id. Credentials are masked before
+ * the text is cut, so a cut never leaves half a token showing.
  */
 export const promptLine = (text: string, cardOf: (id: string) => AgentCard | undefined = () => undefined): { who: string; text: string; agentId?: string } => {
-  const tag = /^\s*<([a-z][\w-]*)/i.exec(text)?.[1]
-  if (!tag) return { who: 'you', text: shorten(redact(text), LINE_MAX) }
+  // A prompt that is only a paste opens with the paste's wrapper, which is not an engine tag.
+  const said = collapsePastes(text)
+  const tag = /^\s*<([a-z][\w-]*)/i.exec(said)?.[1]
+  if (!tag) return { who: 'you', text: shorten(redact(said), LINE_MAX) }
   const kind = tag.replace(/[-_]/g, ' ')
   const from = /\bfrom="([^"]+)"/.exec(text)?.[1]
   const card = from ? cardOf(from) : undefined
