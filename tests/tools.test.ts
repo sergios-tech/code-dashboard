@@ -46,18 +46,23 @@ const failed = { isError: true as const, result: 'exit 1', text: 'exit 1' }
 test('TOOLS & FILES is a table: heads, a family glyph per tool, files under a divider', () => {
   expect(drawRows(toolsPanel(draw(), vmOf(busy(), 66, 'dock', NOW).tools!, 66)).slice(1)).toEqual([
     '┌ TOOLS & FILES ─────────────────────────────────────── 23 calls ┐',
-    '│   tool                                       calls  err   avg* │',
-    '│ › Read                                           9    ·   40ms │',
-    '│ ▸ Bash                                           6   ✗1   1.5s │',
-    '│ › Grep                                           4    ·   55ms │',
-    '│ ✎ Edit                                           3    ·   50ms │',
+    '│   tool                                      calls   err   avg* │',
+    '│ › Read                                          9     ·   40ms │',
+    '│ ▸ Bash                                          6   ✗ 1   1.5s │',
+    '│ › Grep                                          4     ·   55ms │',
+    '│ ✎ Edit                                          3     ·   50ms │',
     '├────────────────────────────────────────────────────────────────┤',
-    '│ file                                         reads edits       │',
-    '│ hooks/view/palette.ts                            3    ✎2       │',
-    '│ hooks/view/header.tsx                            2    ✎1       │',
-    '│ README.md                                        2     ·       │',
+    '│ file                                        reads edits        │',
+    '│ hooks/view/palette.ts                           3   ✎ 2        │',
+    '│ hooks/view/header.tsx                           2   ✎ 1        │',
+    '│ README.md                                       2     ·        │',
     '└────────────────────────────────────────────────────────────────┘',
   ])
+})
+test('a three-digit error count keeps a gap before it', () => {
+  const s = busy(); const many = { ...s, activity: { ...s.activity, tools: [{ tool: 'Bash', calls: 250, errors: 120, timedCalls: 1, timedMs: 30 }] } }
+  const rows = drawRows(toolsPanel(draw(), vmOf(many, 66).tools!, 66))
+  expect(rows.some(r => / 250 ✗ 120 /.test(r))).toBe(true)
 })
 test('families, MCP names and short averages', () => {
   expect(['Read', 'MultiEdit', 'BashOutput', 'Task', 'Skill'].map(toolFamily)).toEqual(['read', 'edit', 'run', 'agent', 'other'])
@@ -69,7 +74,7 @@ test('a long or wide tool name keeps the number columns in place (Review Focus 4
     const rows = drawRows(toolsPanel(draw(), vmOf(wide, w).tools!, w))
     for (const r of rows) expect(cellWidth(r) <= w).toBe(true)
     // The name is cut with `…`; calls, errors and the average stay in their columns.
-    expect(rows.some(r => r.includes('…') && r.endsWith('     2   ✗1   30ms │'))).toBe(true)
+    expect(rows.some(r => r.includes('…') && r.endsWith('     2   ✗ 1   30ms │'))).toBe(true)
   }
 })
 
@@ -168,7 +173,7 @@ test('hot files rank by touches; subagent-only files are dimmed', async ($, on) 
     '│ ▸ Bash 1 · 0.4s │',
   ])
   expect(body[5]).toMatch(/^├─+┤$/)
-  expect(body.slice(6).map(r => r.replace(/ +/g, ' '))).toEqual(['│ file reads edits │', '│ auth/login.ts 3 ✎1 │', '│ util/a.ts 2 · │', '│ lib/util 1 · │'])
+  expect(body.slice(6).map(r => r.replace(/ +/g, ' '))).toEqual(['│ file reads edits │', '│ auth/login.ts 3 ✎ 1 │', '│ util/a.ts 2 · │', '│ lib/util 1 · │'])
   const mainFile = await ui.find({ type: 'Text', text: /^auth\/login\.ts +$/ })
   expect([mainFile?.props.color, mainFile?.props.dimColor]).toEqual([COLORS.text, undefined])
   // A file only subagents touched is dim throughout, in the dim token and never `dimColor`.

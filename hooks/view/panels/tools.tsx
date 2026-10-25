@@ -18,7 +18,7 @@ const CHROME = 4
 const GLYPH = 2
 /** The number columns, right-aligned: calls and reads, errors, the average, and edits. */
 const CALLS = 6
-const ERRORS = 5
+const ERRORS = 6
 const AVERAGE = 7
 const EDITS = 6
 
@@ -62,7 +62,7 @@ export const toolsPanel = (d: Draw, v: ToolsView, width: number): RenderElement 
         { text: `${FAMILY_GLYPH[toolFamily(r.tool)]} `, color: C.orange },
         { text: column(toolName(r.tool), nameCells), color: C.text },
         { text: lpad(String(r.calls), CALLS), color: C.text, bold: true },
-        { text: lpad(r.errors > 0 ? `✗${r.errors}` : '·', ERRORS), color: r.errors > 0 ? C.error : C.faint },
+        { text: lpad(r.errors > 0 ? `✗ ${r.errors}` : '·', ERRORS), color: r.errors > 0 ? C.error : C.faint },
         { text: lpad(avgShort(avgMs(r)), AVERAGE), color: C.text },
       ]),
     )
@@ -76,7 +76,7 @@ export const toolsPanel = (d: Draw, v: ToolsView, width: number): RenderElement 
         rowOf(d, `file-${f.path}`, [
           { text: column(f.path, pathCells), color: tone },
           { text: lpad(String(f.reads), CALLS), color: tone, bold: f.byMain },
-          { text: lpad(f.edits > 0 ? `✎${f.edits}` : '·', EDITS), color: f.edits > 0 ? (f.byMain ? C.gold : C.dim) : C.faint },
+          { text: lpad(f.edits > 0 ? `✎ ${f.edits}` : '·', EDITS), color: f.edits > 0 ? (f.byMain ? C.gold : C.dim) : C.faint },
         ]),
       )
     }
