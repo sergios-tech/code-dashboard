@@ -7,7 +7,7 @@ import { LINE_MAX, LOG_MAX, appendLog, logRows, promptLine } from '../hooks/doma
 import type { LogView } from '../hooks/view/model'
 import { COLORS } from '../hooks/view/palette'
 import { logPanel } from '../hooks/view/panels/log'
-import { busy, NOW } from './fixture'
+import { busy, fake, NOW } from './fixture'
 import { cellWidth, draw, drawRows, engine, pane, rowsOf, spawn, texts } from './kit'
 
 // The test kit's `$` takes the engine's full command input; only the name and arguments matter here.
@@ -40,14 +40,14 @@ test('prompts and engine-opened turns read as one log line', () => {
   const paste = (id: string, body: string) => `<pasted_content id="${id}">\n${body}\n</pasted_content id="${id}">`
   expect(promptLine(`Now \n\n${paste('4f7d', '┌ INFO ─┐\n│ ctx │\n└──────┘')}\n`)).toEqual({ who: 'you', text: 'Now [pasted 3 lines]' })
   expect(promptLine(`compare ${paste('a1', 'one')} with ${paste('b2', 'x\ny')} please`).text).toBe('compare [pasted 1 line] with [pasted 2 lines] please')
-  expect(promptLine(paste('c3', 'password=hunter2hunter2\nmore'))).toEqual({ who: 'you', text: '[pasted 2 lines]' })
+  expect(promptLine(paste('c3', `password=${fake()}\nmore`))).toEqual({ who: 'you', text: '[pasted 2 lines]' })
   // A wrapper escaped inside a paste (`<\pasted_content`) does not end it early.
   expect(promptLine(`see ${paste('d4', 'a <\\pasted_content id="zz"> b\nc')}`).text).toBe('see [pasted 2 lines]')
   // The whole prompt is kept up to LINE_MAX characters; the pane cuts it to its own width.
   expect(promptLine('a'.repeat(300)).text).toBe('a'.repeat(300)); expect(LINE_MAX).toBe(400)
   expect([Array.from(promptLine('a'.repeat(500)).text).length, promptLine('a'.repeat(500)).text.endsWith('…')]).toEqual([400, true])
   expect(promptLine('line one\nline two\twith a tab').text).toBe('line one line two with a tab')
-  expect(promptLine('use password=hunter2hunter2 now').text).toBe('use password=••• now')
+  expect(promptLine(`use password=${fake()} now`).text).toBe('use password=••• now')
 })
 test('the log keeps the last 60 lines (Review Focus 5)', () => {
   let l: LogLine[] = []
@@ -196,9 +196,9 @@ test('a cut log line keeps its ✗ or · denied, so a failure is never shown by 
 })
 test('a credential in a prompt is masked before it is stored', async ($, on) => {
   engine(on)
-  await $.turn.start({ text: 'deploy with token=abcd1234efgh5678', turnId: 'T1' })
+  await $.turn.start({ text: `deploy with token=${fake()}`, turnId: 'T1' })
   const ui = await $.ui.mount({ ...pane(80), surface: 'terminal' })
-  expect(await ui.find({ text: /abcd1234/ })).toBeUndefined()
+  expect(await ui.find({ text: new RegExp(fake()) })).toBeUndefined()
   expect(await ui.find({ text: /token=•••/ })).toBeDefined()
   await ui.unmount()
 })

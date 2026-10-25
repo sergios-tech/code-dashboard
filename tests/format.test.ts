@@ -16,6 +16,7 @@ import {
   shorten,
   wrapText,
 } from '../hooks/format/text'
+import { dsn, fake } from './fixture'
 
 test('model ids read as people say them', () => {
   expect(prettyModel('claude-opus-5-5')).toBe('Opus 5.5')
@@ -55,12 +56,15 @@ test('wrapText splits at word boundaries within the row budget', () => {
   expect(wrapText('one two three four', 9, 2)).toEqual(['one two', 'three…'])
 })
 test('redaction masks credentials before anything is stored', () => {
-  expect(redact('curl -H "Authorization: Bearer abc.def.ghi123" x')).not.toContain('abc.def')
-  expect(redact('export OPENAI_API_KEY=sk-proj-1234567890abcdef')).not.toContain('1234567890')
-  expect(redact('gh auth --token ghp_abcdefghijklmnop')).not.toContain('abcdefghijklmnop')
-  expect(redact('psql postgres://bob:hunter2@db/x')).not.toContain('hunter2')
-  expect(redact('password=hunter2 ls')).not.toContain('hunter2')
+  expect(redact(`curl -H "Authorization: Bearer ${fake()}" x`)).not.toContain(fake())
+  expect(redact(`curl -H "X-Auth: Bearer ${fake()}" x`)).not.toContain(fake())
+  expect(redact(`export OPENAI_API_KEY=${fake('sk-proj-')}`)).not.toContain(fake())
+  expect(redact(`gh auth --token ${fake('ghp_')}`)).not.toContain(fake())
+  expect(redact(`gh auth --token ${fake()}`)).not.toContain(fake())
+  expect(redact(`deploy DB_KEY=${fake()}`)).not.toContain(fake())
+  expect(redact(`psql ${dsn('bob')}`)).not.toContain(fake())
+  expect(redact(`password=${fake()} ls`)).not.toContain(fake())
   expect(redact('ls -la src/')).toBe('ls -la src/')
   expect(describeInput('Read', { file_path: 'C:\\Users\\me\\proj\\src\\main.ts' })).toBe('Read → src/main.ts')
-  expect(describeInput('Bash', { command: 'TOKEN=abc12345678 make' })).not.toContain('abc12345678')
+  expect(describeInput('Bash', { command: `TOKEN=${fake()} make` })).not.toContain(fake())
 })

@@ -31,7 +31,7 @@ import type { Snapshot } from '../hooks/state/schema'
 import { buildViewModel } from '../hooks/view/model'
 import { COLORS } from '../hooks/view/palette'
 import { architectPanel } from '../hooks/view/panels/architect'
-import { busy, NOW } from './fixture'
+import { busy, fake, NOW } from './fixture'
 import { cellWidth, draw, drawRows, engine, found, pane, rowsOf, spawn, texts, vmOf } from './kit'
 
 /** The stand-ins of kit.engine, with every status line the plugin sets recorded. */
@@ -144,7 +144,7 @@ test('hand-backs and advice lines', () => {
   expect(handbackOf('<agent-message from="x">\nPlain report line\n</agent-message>')).toEqual({ from: 'x', body: 'Plain report line' })
   expect(handbackOf('fix the parser')).toBeNull(); expect(handbackOf('<agent-message from="x">\n</agent-message>')).toBeNull()
   expect(adviceLine('[note] header\n\n> - __Fix card overflow first__\nmore')).toBe('Fix card overflow first')
-  expect(adviceLine('use token=abcdefgh12345 here')).toBe('use token=••• here') // masked before it is kept
+  expect(adviceLine(`use token=${fake()} here`)).toBe('use token=••• here') // masked before it is kept
   const long = adviceLine('x '.repeat(200))
   expect([Array.from(long).length, long.endsWith('…')]).toEqual([160, true])
   expect(adviceLine('')).toBe('')

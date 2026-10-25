@@ -7,7 +7,7 @@ import { FILES_MAX, TOOLS_MAX, avgLabel, avgMs, avgShort, fileOf, hotFiles, reco
 import { DEFAULT_ACTIVITY, normalizeActivity } from '../hooks/state/schema'
 import { COLORS } from '../hooks/view/palette'
 import { toolsPanel } from '../hooks/view/panels/tools'
-import { busy, NOW } from './fixture'
+import { busy, fake, NOW } from './fixture'
 import { cellWidth, draw, drawRows, engine, pane, rowsOf, spawn, vmOf } from './kit'
 
 /** The stand-ins of kit.engine, with every status line the plugin sets recorded. */
@@ -84,7 +84,7 @@ test('file activity: reads and edits per trimmed, redacted path', () => {
   expect(fileOf('Glob', { pattern: '**/*.ts' })).toBeNull(); expect(fileOf('Bash', { command: 'ls' })).toBeNull()
   expect(fileOf('Grep', { pattern: 'x', path: '/repo/lib/' })).toEqual({ path: 'repo/lib', kind: 'read' })
   expect(fileOf('Write', { file_path: 'notes.md' })).toEqual({ path: 'notes.md', kind: 'edit' })
-  expect(fileOf('Edit', { file_path: '/srv/sk-abcdefghijklmnop/config.ts' })).toEqual({ path: '•••/config.ts', kind: 'edit' })
+  expect(fileOf('Edit', { file_path: `/srv/${fake('sk-')}/config.ts` })).toEqual({ path: '•••/config.ts', kind: 'edit' })
   expect(fileOf('Read', { file_path: 42 })).toBeNull(); expect(fileOf('Read', null)).toBeNull(); expect(fileOf('Edit', { file_path: '///' })).toBeNull()
 })
 test('untimed calls count but do not move the average', () => {

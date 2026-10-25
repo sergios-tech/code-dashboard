@@ -30,7 +30,7 @@ import type { Draw } from '../hooks/view/draw'
 import { COLORS } from '../hooks/view/palette'
 import { agentsPanel } from '../hooks/view/panels/agents'
 import { agentTone, svgLanes } from '../hooks/view/svg'
-import { NOW, busy } from './fixture'
+import { NOW, busy, fake } from './fixture'
 import { ELS, cellWidth, draw, drawRows, engine, found, pane, rowsOf, spawn, texts, vmOf } from './kit'
 
 type Usage = { input_tokens: number; cache_read_input_tokens: number; cache_creation_input_tokens: number; output_tokens: number }
@@ -100,14 +100,14 @@ test('cards and loops stay bounded (Review Focus 5)', () => {
   expect(loops[0]?.id).toBe('l40'); expect(stepLoop(loops, 'l99', 200).find(l => l.id === 'l99')?.steps).toBe(2)
 })
 test('a card ends as done, stopped or failed, keeps its last 3 tools, and stores no credential', () => {
-  const c = newCard({ id: 'a', type: 'Explore', model: 'm', description: 'use token=abcdefgh12345 here', at: 1 })
+  const c = newCard({ id: 'a', type: 'Explore', model: 'm', description: `use token=${fake()} here`, at: 1 })
   expect(c.description).toBe('use token=••• here')
   expect([finishCard(c, 'answer', 'ok', 9).status, finishCard(c, 'aborted', '', 9).status, finishCard(c, 'error', '', 9).status]).toEqual(['done', 'stopped', 'failed'])
   expect(finishCard(c, 'refusal', '', 9).status).toBe('failed')
   const done = finishCard(c, 'answer', 'a'.repeat(500), 9)
   expect([done.endedAt, Array.from(done.answer).length, done.answer.endsWith('…')]).toEqual([9, 400, true])
   let t = c
-  for (const n of ['a', 'b', 'c', 'd', 'password=hunter2hunter2']) t = noteTool(t, { tool: 'Bash', text: n, isError: n === 'c' })
+  for (const n of ['a', 'b', 'c', 'd', `password=${fake()}`]) t = noteTool(t, { tool: 'Bash', text: n, isError: n === 'c' })
   expect(t.tools.map(n => n.text)).toEqual(['c', 'd', 'password=•••']); expect(t.tools[0]?.isError).toBe(true)
   expect(cardTitle(newCard({ id: 'b', type: 'Plan', model: '', description: '  ', at: 1 }))).toBe('Plan')
 })
@@ -412,12 +412,12 @@ test("a subagent's answer is masked before it is stored or drawn in the open car
   await clock.advance(1000)
   await $.agent.spawn(spawn('Explore', 'Find the deploy key'))
   await clock.advance(2000)
-  const secret = 'ghp_Zx9Qw3Lm7Kd2Vb8Rt5'
+  const secret = fake('ghp_')
   await end($, 'r1', 'answer', `Found it: use ${secret} to deploy.`)
   const ui = await $.ui.mount({ ...pane(100), surface: 'terminal' })
   await ui.press({ key: 'card-r1' })
   const rows = await rowsOf(ui)
-  expect(rows.some(r => r.includes(secret) || r.includes('Zx9Qw3Lm7Kd2'))).toBe(false)
+  expect(rows.some(r => r.includes(secret) || r.includes(fake()))).toBe(false)
   expect(rows.some(r => r.startsWith('│ » Found it: use ••• to deploy.'))).toBe(true)
   await ui.unmount()
 })
