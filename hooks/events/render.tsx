@@ -65,7 +65,7 @@ export const wireRender = (on: On, cfg: Config): void => {
     })
     // VS Code's webview takes no client modules, whatever its element table holds.
     const hasClient = 'Client' in els && e.surface !== 'vscode'
-    const d: Draw = { els, C: COLORS, hasClient, motion: cfg.motion, surface: e.surface, isPicture, now }
+    const d: Draw = { els, C: COLORS, hasClient, motion: cfg.motion, surface: e.surface, isPicture, now, isIdle: !vm.header.isActive }
     // An agent's hotkey opens its details inside the AGENTS frame, or closes them.
     const expand: Expand = id => () => toggleExpanded($, id)
     const { Box } = els

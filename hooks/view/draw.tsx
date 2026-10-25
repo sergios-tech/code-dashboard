@@ -18,6 +18,8 @@ export type Draw = {
   motion: boolean
   surface: string
   now: number
+  /** Nothing runs, neither a turn nor a subagent: the frames are drawn in `idle`. */
+  isIdle: boolean
 }
 
 /** The surface animates what it draws, by client modules or inside a picture, and the person has not turned motion off. */

@@ -9,14 +9,14 @@ import { familyColor } from './palette'
 
 const BRAND_CELLS = Array.from("▌SERGIO'S TECH · CODE").length
 
-/** The state dot: `●` green, pulsing while work runs where the surface animates (a client module, or SMIL in a picture), else a plain `●`; `○` dim at rest. */
+/** The state dot: `●` green, pulsing while work runs where the surface animates (a client module, or SMIL in a picture), else a plain `●`; `○` in the idle dark red at rest. */
 export const stateDot = (d: Draw, isActive: boolean): RenderElement => {
   const { els, C } = d
   const { Text } = els
   return canAnimate(d) && isActive ? (
     clientNode(d, 'st-code-pulse', 'pulse', 1, { active: true, color: C.green, dim: C.pulse })
   ) : (
-    <Text key="st-code-dot" bold={isActive} color={isActive ? C.green : C.dim}>
+    <Text key="st-code-dot" bold={isActive} color={isActive ? C.green : C.idle}>
       {isActive ? '●' : '○'}
     </Text>
   )
@@ -25,8 +25,9 @@ export const stateDot = (d: Draw, isActive: boolean): RenderElement => {
 /**
  * One unfilled row of `width` cells. Its dot marks any running work (a turn or a subagent) and
  * pulses while there is some; its words describe the main loop alone, so background agents after a
- * turn read `● OPUS 5.5 IDLE`. The right side drops the architect suffix, then the state word, then
- * the model to fit, and always keeps the dot.
+ * turn read `● OPUS 5.5 IDLE`. With nothing running, the `○` and `IDLE` are the idle dark red. The
+ * right side drops the architect suffix, then the state word, then the model to fit, and always keeps
+ * the dot.
  */
 export const header = (d: Draw, vm: ViewModel['header'], width: number): RenderElement => {
   const { els, C } = d
@@ -47,7 +48,7 @@ export const header = (d: Draw, vm: ViewModel['header'], width: number): RenderE
   }
   if (showState) {
     words.push(
-      <Text key="state" color={C.dim}>
+      <Text key="state" color={vm.isActive ? C.dim : C.idle}>
         {vm.isRunning ? ' WORKING' : ' IDLE'}
       </Text>,
     )

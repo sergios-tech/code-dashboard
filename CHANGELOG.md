@@ -6,6 +6,14 @@ All notable changes to this project are listed here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- **Idle frames**: while nothing runs, neither a turn nor a subagent, every panel frame and its
+  dividers turn dark red (`#800000`, the dark red of the Sergio's Tech themes; `#af0000` in 256
+  colours), and so do the `○` and `IDLE` of the header and the inline summary. A frame holding
+  running work stays green, and INFO's `○ idle` stays dim. The resting `○ IDLE` is the one text
+  below 4.5:1 contrast; its `○` shape says the same.
+
 ### Fixed
 
 - **LOG**: a line now runs as far as the pane is wide. Prompts were cut to 70 characters, tool calls

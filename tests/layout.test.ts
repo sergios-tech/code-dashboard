@@ -216,6 +216,40 @@ test('the wide layout holds AGENTS beside INFO from the start; a column the conf
     expect(vm.layout).toBe('wide'); expect(vm.columns).toBeNull(); expect(vm.widths[p]).toBe(120)
   }
 })
+test('while nothing runs, every frame and the header ○ IDLE are the idle dark red', async ($, on) => {
+  const clock = engine(on)
+  on('agent.spawn', () => ({ model: 'claude-sonnet-5-5', agentId: 'r1' }))
+  on('tool.call', () => ok)
+  await clock.advance(1000)
+  await $.tool.call({ tool: 'Read', file_path: '/repo/src/a.ts' } as never)
+  const C = COLORS
+  /** Each frame's border colour, top to bottom, and the colour of the header's IDLE word while it shows. */
+  const look = async () => {
+    const ui = await $.ui.mount({ ...pane(66), surface: 'terminal' })
+    const borders = (await ui.findAll({ type: 'Box' })).filter(b => b.props.borderStyle === 'single').map(b => b.props.borderColor)
+    // The word is a coloured run inside the header's words, which read ` IDLE` too.
+    const idle = (await ui.findAll({ type: 'Text', text: /^ IDLE$/ })).find(t => t.props.color)?.props.color
+    await ui.unmount()
+    return { borders, idle }
+  }
+  /** The desktop's pictures, where the frames are strokes. */
+  const strokes = async () => {
+    const ui = await $.ui.mount({ ...pane(66), surface: 'desktop' })
+    const svg = (await ui.findAll({ type: 'Svg' })).map(x => String(x.props.source)).join('')
+    await ui.unmount()
+    return svg
+  }
+  // Nothing runs: INFO, TOOLS & FILES and LOG, and the header's word too.
+  expect(await look()).toEqual({ borders: [C.idle, C.idle, C.idle], idle: C.idle })
+  expect(await strokes()).toContain(`stroke="${C.idle}"`)
+  // A background agent after the turn: AGENTS is green, the rest the frame red, and IDLE dim.
+  await $.agent.spawn(spawn('Explore', 'map the call sites'))
+  expect(await look()).toEqual({ borders: [C.frame, C.green, C.frame, C.frame], idle: C.dim })
+  expect(await strokes()).not.toContain(`stroke="${C.idle}"`)
+  // A turn: INFO is green too, and the header reads WORKING.
+  await $.turn.start({ text: 'go', turnId: 'T1' })
+  expect(await look()).toEqual({ borders: [C.green, C.green, C.frame, C.frame], idle: undefined })
+})
 test('every atom holding garbage still draws the header and LOG (Review Focus 1)', async ($, on) => {
   engine(on)
   let junk: unknown = null

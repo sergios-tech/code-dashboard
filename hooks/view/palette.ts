@@ -10,6 +10,11 @@ export const COLORS = {
   faint: '#303030',
   /** Frame lines and dividers only: it never carries text. */
   frame: '#d70000',
+  /**
+   * The Sergio's Tech themes' dark red, the frames turned down while nothing runs. Its one text is the
+   * resting `○ IDLE` of the header and the inline summary, below 4.5:1, whose `○` shape says the same.
+   */
+  idle: '#800000',
   brand: '#ff0000',
   orange: '#ff7f00',
   green: '#5fd75f',

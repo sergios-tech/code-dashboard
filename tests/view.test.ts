@@ -18,16 +18,18 @@ const WORKING: ViewModel['header'] = { model: 'Opus 5.5', isRunning: true, isAct
 // ---------------------------------------------------------------- palette and layout math
 
 test('the palette holds the Signal tokens and their 256-colour fallbacks', () => {
-  expect(COLORS).toEqual({ fill: '#000000', text: '#d0d0d0', dim: '#9e9e9e', faint: '#303030', frame: '#d70000', brand: '#ff0000', orange: '#ff7f00', green: '#5fd75f', pulse: '#5f875f', gold: '#ffd700', architect: '#d7af00', error: '#ff5f5f' })
+  expect(COLORS).toEqual({ fill: '#000000', text: '#d0d0d0', dim: '#9e9e9e', faint: '#303030', frame: '#d70000', idle: '#800000', brand: '#ff0000', orange: '#ff7f00', green: '#5fd75f', pulse: '#5f875f', gold: '#ffd700', architect: '#d7af00', error: '#ff5f5f' })
   const fallback = Object.fromEntries(Object.entries(COLORS).map(([k, v]) => [k, to256(v)]))
-  expect(fallback).toEqual({ fill: '#000000', text: '#c6c6c6', dim: '#9e9e9e', faint: '#303030', frame: '#d70000', brand: '#ff0000', orange: '#ff8700', green: '#87d787', pulse: '#87af87', gold: '#ffd700', architect: '#d7af00', error: '#ff8787' })
+  expect(fallback).toEqual({ fill: '#000000', text: '#c6c6c6', dim: '#9e9e9e', faint: '#303030', frame: '#d70000', idle: '#af0000', brand: '#ff0000', orange: '#ff8700', green: '#87d787', pulse: '#87af87', gold: '#ffd700', architect: '#d7af00', error: '#ff8787' })
 })
-test('every text token reads at 4.5:1 on black in both colour depths; faint and frame never carry text', () => {
+test('every text token reads at 4.5:1 on black in both colour depths; faint and frame never carry text, idle only the resting header', () => {
   for (const k of TEXT_TOKENS) {
     expect(contrast(COLORS[k], '#000000') >= 4.5).toBe(true)
     expect(contrast(to256(COLORS[k]), '#000000') >= 4.5).toBe(true)
   }
   for (const k of ['faint', 'frame', 'fill'] as const) expect(TEXT_TOKENS.includes(k)).toBe(false)
+  // The idle dark red is below 4.5:1. Its one text is the resting `○ IDLE` of the header and the inline summary, whose `○` shape says the same.
+  expect(TEXT_TOKENS.includes('idle')).toBe(false); expect(contrast(COLORS.idle, '#000000') < 4.5).toBe(true)
 })
 test('no token is blue', () => {
   for (const hex of Object.values(COLORS)) {
@@ -95,7 +97,7 @@ test('a frame sets its caps label into the top border, the meta at the right', (
   expect(found(frame(draw(), { key: 'f', label: 'info', width: 40, children: [] }), 'Box').some(b => b.borderColor === COLORS.frame)).toBe(true)
   expect(found(tree, 'Text').find(t => t.bold)?.color).toBe(COLORS.text)
 })
-test('dividers join the side borders in the frame colour, green while the frame holds running work', () => {
+test('dividers join the side borders in the frame colour, green while the frame holds running work, dark red while nothing runs', () => {
   const kids = [line('a'), dividerRow(draw(), 'd'), line('b')]
   expect(drawRows(frame(draw(), { key: 'f', label: 'info', width: 20, dividers: [1], children: kids }))).toEqual([
     `┌ INFO ${'─'.repeat(12)}┐`, `│ a${' '.repeat(16)}│`, `├${'─'.repeat(18)}┤`, `│ b${' '.repeat(16)}│`, `└${'─'.repeat(18)}┘`,
@@ -103,9 +105,15 @@ test('dividers join the side borders in the frame colour, green while the frame 
   const live = frame(draw(), { key: 'f', label: 'info', width: 20, isActive: true, dividers: [1], children: kids })
   expect(found(live, 'Box').filter(b => b.borderStyle === 'single').map(b => b.borderColor)).toEqual([COLORS.green])
   expect(texts(live).find(t => t.text.startsWith('├'))?.color).toBe(COLORS.green)
-  const idle = frame(draw(), { key: 'f', label: 'info', width: 20, dividers: [1], children: kids })
-  expect(found(idle, 'Box').filter(b => b.borderStyle === 'single').map(b => b.borderColor)).toEqual([COLORS.frame])
-  expect(texts(idle).find(t => t.text.startsWith('├'))?.color).toBe(COLORS.frame)
+  const still = frame(draw(), { key: 'f', label: 'info', width: 20, dividers: [1], children: kids })
+  expect(found(still, 'Box').filter(b => b.borderStyle === 'single').map(b => b.borderColor)).toEqual([COLORS.frame])
+  expect(texts(still).find(t => t.text.startsWith('├'))?.color).toBe(COLORS.frame)
+  // Nothing running anywhere turns the frame and its dividers down; running work inside it still wins.
+  const idle = frame(draw({ isIdle: true }), { key: 'f', label: 'info', width: 20, dividers: [1], children: kids })
+  expect(found(idle, 'Box').filter(b => b.borderStyle === 'single').map(b => b.borderColor)).toEqual([COLORS.idle])
+  expect(texts(idle).find(t => t.text.startsWith('├'))?.color).toBe(COLORS.idle)
+  const open = frame(draw({ isIdle: true }), { key: 'f', label: 'info', width: 20, isActive: true, dividers: [1], children: kids })
+  expect(found(open, 'Box').filter(b => b.borderStyle === 'single').map(b => b.borderColor)).toEqual([COLORS.green])
 })
 const ADVISING: ViewModel['header'] = { model: 'Opus 5.5', isRunning: true, isActive: true, arch: 'ARCHITECT ADVISING', isAdvising: true }
 test('the header is one unfilled row that drops the suffix, the word, then the model, and keeps the dot', () => {
@@ -125,6 +133,11 @@ test('header colours: brand red, CODE orange, the model in its family colour, wo
   expect([color(/OPUS 5\.5/), color(/WORKING/), color(/ARCHITECT ADVISING/)]).toEqual([COLORS.brand, COLORS.dim, COLORS.architect])
   expect(texts(tree).find(t => /OPUS/.test(t.text))?.bold).toBe(true)
   expect(found(tree, 'Box').some(b => b.backgroundColor !== undefined)).toBe(false)
+  // At rest the dot and IDLE are the idle dark red; while an agent runs after the turn, IDLE stays dim.
+  const rest = texts(header(draw({ motion: false }), IDLE, 40))
+  expect([rest.find(t => t.text === '○')?.color, rest.find(t => t.text === ' IDLE')?.color, rest.find(t => /OPUS/.test(t.text))?.color]).toEqual([COLORS.idle, COLORS.idle, COLORS.brand])
+  const background = texts(header(draw({ motion: false }), { ...IDLE, isActive: true }, 40))
+  expect([background.find(t => t.text === '●')?.color, background.find(t => t.text === ' IDLE')?.color]).toEqual([COLORS.green, COLORS.dim])
 })
 test('the dot pulses green to dim green as a Client while work runs and motion is on', () => {
   const pulse = found(header(draw(), ADVISING, 77), 'Client')

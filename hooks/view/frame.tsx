@@ -22,7 +22,7 @@ export type FrameProps = {
   /** The colour of the meta text; `dim` when not given. */
   metaColor?: string
   width: number
-  /** The frame holds running work: the border and dividers are drawn in `green` instead of `frame`. */
+  /** The frame holds running work: the border and dividers are drawn in `green`, else `idle` while nothing runs, else `frame`. */
   isActive?: boolean
   /** Indexes of body rows drawn as `├───┤` across the full width; each must be a `dividerRow`. */
   dividers?: number[]
@@ -48,7 +48,7 @@ export const frame = (d: Draw, p: FrameProps): RenderElement => {
   // What is left for the meta and its two spaces, after the label, the rule cell and the corners.
   const metaRoom = p.width - (cells(label) + 2) - 1 - 2 - 2
   const meta = p.meta && metaRoom >= 4 ? shorten(p.meta, metaRoom) : ''
-  const border = p.isActive ? C.green : C.frame
+  const border = p.isActive ? C.green : d.isIdle ? C.idle : C.frame
   return (
     <Box key={p.key} flexDirection="column" width={p.width} flexShrink={0}>
       <Box flexDirection="column" width={p.width} borderStyle="single" borderColor={border} paddingX={1}>

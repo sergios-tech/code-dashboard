@@ -55,3 +55,11 @@ test('the inline summary colours ctx orange from 30 and red from 50, a limit ora
   }
   expect(colours(30, 50, 100).gauges).toEqual([orange, green])
 })
+test('at rest the inline ○ and IDLE are the idle dark red, as in the header', () => {
+  const at = (s: Partial<Snapshot>) => texts(miniPane(draw({ now: NOW, motion: false, hasClient: false }), vmOf(s, 100, 'inline', NOW).mini!, 100))
+  const rest = at({ ...busy(), main: { ...busy().main, isRunning: false }, agents: [] })
+  expect([rest.find(t => t.text === '○')?.color, rest.find(t => t.text === ' IDLE')?.color]).toEqual([COLORS.idle, COLORS.idle])
+  // An agent still running after the turn: the dot is green and IDLE stays dim.
+  const background = at({ ...busy(), main: { ...busy().main, isRunning: false } })
+  expect([background.find(t => t.text === '●')?.color, background.find(t => t.text === ' IDLE')?.color]).toEqual([COLORS.green, COLORS.dim])
+})

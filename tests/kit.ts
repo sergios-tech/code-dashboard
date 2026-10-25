@@ -67,7 +67,7 @@ export const el =
   ({ children, ...props }: Record<string, unknown> & { children?: unknown[] }) =>
     ({ type, props, children: children ?? [] }) as unknown as RenderElement
 export const ELS = { Box: el('Box'), Text: el('Text'), Client: el('Client'), Button: el('Button'), Svg: el('Svg') }
-export const draw = (o: Partial<Draw> = {}): Draw => ({ els: ELS as never, C: COLORS, hasClient: true, motion: true, surface: 'terminal', isPicture: false, now: 0, ...o })
+export const draw = (o: Partial<Draw> = {}): Draw => ({ els: ELS as never, C: COLORS, hasClient: true, motion: true, surface: 'terminal', isPicture: false, now: 0, isIdle: false, ...o })
 
 export const FRESH: Snapshot = {
   main: DEFAULT_MAIN,
