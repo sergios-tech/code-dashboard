@@ -6,7 +6,7 @@ import { frame } from '../hooks/view/frame'
 import { header } from '../hooks/view/header'
 import { clampWidth } from '../hooks/view/layout'
 import { agentsPanel } from '../hooks/view/panels/agents'
-import { CELL_PX, SVG_MAX, pictures, rowsSvg } from '../hooks/view/picture'
+import { CELL_PX, ROW_PX, SVG_MAX, pictures, rowsSvg } from '../hooks/view/picture'
 import { NOW, busy } from './fixture'
 import { ELS, draw, engine, found, pane, spawn, vmOf } from './kit'
 
@@ -57,4 +57,21 @@ test('the hotkeys stay on hidden Buttons beside the pictures, and the agents axi
   await ui.press({ key: 'key-v1' })
   expect(await agentsPic()).toContain('>steps<') // the opened agent's facts row
   await ui.unmount()
+})
+test('docked off the terminal, the pictures and the agents axis reach the pane\'s bottom edge and no further', async ($, on) => {
+  const clock = engine(on)
+  let n = 0
+  on('agent.spawn', () => ({ model: 'claude-sonnet-5-5', agentId: `f${++n}` }))
+  await clock.advance(1000)
+  for (const task of ['Map the call sites', 'Count the tests', 'Check versions']) await $.agent.spawn(spawn('Explore', task))
+  for (const surface of ['desktop', 'vscode'] as const) for (const cols of [66, 120]) {
+    const ui = await $.ui.mount({ ...pane(cols), props: { ...pane(cols).props, scroll: { offset: 0, bodyRows: 60 } }, surface })
+    const svgs = await ui.findAll({ type: 'Svg' })
+    await ui.unmount()
+    // A picture is sized by its props, the axis by its own markup; the LOG leaves the axis whole rows.
+    const px = svgs.map(s => (typeof s.props.height === 'number' ? s.props.height : Number(/height="(\d+)"/.exec(String(s.props.source))?.[1])))
+    const total = px.reduce((a, b) => a + b, 0)
+    expect(svgs.some(s => /on one time axis$/.test(String(s.props.alt)))).toBe(true); expect(String(svgs.at(-1)?.props.alt)).toContain('LOG')
+    expect(total <= 60 * ROW_PX, `${surface} ${cols}: ${total}`).toBe(true); expect(total > 59 * ROW_PX, `${surface} ${cols}: ${total}`).toBe(true)
+  }
 })

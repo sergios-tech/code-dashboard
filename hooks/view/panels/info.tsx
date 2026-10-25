@@ -75,7 +75,7 @@ const meter = (d: Draw, pct: number, cellsWide: number, level: (pct: number) => 
   ]
 }
 
-/** The lit steps of the effort gauge: red on the top step, where xhigh and max sit, green below it. */
+/** The effort gauge, then the word in green: the lit steps red on the top step, where xhigh and max sit, green below it. */
 const effortPieces = (d: Draw, v: InfoView): Piece[] => {
   if (v.effort === '') return []
   const level = Math.min(EFFORT_STEPS, v.effortLevel)

@@ -11,6 +11,8 @@ import { effortLevel } from '../domain/vitals'
 import { kTokens, plural, prettyModel, wrapText } from '../format/text'
 import type { Snapshot } from '../state/store'
 import { WIDE_LEFT, WIDE_RIGHT, clampWidth, pickLayout, wideColumns } from './layout'
+import { ROW_PX } from './picture'
+import { lanesHeight } from './svg'
 
 /**
  * The log panel: the lines to draw, oldest first, whether they are one agent's alone, and the rows
@@ -195,6 +197,8 @@ export type ViewContext = {
    * them, padded with blank rows; inline, at most 8. Unknown: 40, the log keeping 4 to 8.
    */
   bodyRows?: number
+  /** The pane is drawn as pictures, off the terminal, where the agents' time axis takes rows of its own. */
+  isPicture?: boolean
 }
 
 export function buildViewModel(s: Snapshot, ctx: ViewContext): ViewModel {
@@ -224,8 +228,10 @@ export function buildViewModel(s: Snapshot, ctx: ViewContext): ViewModel {
     log: 0,
   }
   const height = (ps: Panel[]) => ps.reduce((n, p) => n + tall[p], 0)
-  // The header row, then the panels above the log: one stack, or the taller of the two columns.
-  const used = 1 + (columns ? Math.max(height(columns.left), height(columns.right)) : height(shown))
+  // Off the terminal the agents' time axis is drawn under their picture, below both columns in the wide layout.
+  const axis = ctx.isPicture && agents && shown.includes('agents') ? Math.ceil(lanesHeight(agents.all.length) / ROW_PX) : 0
+  // The header row, then the panels above the log: one stack, or the taller of the two columns, then the axis.
+  const used = 1 + (columns ? Math.max(height(columns.left), height(columns.right)) : height(shown)) + axis
   const log = logView(s.log, s.main.model ? prettyModel(s.main.model) : '', ctx, used)
   // A pane too short for the log draws none of it rather than a frame cut off at its bottom edge.
   const panels = log ? shown : shown.filter(p => p !== 'log')
@@ -402,10 +408,10 @@ function toolsView(s: Snapshot, layout: ViewModel['layout']): ToolsView | null {
  * or of unknown height it is the lines alone, at most 8.
  */
 function logView(lines: LogLine[], mainModel: string, ctx: ViewContext, used: number): LogView | null {
-  const isDocked = ctx.placement === 'dock' && ctx.bodyRows !== undefined && Number.isFinite(ctx.bodyRows)
+  const isPadded = ctx.placement === 'dock' && ctx.bodyRows !== undefined && Number.isFinite(ctx.bodyRows)
   const room = logRows(ctx.bodyRows, used, ctx.placement === 'dock')
   if (room === 0) return null
   const viewed = ctx.viewedAgentId
   const shown = (viewed === null ? lines : lines.filter(l => l.agentId === viewed)).slice(-room)
-  return { lines: shown, isViewingAgent: viewed !== null, mainModel, rows: isDocked ? room : Math.max(1, shown.length) }
+  return { lines: shown, isViewingAgent: viewed !== null, mainModel, rows: isPadded ? room : Math.max(1, shown.length) }
 }

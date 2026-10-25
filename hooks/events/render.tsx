@@ -53,6 +53,7 @@ export const wireRender = (on: On, cfg: Config): void => {
   on('ui.render', { component: 'Pane', requestId: PANE_ID }, async ($, e) => {
     const els = $.ui.resolve(e)
     const [s, now] = await Promise.all([loadSnapshot($), $.clock.now()])
+    const isPicture = e.surface !== 'terminal'
     const vm = buildViewModel(s, {
       cfg,
       now,
@@ -60,10 +61,11 @@ export const wireRender = (on: On, cfg: Config): void => {
       placement: e.props.placement,
       viewedAgentId: e.props.view?.agentId ?? null,
       bodyRows: e.props.scroll?.bodyRows ?? e.viewport?.rows,
+      isPicture,
     })
     // VS Code's webview takes no client modules, whatever its element table holds.
     const hasClient = 'Client' in els && e.surface !== 'vscode'
-    const d: Draw = { els, C: COLORS, hasClient, motion: cfg.motion, surface: e.surface, isPicture: e.surface !== 'terminal', now }
+    const d: Draw = { els, C: COLORS, hasClient, motion: cfg.motion, surface: e.surface, isPicture, now }
     // An agent's hotkey opens its details inside the AGENTS frame, or closes them.
     const expand: Expand = id => () => toggleExpanded($, id)
     const { Box } = els

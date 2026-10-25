@@ -23,6 +23,9 @@ const MIN_PX = 240
  */
 export const agentTone = (c: AgentCard): string => (isCut(c) ? COLORS.error : c.status === 'done' ? COLORS.green : c.status === 'stopped' ? COLORS.dim : COLORS.orange)
 
+/** The axis's height in pixels for `n` agents: a lane for each of the newest SVG_LANES, and the padding above and below. */
+export const lanesHeight = (n: number): number => Math.min(n, SVG_LANES) * ROW_PX + 2 * PAD_PX
+
 /**
  * The agents on one time axis, `widthPx` wide: per agent a label (status glyph and title) and a
  * square bar from its spawn to its end, or to now while it runs, over a faint rule.
@@ -33,7 +36,7 @@ export const svgLanes = (cards: AgentCard[], now: number, widthPx: number): stri
   const labelPx = Math.round(w * 0.36)
   const barX = PAD_PX + labelPx
   const barPx = Math.max(1, w - barX - PAD_PX)
-  const h = shown.length * ROW_PX + 2 * PAD_PX
+  const h = lanesHeight(shown.length)
   const geo = lanes(shown, now, barPx)
   const chars = Math.max(4, Math.floor(labelPx / CHAR_PX) - 3)
   const rows = shown.map((c, i) => {
