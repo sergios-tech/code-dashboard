@@ -8,6 +8,13 @@ All notable changes to this project are listed here. The format follows
 
 ### Changed
 
+- **Renamed to Code Display**: the install name is now `st-code-display@sergios-tech` (it was
+  `st-code@sergios-tech`), the command is `/st-code-display`, the `/plugin` label and the pane's
+  title read `Sergio's Tech · Code Display`, the header brand reads `▌SERGIO'S TECH · CODE DISPLAY`,
+  and the repository is `sergios-tech/code-display`. To upgrade, remove an install of the old name
+  with `/plugin uninstall st-code@sergios-tech`, install the new one, and set its options again.
+  Stored state starts fresh under the new name. The header's right side now fits from 40 columns:
+  the model from 40, the architect suffix from 61, and the dot always.
 - **ARCHITECT line**: an open consult now reads how long it has run, `consulting for 42s` or
   `consulting for 2m`, as the closed line already reads how long ago (`last 2m ago · took 14s`).
   Before, it read the local clock time the consult opened at, `consulting since 14:02:11`.

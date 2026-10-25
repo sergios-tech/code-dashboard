@@ -79,7 +79,7 @@ test('a fresh session draws on every surface and width, empty panels hidden but 
     // The wide layout holds an empty AGENTS beside INFO; one column hides it until the first agent.
     const isWide = cols >= 110
     if (surface === 'terminal') {
-      expect(await ui.find({ text: /SERGIO'S TECH · CODE/ })).toBeDefined(); expect(await ui.find({ text: /INFO/ })).toBeDefined()
+      expect(await ui.find({ text: /SERGIO'S TECH · CODE DISPLAY/ })).toBeDefined(); expect(await ui.find({ text: /INFO/ })).toBeDefined()
       expect(await ui.find({ text: /TOOLS & FILES|ARCHITECT/ })).toBeUndefined(); expect((await ui.find({ text: /^no agents yet$/ })) !== undefined).toBe(isWide)
       expect(await ui.find({ type: 'Text', text: /^ LOG $/ })).toBeDefined(); expect(await ui.find({ text: /TURN|loops/ })).toBeUndefined()
     } else {
@@ -162,7 +162,7 @@ test('docked, the black fill covers every body row; inline, the frame fits the t
   engine(on)
   on('ui.open', () => ({ value: { isPlaced: true } }) as never)
   const fillOf = async (placement: 'dock' | 'inline', layout?: string) => {
-    if (layout) await $.command.run({ command: 'st-code', args: `layout ${layout}` } as never)
+    if (layout) await $.command.run({ command: 'st-code-display', args: `layout ${layout}` } as never)
     const ui = await $.ui.mount({ ...pane(120, placement), surface: 'terminal' })
     const root = (await ui.drawn()) as unknown as { props: Record<string, unknown> }
     await ui.unmount()
@@ -323,7 +323,7 @@ test('every atom holding garbage still draws the header and LOG (Review Focus 1)
       const ui = await $.ui.mount({ ...pane(cols), surface: 'terminal' })
       // One read per stored key: the whole snapshot came from junk.
       expect(reads >= 10).toBe(true)
-      expect(await ui.find({ type: 'Text', text: /SERGIO'S TECH · CODE/ })).toBeDefined(); expect(await ui.find({ type: 'Text', text: /^ LOG $/ })).toBeDefined()
+      expect(await ui.find({ type: 'Text', text: /SERGIO'S TECH · CODE DISPLAY/ })).toBeDefined(); expect(await ui.find({ type: 'Text', text: /^ LOG $/ })).toBeDefined()
       expect(await ui.find({ text: /nothing yet/ })).toBeDefined(); expect(await ui.find({ text: /NaN|undefined|null|object/ })).toBeUndefined()
       for (const r of await rowsOf(ui)) expect(cellWidth(r) <= cols).toBe(true)
       await ui.unmount()

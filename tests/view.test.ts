@@ -120,19 +120,20 @@ test('dividers join the side borders in the frame colour, green while the frame 
 const ADVISING: ViewModel['header'] = { model: 'Opus 5.5', isRunning: true, isActive: true, arch: 'ARCHITECT ADVISING', isAdvising: true }
 test('the header is one unfilled row that drops the suffix, then the model, and keeps the dot', () => {
   const rowAt = (w: number, vm = ADVISING) => drawRows(header(draw({ motion: false }), vm, w))[0]
-  expect(rowAt(64)).toBe("▌SERGIO'S TECH · CODE            ● OPUS 5.5 · ARCHITECT ADVISING")
-  expect(rowAt(53)).toBe("▌SERGIO'S TECH · CODE ● OPUS 5.5 · ARCHITECT ADVISING")
-  expect(rowAt(52)).toBe(`▌SERGIO'S TECH · CODE${' '.repeat(21)}● OPUS 5.5`)
-  expect(rowAt(32)).toBe("▌SERGIO'S TECH · CODE ● OPUS 5.5")
-  expect(rowAt(24, { ...ADVISING, isRunning: false, isActive: false, arch: null, isAdvising: false })).toBe("▌SERGIO'S TECH · CODE  ○")
+  expect(rowAt(64)).toBe("▌SERGIO'S TECH · CODE DISPLAY    ● OPUS 5.5 · ARCHITECT ADVISING")
+  expect(rowAt(61)).toBe("▌SERGIO'S TECH · CODE DISPLAY ● OPUS 5.5 · ARCHITECT ADVISING")
+  expect(rowAt(60)).toBe(`▌SERGIO'S TECH · CODE DISPLAY${' '.repeat(21)}● OPUS 5.5`)
+  expect(rowAt(40)).toBe("▌SERGIO'S TECH · CODE DISPLAY ● OPUS 5.5")
+  // At the narrowest pane, 40 columns, a model too long for the room gives way to the dot alone.
+  expect(rowAt(40, { ...ADVISING, model: 'Sonnet 5.5', isRunning: false, isActive: false, arch: null, isAdvising: false })).toBe(`▌SERGIO'S TECH · CODE DISPLAY${' '.repeat(10)}○`)
   const tight = rowAt(22) ?? ''
   expect(tight.endsWith('●')).toBe(true); expect(tight.startsWith('▌SERGIO')).toBe(true); expect(cellWidth(tight)).toBe(22)
-  expect(rowAt(33, { ...ADVISING, model: 'Haiku 5.5', isRunning: false, arch: null })).toBe("▌SERGIO'S TECH · CODE ● HAIKU 5.5")
+  expect(rowAt(41, { ...ADVISING, model: 'Haiku 5.5', isRunning: false, arch: null })).toBe("▌SERGIO'S TECH · CODE DISPLAY ● HAIKU 5.5")
 })
-test('header colours: brand red, CODE orange, the model in its family colour, no fill', () => {
+test('header colours: brand red, CODE DISPLAY orange, the model in its family colour, no fill', () => {
   const tree = header(draw({ motion: false }), ADVISING, 77)
   const color = (re: RegExp) => texts(tree).find(t => re.test(t.text))?.color
-  expect([color(/^▌$/), color(/^SERGIO'S TECH$/), color(/^ · $/), color(/^CODE$/)]).toEqual([COLORS.brand, COLORS.brand, COLORS.dim, COLORS.orange])
+  expect([color(/^▌$/), color(/^SERGIO'S TECH$/), color(/^ · $/), color(/^CODE DISPLAY$/)]).toEqual([COLORS.brand, COLORS.brand, COLORS.dim, COLORS.orange])
   expect([color(/OPUS 5\.5/), color(/ARCHITECT ADVISING/)]).toEqual([COLORS.brand, COLORS.architect])
   expect(texts(tree).some(t => /WORKING|IDLE/.test(t.text))).toBe(false)
   expect(texts(tree).find(t => /OPUS/.test(t.text))?.bold).toBe(true)
@@ -156,7 +157,7 @@ test('the header dot pulses as a Client only while work runs and motion is on', 
   expect(found(header(draw({ hasClient: false }), WORKING, 64), 'Client')).toEqual([])
   expect(found(header(draw(), IDLE, 64), 'Client')).toEqual([])
   const still = drawRows(header(draw({ motion: false }), WORKING, 64))
-  expect(still).toEqual([`▌SERGIO'S TECH · CODE${' '.repeat(33)}● OPUS 5.5`])
+  expect(still).toEqual([`▌SERGIO'S TECH · CODE DISPLAY${' '.repeat(25)}● OPUS 5.5`])
   expect(drawRows(header(draw(), IDLE, 40))[0]?.endsWith('○ OPUS 5.5')).toBe(true)
 })
 test('the pulse alternates bright and dim every 600 ms while active, and holds still at rest', () => {
@@ -199,7 +200,7 @@ test('a fresh pane draws its header within the pane on every surface and width',
         const rows = await rowsOf(ui)
         expect(rows.length > 0).toBe(true)
         for (const r of rows) expect(cellWidth(r) <= clampWidth(cols)).toBe(true)
-        expect(rows[0]?.startsWith("▌SERGIO'S TECH · CODE")).toBe(true); expect(rows[0]?.endsWith('○')).toBe(true)
+        expect(rows[0]?.startsWith("▌SERGIO'S TECH · CODE DISPLAY")).toBe(true); expect(rows[0]?.endsWith('○')).toBe(true)
       } else {
         // Off the terminal the header is the first picture, as wide as the pane, and no Text.
         const first = (await ui.findAll({ type: 'Svg' }))[0]

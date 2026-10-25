@@ -100,7 +100,7 @@ const strings = (stored: unknown): string[] => listOf<unknown>(stored).filter((s
 // ---------------------------------------------------------------- per-key normalizers
 
 const MOMENTS: readonly Moment[] = ['before a plan', 'error repeats', 'before done']
-/** The layouts a person can choose, as `/st-code layout` takes them and the view key stores them. */
+/** The layouts a person can choose, as `/st-code-display layout` takes them and the view key stores them. */
 export const LAYOUTS: readonly Layout[] = ['auto', 'compact', 'wide', 'mini']
 const STATUSES: readonly AgentStatus[] = ['running', 'done', 'stopped', 'failed']
 const KINDS: readonly LogKind[] = ['info', 'error', 'consult', 'done']

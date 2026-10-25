@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping with Sergio's Tech · Code. Bug reports, fixes and small focused improvements are
+Thanks for helping with Sergio's Tech · Code Display. Bug reports, fixes and small focused improvements are
 all welcome. Before you start a larger change, please open an issue so the approach can be agreed
 first.
 
@@ -10,8 +10,8 @@ You need Claude Code 2.1.300 or later to run the plugin, and Node.js only to run
 plugin has no npm dependencies.
 
 ```sh
-git clone https://github.com/sergios-tech/code-dashboard
-cd code-dashboard
+git clone https://github.com/sergios-tech/code-display
+cd code-display
 claude --plugin-dir .
 ```
 
@@ -57,7 +57,7 @@ python3 -I -m unittest discover -s scripts/capture
 | `hooks/format/` | pure text helpers: model names, durations, tokens, USD, gauges, and `redact()` |
 | `hooks/view/` | palette, frame, header, the panels' arrangement under it, layout math, the view model, the mini layout, the cell layout and pictures for the desktop app and VS Code, and the time-axis SVG; `panels/` has one renderer per panel |
 | `hooks/client/` | client modules: the ticking clock, the header pulse and the AGENTS sweep |
-| `types/index.d.ts` | the `PluginState['st-code']` declaration |
+| `types/index.d.ts` | the `PluginState['st-code-display']` declaration |
 | `tests/` | one test file per module group, plus shared helpers in `kit.ts` |
 | `scripts/capture/` | the media pipeline: tmux capture, ANSI to SVG, PNG, GIF and social card |
 | `docs/media/` | the screenshots, demo GIF and social preview that the README uses |
@@ -96,7 +96,7 @@ slice of the model. Renderers never read state.
   that file, or to `read` and `update`, and never to an imported function.
 - Call each `$.noun.method(...)` the module uses directly in a hook at least once, so
   `claude plugin validate .` lists none of them as `(via ...)` a helper. Spell the command, pane and
-  matcher names as literals (`'st-code'`) so the scan can read them.
+  matcher names as literals (`'st-code-display'`) so the scan can read them.
 - A plugin hooks `session.start` only once. Put any start-of-session work inside that one handler.
 - A client module's `module` path is a string literal relative to the file that draws it.
 

@@ -12,7 +12,7 @@ import { busy, fake, NOW } from './fixture'
 import { cellWidth, draw, drawRows, engine, pane, rowsOf, spawn, texts } from './kit'
 
 // The test kit's `$` takes the engine's full command input; only the name and arguments matter here.
-const slash = ($: { command: { run: (i: never) => Promise<{ text?: string }> } }, args: string) => $.command.run({ command: 'st-code', args } as never)
+const slash = ($: { command: { run: (i: never) => Promise<{ text?: string }> } }, args: string) => $.command.run({ command: 'st-code-display', args } as never)
 
 /** The pane's rows at a width and a body height, unmounted again. */
 const rowsAt = async ($: Engine, cols: number, bodyRows: number) => {
@@ -33,7 +33,7 @@ test('prompts and engine-opened turns read as one log line', () => {
   expect(promptLine('<task-notification from="abcdef123456">…').text).toBe('task notification from abcdef12')
   expect(promptLine('<agent-message>').text).toBe('agent message')
   // A message from an agent with a card is logged under that agent, by its title, not by its id.
-  const card = newCard({ id: 'a288e0e2ab3d5c279', type: 'Explore', model: '', description: 'Survey st-code view panels', at: 1 })
+  const card = newCard({ id: 'a288e0e2ab3d5c279', type: 'Explore', model: '', description: 'Survey st-code-display view panels', at: 1 })
   const cardOf = (id: string) => (id === card.id ? card : undefined)
   expect(promptLine('<agent-message from="a288e0e2ab3d5c279">\nreport', cardOf)).toEqual({ who: 'Survey st-…', text: 'agent message', agentId: 'a288e0e2ab3d5c279' })
   expect(promptLine('<agent-message from="zz9">\nreport', cardOf)).toEqual({ who: 'engine', text: 'agent message from zz9' })
@@ -317,7 +317,7 @@ test('/clear starts the pane fresh', async ($, on) => {
   const ui = await $.ui.mount({ ...pane(64), surface: 'terminal' })
   expect(await ui.find({ text: /fix the login redirect/ })).toBeUndefined()
   expect(await ui.find({ text: /nothing yet/ })).toBeDefined()
-  expect(await ui.find({ text: /SERGIO'S TECH · CODE/ })).toBeDefined()
+  expect(await ui.find({ text: /SERGIO'S TECH · CODE DISPLAY/ })).toBeDefined()
   await ui.unmount()
 })
 test('another way out of a session leaves the log alone', async ($, on) => {
@@ -332,15 +332,15 @@ test('another way out of a session leaves the log alone', async ($, on) => {
 
 // ---------------------------------------------------------------- the command
 
-test('/st-code answers usage for an unknown verb', async ($, on) => {
+test('/st-code-display answers usage for an unknown verb', async ($, on) => {
   engine(on)
   const r = await slash($, 'bogus')
-  expect(r.text?.startsWith('Usage: /st-code')).toBe(true)
-  expect(r.text).toBe('Usage: /st-code [open|close|reset|layout auto|compact|wide|mini]')
+  expect(r.text?.startsWith('Usage: /st-code-display')).toBe(true)
+  expect(r.text).toBe('Usage: /st-code-display [open|close|reset|layout auto|compact|wide|mini]')
   expect((await slash($, 'layout huge')).text).toBe(r.text)
   expect((await slash($, 'layout')).text).toBe(r.text)
 })
-test('/st-code opens, closes, resets and sets the layout', async ($, on) => {
+test('/st-code-display opens, closes, resets and sets the layout', async ($, on) => {
   engine(on)
   on('ui.open', () => ({ value: { isPlaced: true } }) as never)
   on('ui.close', () => ({ value: undefined }) as never)
@@ -355,7 +355,7 @@ test('/st-code opens, closes, resets and sets the layout', async ($, on) => {
   await ui.unmount()
   expect(await run('layout mini')).toBe('Dashboard layout: mini.')
 })
-test('/st-code says why the dashboard is not shown', async ($, on) => {
+test('/st-code-display says why the dashboard is not shown', async ($, on) => {
   engine(on)
   on('ui.open', () => ({ value: { isPlaced: false, reason: 'no room' } }) as never)
   const r = await slash($, '')

@@ -12,7 +12,7 @@ export const clampWidth = (bodyColumns: number): number =>
   Number.isFinite(bodyColumns) ? Math.max(MIN_WIDTH, Math.floor(bodyColumns)) : MIN_WIDTH
 
 /**
- * The layout to draw: the `/st-code layout` choice, else the configured one, else `auto`, which is
+ * The layout to draw: the `/st-code-display layout` choice, else the configured one, else `auto`, which is
  * the summary inline above the prompt and two columns from WIDE_FROM when docked. A forced `wide`
  * too narrow for two MIN_WIDTH columns draws one column instead of panels squeezed below 40.
  */

@@ -1,6 +1,6 @@
-# Sergio's Tech · Code
+# Sergio's Tech · Code Display
 
-[![Release](https://img.shields.io/github/v/release/sergios-tech/code-dashboard)](https://github.com/sergios-tech/code-dashboard/releases/latest)
+[![Release](https://img.shields.io/github/v/release/sergios-tech/code-display)](https://github.com/sergios-tech/code-display/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Claude Code 2.1.300+ plugin](https://img.shields.io/badge/Claude%20Code-2.1.300%2B%20plugin-8a0000.svg)](#install)
 
@@ -11,7 +11,7 @@ your machine.
 
 <div align="center">
 
-![The st-code pane, docked at 66 columns, through a real run with three subagents and an architect: INFO switches to an orange working state, three agents appear in AGENTS with a bouncing bar while they run and a full green bar with a check once done, the header reads ARCHITECT ADVISING while the ARCHITECT panel draws the consult on its timeline, then ON CALL with the 7-second consult marked before a plan and its verdict that normalize belongs in utils.py, TOOLS & FILES counts the calls and the files each agent read and edited, and the LOG, running to the pane's bottom edge, fills with the prompt, spawns, the architect's advice, edits and completions while the spend climbs to $1.04](docs/media/demo.gif)
+![The pane, docked at 66 columns, through a real run with three subagents and an architect: INFO switches to an orange working state, three agents appear in AGENTS with a bouncing bar while they run and a full green bar with a check once done, the header reads ARCHITECT ADVISING while the ARCHITECT panel draws the consult on its timeline, then ON CALL with the 7-second consult marked before a plan and its verdict that normalize belongs in utils.py, TOOLS & FILES counts the calls and the files each agent read and edited, and the LOG, running to the pane's bottom edge, fills with the prompt, spawns, the architect's advice, edits and completions while the spend climbs to $1.04](docs/media/demo.gif)
 
 </div>
 
@@ -24,35 +24,39 @@ your machine.
 Inside Claude Code 2.1.300 or later:
 
 ```
-/plugin marketplace add sergios-tech/code-dashboard
-/plugin install st-code@sergios-tech
+/plugin marketplace add sergios-tech/code-display
+/plugin install st-code-display@sergios-tech
 /reload-plugins
-/st-code
+/st-code-display
 ```
 
 From a terminal:
 
 ```sh
-claude plugin marketplace add sergios-tech/code-dashboard
-claude plugin install st-code@sergios-tech
+claude plugin marketplace add sergios-tech/code-display
+claude plugin install st-code-display@sergios-tech
 ```
 
 Or load it from a clone for one session:
 
 ```sh
-git clone https://github.com/sergios-tech/code-dashboard
-claude --plugin-dir ./code-dashboard
+git clone https://github.com/sergios-tech/code-display
+claude --plugin-dir ./code-display
 ```
 
 If the installer lists options as unset, the defaults apply. You can change them in
 [`/config`](#configure).
+
+**Upgrading from `st-code`.** The plugin was called `st-code` before it became `st-code-display`.
+Remove an install of the old name with `/plugin uninstall st-code@sergios-tech` before you install
+the new one, and set its options again: they, like the stored state, start fresh under the new name.
 
 The hooks API this plugin is built on is an early-access part of Claude Code and can change between
 releases. If something breaks after an update, see [Troubleshooting](#troubleshooting).
 
 ## What you see
 
-![A fullscreen session 160 columns wide: on the left, the transcript reports three finished subagents that added docstrings and the architect's answer, lists each function's new docstring, notes that the 5 tests pass and ends with the architect's verdict that normalize belongs in utils.py; on the right, the docked st-code pane shows the SERGIO'S TECH · CODE header with OPUS 5.5 IDLE · ARCHITECT ON CALL over INFO at $1.04 spent, AGENTS with three finished agents, ARCHITECT with one 7-second consult and its verdict, TOOLS & FILES with 17 calls, and the LOG running down to the pane's bottom edge, in one column](docs/media/docked-session.png)
+![A fullscreen session 160 columns wide: on the left, the transcript reports three finished subagents that added docstrings and the architect's answer, lists each function's new docstring, notes that the 5 tests pass and ends with the architect's verdict that normalize belongs in utils.py; on the right, the docked pane shows the SERGIO'S TECH · CODE header with OPUS 5.5 IDLE · ARCHITECT ON CALL over INFO at $1.04 spent, AGENTS with three finished agents, ARCHITECT with one 7-second consult and its verdict, TOOLS & FILES with 17 calls, and the LOG running down to the pane's bottom edge, in one column](docs/media/docked-session.png)
 
 | Two columns, in a 120-column dock | One column, in the default 66-column dock |
 | --- | --- |
@@ -60,7 +64,7 @@ releases. If something breaks after an update, see [Troubleshooting](#troublesho
 
 ![A 100-column session with the summary inline above the prompt, in four rows: the model and its state, the effort, a context gauge, the 7-day and 5-hour limits and the session cost; then three finished subagents, each with a check, a full green bar and its clock](docs/media/inline-mini.png)
 
-The header is one unfilled row on black. `▌SERGIO'S TECH · CODE` sits on the left. On the right are
+The header is one unfilled row on black. `▌SERGIO'S TECH · CODE DISPLAY` sits on the left. On the right are
 the state dot and the main model in its family colour (Opus red, Sonnet orange, Haiku green, Fable
 gold, any other model grey), for example `● OPUS 5.5` or `○ OPUS 5.5`. Once an architect has been
 seen, `· ARCHITECT ADVISING` or `· ARCHITECT ON CALL` joins it. The dot is green and pulses while a
@@ -93,12 +97,12 @@ call counts as a failed call (`✗`) in TOOLS & FILES and the log.
 
 | Command | Does |
 | --- | --- |
-| `/st-code` (or `/st-code open`) | Opens the pane. |
-| `/st-code close` | Closes it. |
-| `/st-code reset` | Clears agents and loops, consults, tools and files, the denial count, the log and any `/st-code layout` choice. The model, permission mode, session cost, rate limits and compaction count stay. The context gauge returns with the next reading. |
-| `/st-code layout auto\|compact\|wide\|mini` | Picks the layout for this session, overriding the `layout` option. |
+| `/st-code-display` (or `/st-code-display open`) | Opens the pane. |
+| `/st-code-display close` | Closes it. |
+| `/st-code-display reset` | Clears agents and loops, consults, tools and files, the denial count, the log and any `/st-code-display layout` choice. The model, permission mode, session cost, rate limits and compaction count stay. The context gauge returns with the next reading. |
+| `/st-code-display layout auto\|compact\|wide\|mini` | Picks the layout for this session, overriding the `layout` option. |
 
-`/clear` resets the pane the same way as `/st-code reset`.
+`/clear` resets the pane the same way as `/st-code-display reset`.
 
 Focus the pane with `ctrl+x tab`, then:
 
@@ -129,14 +133,14 @@ dock at 45% of the terminal's width and opens it at 66 columns, so you need both
 - A terminal at least 245 columns wide.
 - A dock widened to 110 columns or more. Drag it wider; the host remembers the width you set.
 
-`/st-code layout wide` draws two columns from a dock of 82 columns: a terminal at least 183 columns
-wide, with the dock widened. Below 82 it stays in one column. `/st-code layout compact` keeps one
-column at any width. `/st-code layout mini` draws the 8-row summary even when docked.
-`/st-code layout auto` goes back to choosing by width.
+`/st-code-display layout wide` draws two columns from a dock of 82 columns: a terminal at least 183 columns
+wide, with the dock widened. Below 82 it stays in one column. `/st-code-display layout compact` keeps one
+column at any width. `/st-code-display layout mini` draws the 8-row summary even when docked.
+`/st-code-display layout auto` goes back to choosing by width.
 
 **Opening by itself.** With `openOnStart`, the plugin opens the pane when a session starts. The host
 only places a pane opened that way in a terminal at least 144 columns wide, or 110 once you have
-opened the pane yourself and not closed it by hand. Below that, run `/st-code`, which opens it at any
+opened the pane yourself and not closed it by hand. Below that, run `/st-code-display`, which opens it at any
 width.
 
 **Colours.** The palette is fixed: the Signal palette on a pure black fill, made for black or dark
@@ -189,7 +193,7 @@ registers and every host call it makes.
   that no agent row claims.
 - **A background agent's first step** can arrive before its row exists, so its row may count one
   step late.
-- **Request speed.** `ttft` and `tok/s` are timed at st-code's own `turn.step` hook, so they include
+- **Request speed.** `ttft` and `tok/s` are timed at Code Display's own `turn.step` hook, so they include
   everything beneath it: other plugins' hooks, the engine, the network and any retry. `tok/s` divides
   the reported `output_tokens` (thinking included) by the time from the response's first chunk to the
   stop. A response that arrives in one burst can't be timed and reads `— tok/s`. They are measured, but they aren't the API's own figures.
@@ -201,7 +205,7 @@ registers and every host call it makes.
 
 ## Configure
 
-In `/config`, or under `pluginConfigs["st-code"].options` in `settings.json`. Reads are lenient: a
+In `/config`, or under `pluginConfigs["st-code-display"].options` in `settings.json`. Reads are lenient: a
 malformed value falls back to its default.
 
 | Option | Default | Meaning |
@@ -224,14 +228,14 @@ with nothing to show, the other takes the full width.
 ## Troubleshooting
 
 **The pane doesn't appear.**
-- Check that `claude --version` reports 2.1.300 or later, then run `/reload-plugins` and `/st-code`.
-- When the host can't place the pane, `/st-code` replies `The dashboard is not shown yet:` followed by
+- Check that `claude --version` reports 2.1.300 or later, then run `/reload-plugins` and `/st-code-display`.
+- When the host can't place the pane, `/st-code-display` replies `The dashboard is not shown yet:` followed by
   the host's reason.
 - At session start the pane only opens by itself in terminals at least 144 columns wide. Run
-  `/st-code` to open it at any width.
-- Look in the transcript for a dim line starting `st-code:`. It names the hook that failed or the
+  `/st-code-display` to open it at any width.
+- Look in the transcript for a dim line starting `st-code-display:`. It names the hook that failed or the
   reason the pane was refused. Please
-  [open an issue](https://github.com/sergios-tech/code-dashboard/issues) and include it.
+  [open an issue](https://github.com/sergios-tech/code-display/issues) and include it.
 
 **It stays in one column.** The dock opens at 66 columns. See [Two columns](#where-it-runs).
 
@@ -244,13 +248,13 @@ Every text colour but the resting `○` and `○ IDLE` still reaches 4.5:1 contr
 
 **There's too much motion.** Set `motion` to `off`.
 
-**The counters look stale after an update.** Run `/st-code reset`. Stored state is always read
+**The counters look stale after an update.** Run `/st-code-display reset`. Stored state is always read
 leniently, and state saved under an older schema is rewritten when a session starts.
 
 ## Credits
 
 Derived from [Flightdeck](https://github.com/scasella/claude-flightdeck) by Stephen Casella, under the
-MIT license. Flightdeck proved the idea and the event-to-reducer approach. st-code is a rewrite with
+MIT license. Flightdeck proved the idea and the event-to-reducer approach. Code Display is a rewrite with
 its own panels, layouts and look. Both copyright notices are in [LICENSE](LICENSE).
 
 Screenshots and the demo are captured from a real session with the scripts in

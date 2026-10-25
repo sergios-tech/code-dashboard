@@ -7,16 +7,16 @@ import { headerFit } from './layout'
 import type { ViewModel } from './model'
 import { familyColor } from './palette'
 
-const BRAND_CELLS = Array.from("▌SERGIO'S TECH · CODE").length
+const BRAND_CELLS = Array.from("▌SERGIO'S TECH · CODE DISPLAY").length
 
 /** The state dot: `●` green, pulsing while work runs where the surface animates (a client module, or SMIL in a picture), else a plain `●`; `○` in the idle dark red at rest. */
 export const stateDot = (d: Draw, isActive: boolean): RenderElement => {
   const { els, C } = d
   const { Text } = els
   return canAnimate(d) && isActive ? (
-    clientNode(d, 'st-code-pulse', 'pulse', 1, { active: true, color: C.green, dim: C.pulse })
+    clientNode(d, 'st-code-display-pulse', 'pulse', 1, { active: true, color: C.green, dim: C.pulse })
   ) : (
-    <Text key="st-code-dot" bold={isActive} color={isActive ? C.green : C.idle}>
+    <Text key="st-code-display-dot" bold={isActive} color={isActive ? C.green : C.idle}>
       {isActive ? '●' : '○'}
     </Text>
   )
@@ -31,7 +31,7 @@ export const stateDot = (d: Draw, isActive: boolean): RenderElement => {
 export const header = (d: Draw, vm: ViewModel['header'], width: number): RenderElement => {
   const { els, C } = d
   const { Box, Text } = els
-  // Flush to both edges with one space between, so 32 columns still fit `● OPUS 5.5`.
+  // Flush to both edges with one space between, so 40 columns still fit `● OPUS 5.5`.
   const fit = headerFit(vm.model, vm.arch, width - BRAND_CELLS - 1)
   const name = vm.model.trim().toUpperCase()
   const dot = stateDot(d, vm.isActive)
@@ -63,7 +63,7 @@ export const header = (d: Draw, vm: ViewModel['header'], width: number): RenderE
         </Text>
         <Text color={C.dim}> · </Text>
         <Text bold color={C.orange}>
-          CODE
+          CODE DISPLAY
         </Text>
       </Text>
       <Box flexShrink={0}>

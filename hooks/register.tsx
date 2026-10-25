@@ -63,22 +63,22 @@ import { pictures } from './view/picture'
 
 // ---------------------------------------------------------------- atoms
 //
-// One atom per key of PluginState['st-code'], each starting at its default. They are declared here,
+// One atom per key of PluginState['st-code-display'], each starting at its default. They are declared here,
 // beside every read and write, because the host's scan only lists calls on atoms declared in the
 // calling file; the plugin and key are literals for the same scan.
 
-export const meta = atom({ plugin: 'st-code', key: 'meta' } as const, { schemaVersion: SCHEMA_VERSION })
-export const main = atom({ plugin: 'st-code', key: 'main' } as const, DEFAULT_MAIN)
-export const usage = atom({ plugin: 'st-code', key: 'usage' } as const, DEFAULT_USAGE)
-export const turn = atom({ plugin: 'st-code', key: 'turn' } as const, DEFAULT_TURN)
-export const agents = atom({ plugin: 'st-code', key: 'agents' } as const, [])
-export const loops = atom({ plugin: 'st-code', key: 'loops' } as const, [])
-export const architect = atom({ plugin: 'st-code', key: 'architect' } as const, DEFAULT_ARCHITECT)
-export const activity = atom({ plugin: 'st-code', key: 'activity' } as const, DEFAULT_ACTIVITY)
-export const log = atom({ plugin: 'st-code', key: 'log' } as const, [])
-export const view = atom({ plugin: 'st-code', key: 'view' } as const, DEFAULT_VIEW)
-export const roster = atom({ plugin: 'st-code', key: 'roster' } as const, DEFAULT_ROSTER)
-export const session = atom({ plugin: 'st-code', key: 'session' } as const, DEFAULT_SESSION)
+export const meta = atom({ plugin: 'st-code-display', key: 'meta' } as const, { schemaVersion: SCHEMA_VERSION })
+export const main = atom({ plugin: 'st-code-display', key: 'main' } as const, DEFAULT_MAIN)
+export const usage = atom({ plugin: 'st-code-display', key: 'usage' } as const, DEFAULT_USAGE)
+export const turn = atom({ plugin: 'st-code-display', key: 'turn' } as const, DEFAULT_TURN)
+export const agents = atom({ plugin: 'st-code-display', key: 'agents' } as const, [])
+export const loops = atom({ plugin: 'st-code-display', key: 'loops' } as const, [])
+export const architect = atom({ plugin: 'st-code-display', key: 'architect' } as const, DEFAULT_ARCHITECT)
+export const activity = atom({ plugin: 'st-code-display', key: 'activity' } as const, DEFAULT_ACTIVITY)
+export const log = atom({ plugin: 'st-code-display', key: 'log' } as const, [])
+export const view = atom({ plugin: 'st-code-display', key: 'view' } as const, DEFAULT_VIEW)
+export const roster = atom({ plugin: 'st-code-display', key: 'roster' } as const, DEFAULT_ROSTER)
+export const session = atom({ plugin: 'st-code-display', key: 'session' } as const, DEFAULT_SESSION)
 
 // ---------------------------------------------------------------- state
 //
@@ -135,7 +135,7 @@ export async function migrate($: EngineInterface): Promise<void> {
 }
 
 /**
- * `/st-code reset` and `/clear`: the session is the same, so what it spent stays; the context
+ * `/st-code-display reset` and `/clear`: the session is the same, so what it spent stays; the context
  * gauge waits for the next measurement instead of showing the pre-clear fill.
  * The architect types offered stay too, as the agent listing is not sent again, and so does
  * the session's start time, which the log's times count from.
@@ -153,7 +153,7 @@ export async function resetAll($: EngineInterface): Promise<void> {
   await update($, view, () => DEFAULT_VIEW)
 }
 
-/** The session's start, noted once: a reload runs `session.start` again, and `/clear` and `/st-code reset` keep the same session. */
+/** The session's start, noted once: a reload runs `session.start` again, and `/clear` and `/st-code-display reset` keep the same session. */
 async function noteSessionStart($: EngineInterface): Promise<void> {
   const now = await $.clock.now()
   await update($, session, x => {
@@ -234,7 +234,7 @@ async function recordTool($: EngineInterface, c: Call): Promise<void> {
   await update($, activity, a => recordCall(normalizeActivity(a), c))
 }
 
-/** `/st-code layout`: the person's layout choice, which wins over the configured one. */
+/** `/st-code-display layout`: the person's layout choice, which wins over the configured one. */
 async function setLayout($: EngineInterface, layout: Layout): Promise<void> {
   await update($, view, v => ({ ...normalizeView(v), layout }))
 }
@@ -446,9 +446,9 @@ async function isArchitectSpawn($: EngineInterface, cfg: Config, e: AgentSpawnIn
 // ---------------------------------------------------------------- hooks
 
 /** The pane's title, as the host frames it. */
-const TITLE = "Sergio's Tech · Code"
-/** `/st-code`'s answer to arguments it does not take. */
-const USAGE = 'Usage: /st-code [open|close|reset|layout auto|compact|wide|mini]'
+const TITLE = "Sergio's Tech · Code Display"
+/** `/st-code-display`'s answer to arguments it does not take. */
+const USAGE = 'Usage: /st-code-display [open|close|reset|layout auto|compact|wide|mini]'
 
 /** What a call's check said about it: it waited on an approval prompt, or it was refused. */
 type Pending = { isAsked: boolean; isDenied: boolean }
@@ -462,10 +462,10 @@ export const register: Register = (on, options) => {
   // The session's start and end: bring stored state up to date, take a first reading, open the
   // pane, and start over on `/clear`.
   on('session.start', async ($, e, next) => {
-    // `/st-code` is declared here, as a plugin may hook `session.start` only once.
+    // `/st-code-display` is declared here, as a plugin may hook `session.start` only once.
     await $.command.register({
-      name: 'st-code',
-      description: "Sergio's Tech Code dashboard: open, close, reset, or set the layout",
+      name: 'st-code-display',
+      description: "Sergio's Tech Code Display: open, close, reset, or set the layout",
       argumentHint: '[open|close|reset|layout auto|compact|wide|mini]',
     })
     await migrate($)
@@ -482,7 +482,7 @@ export const register: Register = (on, options) => {
     if (reading) await applyMeasure($, reading)
     // Opening can wait on the host's layout; the session does not wait for it. Columns apply when
     // docked beside the transcript, rows when seated inline above the prompt.
-    if (cfg.openOnStart) void $.ui.open({ id: 'st-code', title: TITLE, columns: 66, rows: 8 }).catch(() => undefined)
+    if (cfg.openOnStart) void $.ui.open({ id: 'st-code-display', title: TITLE, columns: 66, rows: 8 }).catch(() => undefined)
     return next(e)
   })
 
@@ -492,13 +492,13 @@ export const register: Register = (on, options) => {
     return next(e)
   })
 
-  // The `/st-code` command: open, close, reset, or choose the layout.
-  on('command.run', { command: 'st-code' }, async ($, e, next) => {
+  // The `/st-code-display` command: open, close, reset, or choose the layout.
+  on('command.run', { command: 'st-code-display' }, async ($, e, next) => {
     const [first = '', arg = ''] = e.args.trim().toLowerCase().split(/\s+/)
     const verb = first === '' ? 'open' : first
 
     if (verb === 'close') {
-      await $.ui.close({ id: 'st-code' })
+      await $.ui.close({ id: 'st-code-display' })
       return { text: 'Dashboard closed.' }
     }
     if (verb === 'reset') {
@@ -509,11 +509,11 @@ export const register: Register = (on, options) => {
       const layout = LAYOUTS.find(l => l === arg)
       if (!layout) return { text: USAGE }
       await setLayout($, layout)
-      const opened = await $.ui.open({ id: 'st-code', title: TITLE, columns: 66, rows: 8 })
+      const opened = await $.ui.open({ id: 'st-code-display', title: TITLE, columns: 66, rows: 8 })
       return { text: opened.isPlaced ? `Dashboard layout: ${layout}.` : `Layout set to ${layout}; the dashboard is not shown yet: ${opened.reason}` }
     }
     if (verb === 'open') {
-      const opened = await $.ui.open({ id: 'st-code', title: TITLE, columns: 66, rows: 8 })
+      const opened = await $.ui.open({ id: 'st-code-display', title: TITLE, columns: 66, rows: 8 })
       if (!opened.isPlaced) return { text: `The dashboard is not shown yet: ${opened.reason}` }
       return { text: 'Dashboard opened. Focus it with ctrl+x tab; 1-6 expand agents.' }
     }
@@ -734,7 +734,7 @@ export const register: Register = (on, options) => {
   // The pane's drawing: one state snapshot, one view model, then the header and the panels in one
   // column, in two with the log under both, or the inline summary instead of all of them. Off the
   // terminal each of those blocks is drawn as a picture of its cells.
-  on('ui.render', { component: 'Pane', requestId: 'st-code' }, async ($, e, next) => {
+  on('ui.render', { component: 'Pane', requestId: 'st-code-display' }, async ($, e, next) => {
     const els = $.ui.resolve(e)
     const [s, now] = await Promise.all([loadSnapshot($), $.clock.now()])
     const isPicture = e.surface !== 'terminal'

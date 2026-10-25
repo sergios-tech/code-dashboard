@@ -23,7 +23,7 @@ export type Session = { startedAt: number | null }
 
 declare module 'claude-code' {
   interface PluginState {
-    'st-code': {
+    'st-code-display': {
       meta: { schemaVersion: number }
       main: Main; usage: Usage; turn: Turn
       agents: AgentCard[]; loops: Loop[]; architect: Architect

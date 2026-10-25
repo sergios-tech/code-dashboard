@@ -30,11 +30,11 @@ export const engine = (on: On) => {
 
 /** The mount spec of the dashboard pane at a body width; spread it and add the `surface`. */
 export const pane = (bodyColumns: number, placement: 'dock' | 'inline' = 'dock') => ({
-  plugin: 'st-code',
+  plugin: 'st-code-display',
   component: 'Pane' as const,
-  requestId: 'st-code',
+  requestId: 'st-code-display',
   props: {
-    title: "Sergio's Tech · Code",
+    title: "Sergio's Tech · Code Display",
     isFocused: true,
     bodyColumns,
     placement,

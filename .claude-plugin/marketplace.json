@@ -9,7 +9,7 @@
   },
   "plugins": [
     {
-      "name": "st-code",
+      "name": "st-code-display",
       "source": "./",
       "description": "A live, read-only dashboard for your coding session in the Sergio's Tech OLED style, drawn only from real session events."
     }

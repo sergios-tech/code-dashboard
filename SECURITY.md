@@ -3,8 +3,8 @@
 ## Reporting a vulnerability
 
 Please report a vulnerability privately through a GitHub security advisory:
-[Report a vulnerability](https://github.com/sergios-tech/code-dashboard/security/advisories/new)
-on `sergios-tech/code-dashboard`.
+[Report a vulnerability](https://github.com/sergios-tech/code-display/security/advisories/new)
+on `sergios-tech/code-display`.
 
 Please don't open a public issue for a vulnerability. In the report, include:
 
@@ -18,7 +18,7 @@ Fixes go into the latest release, which is currently 0.5.x.
 
 ## What the plugin can see
 
-st-code only watches the session. Its hooks receive the following:
+Code Display only watches the session. Its hooks receive the following:
 
 - Every tool call's name and input, whether it failed and how long it took, plus the permission
   verdict for each call.
@@ -43,7 +43,7 @@ The plugin keeps short summaries in session state, held by the host for the curr
 - counts and timings
 
 It **stores nothing across sessions**: it uses no persistent store and writes no files. `/clear` and
-`/st-code reset` empty most of the session state.
+`/st-code-display reset` empty most of the session state.
 
 Each stored list has a cap: 24 agents, 60 other loops, 60 log lines, 40 consults, 40 tools and 200
 files.

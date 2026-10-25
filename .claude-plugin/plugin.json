@@ -1,14 +1,14 @@
 {
-  "name": "st-code",
-  "displayName": "Sergio's Tech · Code",
+  "name": "st-code-display",
+  "displayName": "Sergio's Tech · Code Display",
   "version": "0.5.5",
-  "description": "Sergio's Tech Code dashboard: a live, read-only pane with INFO, agents, architect consults, tools and files and a session log, all from real session events. Requires Claude Code 2.1.300 or newer.",
+  "description": "Sergio's Tech Code Display: a live, read-only pane with INFO, agents, architect consults, tools and files and a session log, all from real session events. Requires Claude Code 2.1.300 or newer.",
   "author": {
     "name": "Sergio Jovanotti",
     "url": "https://github.com/sergios-tech"
   },
-  "homepage": "https://github.com/sergios-tech/code-dashboard",
-  "repository": "https://github.com/sergios-tech/code-dashboard",
+  "homepage": "https://github.com/sergios-tech/code-display",
+  "repository": "https://github.com/sergios-tech/code-display",
   "license": "MIT",
   "keywords": [
     "claude-code",
