@@ -1,6 +1,6 @@
 {
   "name": "st-code",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Sergio's Tech Code dashboard: a live, read-only pane with INFO, agents, architect consults, tools and files and a session log, all from real session events. Requires Claude Code 2.1.300 or newer.",
   "author": {
     "name": "Sergio Jovanotti",
