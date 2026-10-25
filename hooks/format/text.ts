@@ -42,9 +42,9 @@ export const kTokens = (n: number): string =>
 
 const pad2 = (n: number) => String(n).padStart(2, '0')
 
-/** An elapsed time: `42s`, `1m42s`, `1h05m`. */
+/** An elapsed time in whole seconds, as the running clock counts them: `42s`, `1m42s`, `1h05m`. */
 export const fmtDuration = (ms: number): string => {
-  const s = Math.max(0, Math.round(ms / 1000))
+  const s = Math.max(0, Math.floor(ms / 1000))
   if (s < 60) return `${s}s`
   const m = Math.floor(s / 60)
   return m < 60 ? `${m}m${pad2(s % 60)}s` : `${Math.floor(m / 60)}h${pad2(m % 60)}m`

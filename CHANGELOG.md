@@ -4,6 +4,14 @@ All notable changes to this project are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- **Durations**: the LOG's `done · 21s`, the architect's `took` and the averages past a minute now
+  count whole seconds, as the running clock does, so an agent's row and its log line agree. A
+  21.8-second agent read `0:21` in its row and `done · 22s` in the LOG.
+
 ## [0.5.4] - 2026-10-25
 
 ### Changed

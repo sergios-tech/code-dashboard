@@ -36,6 +36,8 @@ test('numbers, money, durations and clocks', () => {
   expect(fmtUsd(3.123)).toBe('$3.12'); expect(fmtUsd(123.4)).toBe('$123')
   expect(fmtDuration(42_000)).toBe('42s'); expect(fmtDuration(102_000)).toBe('1m42s'); expect(fmtDuration(3_900_000)).toBe('1h05m')
   expect(fmtTimer(102_000)).toBe('1:42'); expect(fmtClock(0)).toBe('--:--:--')
+  // A duration counts whole seconds, as the running clock does, so a row and its log line agree.
+  expect([fmtDuration(21_782), fmtTimer(21_782)]).toEqual(['21s', '0:21']); expect(fmtDuration(59_900)).toBe('59s')
   expect(plural(1, 'edit')).toBe('1 edit'); expect(plural(2, 'edit')).toBe('2 edits')
   expect(fmtSpeed({ ttftMs: 800, tokPerS: 60.4 })).toBe('ttft 0.8s · 60 tok/s'); expect(fmtSpeed({ ttftMs: 800, tokPerS: null })).toBe('ttft 0.8s · — tok/s')
 })
