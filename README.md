@@ -9,9 +9,11 @@ shows what the session is doing right now: the main model's INFO, subagents at w
 consults, the busiest tools and files, and a session log. Every number comes from a real session event, anything inferred says so, and nothing leaves
 your machine.
 
-<p align="center">
-  <img src="docs/media/demo.gif" alt="The st-code pane, docked at 66 columns, through a real run with three subagents and an architect: INFO switches to an orange working state, three agents appear in AGENTS with a bouncing bar while they run and a full green bar with a check once done, the header reads ARCHITECT ADVISING while the ARCHITECT panel draws the consult on its timeline, then ON CALL with the 7-second consult marked before a plan and its verdict that normalize belongs in utils.py, TOOLS &amp; FILES counts the calls and the files each agent read and edited, and the LOG, running to the pane's bottom edge, fills with the prompt, spawns, the architect's advice, edits and completions while the spend climbs to $1.04" width="528">
-</p>
+<div align="center">
+
+![The st-code pane, docked at 66 columns, through a real run with three subagents and an architect: INFO switches to an orange working state, three agents appear in AGENTS with a bouncing bar while they run and a full green bar with a check once done, the header reads ARCHITECT ADVISING while the ARCHITECT panel draws the consult on its timeline, then ON CALL with the 7-second consult marked before a plan and its verdict that normalize belongs in utils.py, TOOLS & FILES counts the calls and the files each agent read and edited, and the LOG, running to the pane's bottom edge, fills with the prompt, spawns, the architect's advice, edits and completions while the spend climbs to $1.04](docs/media/demo.gif)
+
+</div>
 
 <p align="center">
   <a href="#install">Install</a> · <a href="#what-you-see">What you see</a> · <a href="#use">Use</a> · <a href="#where-it-runs">Where it runs</a> · <a href="#what-it-can-reach">What it can reach</a> · <a href="#configure">Configure</a> · <a href="#troubleshooting">Troubleshooting</a> · <a href="CHANGELOG.md">Changelog</a>
@@ -50,17 +52,13 @@ releases. If something breaks after an update, see [Troubleshooting](#troublesho
 
 ## What you see
 
-<p align="center">
-  <img src="docs/media/docked-session.png" alt="A fullscreen session 160 columns wide: on the left, the transcript reports three finished subagents that added docstrings and the architect's answer, lists each function's new docstring, notes that the 5 tests pass and ends with the architect's verdict that normalize belongs in utils.py; on the right, the docked st-code pane shows the SERGIO'S TECH · CODE header with OPUS 5.5 IDLE · ARCHITECT ON CALL over INFO at $1.04 spent, AGENTS with three finished agents, ARCHITECT with one 7-second consult and its verdict, TOOLS &amp; FILES with 17 calls, and the LOG running down to the pane's bottom edge, in one column" width="820">
-</p>
+![A fullscreen session 160 columns wide: on the left, the transcript reports three finished subagents that added docstrings and the architect's answer, lists each function's new docstring, notes that the 5 tests pass and ends with the architect's verdict that normalize belongs in utils.py; on the right, the docked st-code pane shows the SERGIO'S TECH · CODE header with OPUS 5.5 IDLE · ARCHITECT ON CALL over INFO at $1.04 spent, AGENTS with three finished agents, ARCHITECT with one 7-second consult and its verdict, TOOLS & FILES with 17 calls, and the LOG running down to the pane's bottom edge, in one column](docs/media/docked-session.png)
 
 | Two columns, in a 120-column dock | One column, in the default 66-column dock |
 | --- | --- |
-| <img src="docs/media/docked-wide.png" alt="The wide layout: INFO and TOOLS &amp; FILES stacked on the left, AGENTS with three finished agents and ARCHITECT on call after one 7-second consult on the right, and the LOG across the full width underneath down to the pane's bottom edge, listing the architect's advice, the edits to tally/parser.py, tally/cli.py and tally/utils.py and the agents finishing" width="480"> | <img src="docs/media/compact.png" alt="The compact layout close up: INFO, AGENTS with three finished agents, ARCHITECT on call with its consult on the timeline and its verdict, TOOLS &amp; FILES and LOG stacked in one column under the header, with green gauges at 6% context and 5% and 56% of the limits, the reads and edits of each file, and the LOG reaching the pane's bottom edge" width="300"> |
+| ![The wide layout: INFO and TOOLS & FILES stacked on the left, AGENTS with three finished agents and ARCHITECT on call after one 7-second consult on the right, and the LOG across the full width underneath down to the pane's bottom edge, listing the architect's advice, the edits to tally/parser.py, tally/cli.py and tally/utils.py and the agents finishing](docs/media/docked-wide.png) | ![The compact layout close up: INFO, AGENTS with three finished agents, ARCHITECT on call with its consult on the timeline and its verdict, TOOLS & FILES and LOG stacked in one column under the header, with green gauges at 6% context and 5% and 56% of the limits, the reads and edits of each file, and the LOG reaching the pane's bottom edge](docs/media/compact.png) |
 
-<p align="center">
-  <img src="docs/media/inline-mini.png" alt="A 100-column session with the summary inline above the prompt, in four rows: the model and its state, the effort, a context gauge, the 7-day and 5-hour limits and the session cost; then three finished subagents, each with a check, a full green bar and its clock" width="620">
-</p>
+![A 100-column session with the summary inline above the prompt, in four rows: the model and its state, the effort, a context gauge, the 7-day and 5-hour limits and the session cost; then three finished subagents, each with a check, a full green bar and its clock](docs/media/inline-mini.png)
 
 The header is one unfilled row on black. `▌SERGIO'S TECH · CODE` sits on the left. On the right are
 the state dot, the main model in its family colour (Opus red, Sonnet orange, Haiku green, Fable gold,
@@ -254,7 +252,7 @@ its own panels, layouts and look. Both copyright notices are in [LICENSE](LICENS
 
 Screenshots and the demo are captured from a real session with the scripts in
 [`scripts/capture/`](scripts/capture/README.md). The social preview card is
-[`docs/media/social-preview.png`](docs/media/social-preview.png).
+[docs/media/social-preview.png](docs/media/social-preview.png).
 
 Contributing: [CONTRIBUTING.md](CONTRIBUTING.md) · Security: [SECURITY.md](SECURITY.md) · License:
 [MIT](LICENSE)
