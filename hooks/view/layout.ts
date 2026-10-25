@@ -41,15 +41,13 @@ export const WIDE_RIGHT: Panel[] = ['agents', 'architect']
 const cells = (s: string): number => Array.from(s).length
 
 /**
- * How much of the header's right side fits `room` cells: the longest of `● MODEL WORKING · ARCH`
- * (`arch`), `● MODEL WORKING` (`state`), `● MODEL` (`model`) and `●` (`dot`). An empty model drops
- * out of every variant; the state dot always stays.
+ * How much of the header's right side fits `room` cells: the longest of `● MODEL · ARCH` (`arch`),
+ * `● MODEL` (`model`) and `●` (`dot`). An empty model drops out of every variant; the state dot
+ * always stays.
  */
-export const headerFit = (model: string, isRunning: boolean, arch: string | null, room: number): 'arch' | 'state' | 'model' | 'dot' => {
+export const headerFit = (model: string, arch: string | null, room: number): 'arch' | 'model' | 'dot' => {
   const name = model.trim().toUpperCase()
   const named = name ? `● ${name}` : '●'
-  const state = `${named} ${isRunning ? 'WORKING' : 'IDLE'}`
-  if (arch && cells(`${state} · ${arch}`) <= room) return 'arch'
-  if (cells(state) <= room) return 'state'
+  if (arch && cells(`${named} · ${arch}`) <= room) return 'arch'
   return cells(named) <= room ? 'model' : 'dot'
 }

@@ -61,15 +61,15 @@ releases. If something breaks after an update, see [Troubleshooting](#troublesho
 ![A 100-column session with the summary inline above the prompt, in four rows: the model and its state, the effort, a context gauge, the 7-day and 5-hour limits and the session cost; then three finished subagents, each with a check, a full green bar and its clock](docs/media/inline-mini.png)
 
 The header is one unfilled row on black. `▌SERGIO'S TECH · CODE` sits on the left. On the right are
-the state dot, the main model in its family colour (Opus red, Sonnet orange, Haiku green, Fable gold,
-any other model grey) and dim state words, for example `● OPUS 5.5 WORKING` or `○ OPUS 5.5 IDLE`.
-Once an architect has been seen, `· ARCHITECT ADVISING` or `· ARCHITECT ON CALL` joins it. The dot is
-green and pulses while a turn, a subagent or a workflow's agent is running, and the words follow the
-main loop alone, so background agents after a turn read `● HAIKU 5.5 IDLE`. A frame turns green
-while its panel holds running work: INFO while the main loop works, AGENTS while an agent or a loop
-runs, ARCHITECT while the architect advises. When nothing runs at all, neither a turn nor an agent
-nor a loop, every frame and the `○` and `IDLE` of the header and the inline summary turn dark red
-(`#7f0000`, a step under the Sergio's Tech themes' `#800000`).
+the state dot and the main model in its family colour (Opus red, Sonnet orange, Haiku green, Fable
+gold, any other model grey), for example `● OPUS 5.5` or `○ OPUS 5.5`. Once an architect has been
+seen, `· ARCHITECT ADVISING` or `· ARCHITECT ON CALL` joins it. The dot is green and pulses while a
+turn, a subagent or a workflow's agent is running, and the header carries no state word: INFO's
+frame reads `● working` or `○ idle` for the main loop. A frame turns green while its panel holds
+running work: INFO while the main loop works, AGENTS while an agent or a loop runs, ARCHITECT while
+the architect advises. When nothing runs at all, neither a turn nor an agent nor a loop, every frame
+and the `○` of the header and the `○ IDLE` of the inline summary turn dark red (`#7f0000`, a step
+under the Sergio's Tech themes' `#800000`).
 
 Panels with nothing to show take no room, so a fresh session shows the header, INFO and LOG. The
 wide layout is the exception: it shows AGENTS beside INFO from the start, reading `no agents yet`.
@@ -143,10 +143,10 @@ width.
 terminals. It doesn't follow your terminal or host theme, and there's no light variant. Green is the
 working colour, gauges go green to orange to red, agents are orange and frames are red, turned down
 to dark red while nothing runs. Every text colour reaches at least 4.5:1 contrast on black, and so
-does its 256-colour fallback, with one exception: the resting `○ IDLE` in dark red (1.9:1), which
-its `○` shape repeats. Frame lines and the empty cells of gauges and bars never carry text. A state
-never relies on colour alone: `●` running, `✓` done, `✗` failed, `■` stopped, `↺` compaction, and a
-refused call says `denied`.
+does its 256-colour fallback, with one exception: the resting `○` of the header and the inline
+summary's `○ IDLE` in dark red (1.9:1), which the `○` shape repeats. Frame lines and the empty cells
+of gauges and bars never carry text. A state never relies on colour alone: `●` running, `✓` done,
+`✗` failed, `■` stopped, `↺` compaction, and a refused call says `denied`.
 
 ## What it can reach
 
@@ -240,7 +240,7 @@ draws 256 colours unless `CLAUDE_CODE_TMUX_TRUECOLOR=1` is set, and VS Code's in
 capped at 256. So is WSL in Windows Terminal, which sets no `COLORTERM`: add
 `export COLORTERM=truecolor` to your shell's profile and restart for exact colours. In 256 colours,
 orange draws as `#ff8700`, the idle dark red as `#870000`, and the reds and greens shift slightly.
-Every text colour but the resting `○ IDLE` still reaches 4.5:1 contrast.
+Every text colour but the resting `○` and `○ IDLE` still reaches 4.5:1 contrast.
 
 **There's too much motion.** Set `motion` to `off`.
 

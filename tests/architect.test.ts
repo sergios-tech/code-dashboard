@@ -206,7 +206,7 @@ test('the server-side advisor is read from assistant rows: advising, then on cal
   expect(await mid.find({ type: 'Text', text: /^consulting for 0s$/ })).toBeDefined()
   expect((await mid.find({ type: 'Text', text: /^◆ before a plan$/ }))?.props.color).toBe(COLORS.architect)
   expect(await mid.find({ type: 'Text', text: /^◇ before done$/ })).toBeDefined(); expect(await mid.find({ type: 'Text', text: /^\(inferred\)$/ })).toBeDefined()
-  expect(await mid.find({ type: 'Text', text: / WORKING · ARCHITECT ADVISING$/ })).toBeDefined()
+  expect(await mid.find({ type: 'Text', text: / · ARCHITECT ADVISING$/ })).toBeDefined()
   expect((await rowsOf(mid)).filter(r => /architect +before a plan · advisor tool/.test(r))).toHaveLength(1)
   await mid.unmount()
 

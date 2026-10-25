@@ -1,4 +1,4 @@
-// The header row on the black fill: the brand on the left, the main model's state on the right.
+// The header row on the black fill: the brand on the left, the state dot and the main model on the right.
 import type { RenderElement } from 'claude-code'
 
 import { canAnimate, clientNode } from './draw'
@@ -24,32 +24,23 @@ export const stateDot = (d: Draw, isActive: boolean): RenderElement => {
 
 /**
  * One unfilled row of `width` cells. Its dot marks any running work (a turn or a subagent) and
- * pulses while there is some; its words describe the main loop alone, so background agents after a
- * turn read `● OPUS 5.5 IDLE`. With nothing running, the `○` and `IDLE` are the idle dark red. The
- * right side drops the architect suffix, then the state word, then the model to fit, and always keeps
- * the dot.
+ * pulses while there is some; with nothing running it is a `○` in the idle dark red. INFO's frame
+ * says whether the main loop works, so the row carries no state word. The right side drops the
+ * architect suffix, then the model to fit, and always keeps the dot.
  */
 export const header = (d: Draw, vm: ViewModel['header'], width: number): RenderElement => {
   const { els, C } = d
   const { Box, Text } = els
-  // Flush to both edges with one space between, so 40 columns still fit `● OPUS 5.5 WORKING`.
-  const fit = headerFit(vm.model, vm.isRunning, vm.arch, width - BRAND_CELLS - 1)
+  // Flush to both edges with one space between, so 32 columns still fit `● OPUS 5.5`.
+  const fit = headerFit(vm.model, vm.arch, width - BRAND_CELLS - 1)
   const name = vm.model.trim().toUpperCase()
   const dot = stateDot(d, vm.isActive)
-  const showState = fit === 'state' || fit === 'arch'
   // The words are one Text of coloured runs, so the row reads as one string.
   const words: RenderElement[] = []
   if (name && fit !== 'dot') {
     words.push(
       <Text key="model" bold color={familyColor(name)}>
         {` ${name}`}
-      </Text>,
-    )
-  }
-  if (showState) {
-    words.push(
-      <Text key="state" color={vm.isActive ? C.dim : C.idle}>
-        {vm.isRunning ? ' WORKING' : ' IDLE'}
       </Text>,
     )
   }

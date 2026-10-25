@@ -24,13 +24,13 @@ test('the palette holds the Signal tokens and their 256-colour fallbacks', () =>
   expect([to256('#800000'), to256(COLORS.idle)]).toEqual(['#af0000', '#870000'])
   expect(fallback).toEqual({ fill: '#000000', text: '#c6c6c6', dim: '#9e9e9e', faint: '#303030', frame: '#d70000', idle: '#870000', brand: '#ff0000', orange: '#ff8700', green: '#87d787', pulse: '#87af87', gold: '#ffd700', architect: '#d7af00', error: '#ff8787' })
 })
-test('every text token reads at 4.5:1 on black in both colour depths; faint and frame never carry text, idle only the resting header', () => {
+test('every text token reads at 4.5:1 on black in both colour depths; faint and frame never carry text, idle only the resting dot and summary', () => {
   for (const k of TEXT_TOKENS) {
     expect(contrast(COLORS[k], '#000000') >= 4.5).toBe(true)
     expect(contrast(to256(COLORS[k]), '#000000') >= 4.5).toBe(true)
   }
   for (const k of ['faint', 'frame', 'fill'] as const) expect(TEXT_TOKENS.includes(k)).toBe(false)
-  // The idle dark red is below 4.5:1. Its one text is the resting `○ IDLE` of the header and the inline summary, whose `○` shape says the same.
+  // The idle dark red is below 4.5:1. Its texts are the resting `○` of the header and the `○ IDLE` of the inline summary, whose `○` shape says the same.
   expect(TEXT_TOKENS.includes('idle')).toBe(false); expect(contrast(COLORS.idle, '#000000') < 4.5).toBe(true)
 })
 test('no token is blue', () => {
@@ -118,28 +118,30 @@ test('dividers join the side borders in the frame colour, green while the frame 
   expect(found(open, 'Box').filter(b => b.borderStyle === 'single').map(b => b.borderColor)).toEqual([COLORS.green])
 })
 const ADVISING: ViewModel['header'] = { model: 'Opus 5.5', isRunning: true, isActive: true, arch: 'ARCHITECT ADVISING', isAdvising: true }
-test('the header is one unfilled row that drops the suffix, the word, then the model, and keeps the dot', () => {
+test('the header is one unfilled row that drops the suffix, then the model, and keeps the dot', () => {
   const rowAt = (w: number, vm = ADVISING) => drawRows(header(draw({ motion: false }), vm, w))[0]
-  expect(rowAt(77)).toBe("▌SERGIO'S TECH · CODE                 ● OPUS 5.5 WORKING · ARCHITECT ADVISING")
-  expect(rowAt(40)).toBe("▌SERGIO'S TECH · CODE ● OPUS 5.5 WORKING")
+  expect(rowAt(64)).toBe("▌SERGIO'S TECH · CODE            ● OPUS 5.5 · ARCHITECT ADVISING")
+  expect(rowAt(53)).toBe("▌SERGIO'S TECH · CODE ● OPUS 5.5 · ARCHITECT ADVISING")
+  expect(rowAt(52)).toBe(`▌SERGIO'S TECH · CODE${' '.repeat(21)}● OPUS 5.5`)
   expect(rowAt(32)).toBe("▌SERGIO'S TECH · CODE ● OPUS 5.5")
   expect(rowAt(24, { ...ADVISING, isRunning: false, isActive: false, arch: null, isAdvising: false })).toBe("▌SERGIO'S TECH · CODE  ○")
   const tight = rowAt(22) ?? ''
   expect(tight.endsWith('●')).toBe(true); expect(tight.startsWith('▌SERGIO')).toBe(true); expect(cellWidth(tight)).toBe(22)
-  expect(rowAt(38, { ...ADVISING, model: 'Haiku 5.5', isRunning: false, arch: null })).toBe("▌SERGIO'S TECH · CODE ● HAIKU 5.5 IDLE")
+  expect(rowAt(33, { ...ADVISING, model: 'Haiku 5.5', isRunning: false, arch: null })).toBe("▌SERGIO'S TECH · CODE ● HAIKU 5.5")
 })
-test('header colours: brand red, CODE orange, the model in its family colour, words dim, no fill', () => {
+test('header colours: brand red, CODE orange, the model in its family colour, no fill', () => {
   const tree = header(draw({ motion: false }), ADVISING, 77)
   const color = (re: RegExp) => texts(tree).find(t => re.test(t.text))?.color
   expect([color(/^▌$/), color(/^SERGIO'S TECH$/), color(/^ · $/), color(/^CODE$/)]).toEqual([COLORS.brand, COLORS.brand, COLORS.dim, COLORS.orange])
-  expect([color(/OPUS 5\.5/), color(/WORKING/), color(/ARCHITECT ADVISING/)]).toEqual([COLORS.brand, COLORS.dim, COLORS.architect])
+  expect([color(/OPUS 5\.5/), color(/ARCHITECT ADVISING/)]).toEqual([COLORS.brand, COLORS.architect])
+  expect(texts(tree).some(t => /WORKING|IDLE/.test(t.text))).toBe(false)
   expect(texts(tree).find(t => /OPUS/.test(t.text))?.bold).toBe(true)
   expect(found(tree, 'Box').some(b => b.backgroundColor !== undefined)).toBe(false)
-  // At rest the dot and IDLE are the idle dark red; while an agent runs after the turn, IDLE stays dim.
+  // At rest the dot is the idle dark red and the model keeps its family colour; while an agent runs after the turn, the dot is green.
   const rest = texts(header(draw({ motion: false }), IDLE, 40))
-  expect([rest.find(t => t.text === '○')?.color, rest.find(t => t.text === ' IDLE')?.color, rest.find(t => /OPUS/.test(t.text))?.color]).toEqual([COLORS.idle, COLORS.idle, COLORS.brand])
+  expect([rest.find(t => t.text === '○')?.color, rest.find(t => /OPUS/.test(t.text))?.color]).toEqual([COLORS.idle, COLORS.brand])
   const background = texts(header(draw({ motion: false }), { ...IDLE, isActive: true }, 40))
-  expect([background.find(t => t.text === '●')?.color, background.find(t => t.text === ' IDLE')?.color]).toEqual([COLORS.green, COLORS.dim])
+  expect(background.find(t => t.text === '●')?.color).toBe(COLORS.green)
 })
 test('the dot pulses green to dim green as a Client while work runs and motion is on', () => {
   const pulse = found(header(draw(), ADVISING, 77), 'Client')
@@ -154,8 +156,8 @@ test('the header dot pulses as a Client only while work runs and motion is on', 
   expect(found(header(draw({ hasClient: false }), WORKING, 64), 'Client')).toEqual([])
   expect(found(header(draw(), IDLE, 64), 'Client')).toEqual([])
   const still = drawRows(header(draw({ motion: false }), WORKING, 64))
-  expect(still).toEqual([`▌SERGIO'S TECH · CODE${' '.repeat(25)}● OPUS 5.5 WORKING`])
-  expect(drawRows(header(draw(), IDLE, 40))[0]?.endsWith('○ OPUS 5.5 IDLE')).toBe(true)
+  expect(still).toEqual([`▌SERGIO'S TECH · CODE${' '.repeat(33)}● OPUS 5.5`])
+  expect(drawRows(header(draw(), IDLE, 40))[0]?.endsWith('○ OPUS 5.5')).toBe(true)
 })
 test('the pulse alternates bright and dim every 600 ms while active, and holds still at rest', () => {
   const timers: { ms: number; fn: () => void }[] = []
@@ -197,7 +199,7 @@ test('a fresh pane draws its header within the pane on every surface and width',
         const rows = await rowsOf(ui)
         expect(rows.length > 0).toBe(true)
         for (const r of rows) expect(cellWidth(r) <= clampWidth(cols)).toBe(true)
-        expect(rows[0]?.startsWith("▌SERGIO'S TECH · CODE")).toBe(true); expect(rows[0]?.endsWith('○ IDLE')).toBe(true)
+        expect(rows[0]?.startsWith("▌SERGIO'S TECH · CODE")).toBe(true); expect(rows[0]?.endsWith('○')).toBe(true)
       } else {
         // Off the terminal the header is the first picture, as wide as the pane, and no Text.
         const first = (await ui.findAll({ type: 'Svg' }))[0]

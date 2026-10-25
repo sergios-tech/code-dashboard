@@ -16,6 +16,11 @@ All notable changes to this project are listed here. The format follows
   time, `14:02:11`. The session's start is stored once, so `/st-code reset` and `/clear` keep it; a
   state stored by 0.5.5 counts from its earliest log line until the next session start, and a line
   with no known time reads `--:--`.
+- **Header state word**: the header no longer reads `WORKING` or `IDLE`; INFO's frame already says
+  `● working` or `○ idle`. The state dot stays, pulsing while work runs, and the model and the
+  architect suffix follow it. Before, it read `● OPUS 5.5 WORKING · ARCHITECT ADVISING`; now it reads
+  `● OPUS 5.5 · ARCHITECT ADVISING`. Narrow panes drop the suffix, then the model, and keep the dot.
+  The inline summary keeps its `WORKING` / `IDLE` word.
 
 ## [0.5.5] - 2026-10-25
 

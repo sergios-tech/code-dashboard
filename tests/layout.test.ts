@@ -32,6 +32,12 @@ const model = (on: On) => {
   })
 }
 
+/** The header dot's colour: the pulse's while work runs, else the plain dot's, `○` at rest. */
+const headerDot = async (ui: { find: (q: { type: string; text?: RegExp }) => Promise<{ props: Record<string, unknown> } | undefined> }) => {
+  const pulse = await ui.find({ type: 'Client' })
+  return pulse ? (pulse.props.props as { color: string }).color : (await ui.find({ type: 'Text', text: /^[●○]$/ }))?.props.color
+}
+
 /** One model request in a loop: a subagent's or another loop's with an id, the main loop's without. */
 const step = async ($: Engine, agentId?: string, name = 'claude-sonnet-5-5') => {
   const s = $.turn.step({ turnId: `S-${agentId ?? 'main'}`, index: 0, model: name, messageCount: 1, ...(agentId ? { agentId } : {}) })
@@ -106,20 +112,20 @@ test('one column shows AGENTS once a loop no card claims has stepped, as two col
     await ui.unmount()
   }
   const C = COLORS
-  /** Each frame's border colour, top to bottom, the header's IDLE colour and AGENTS' empty row. */
+  /** Each frame's border colour, top to bottom, the header dot's colour and AGENTS' empty row. */
   const look = async () => {
     const ui = await $.ui.mount({ ...pane(66), surface: 'terminal' })
     const borders = (await ui.findAll({ type: 'Box' })).filter(b => b.props.borderStyle === 'single').map(b => b.props.borderColor)
-    const idle = (await ui.findAll({ type: 'Text', text: /^ IDLE$/ })).find(t => t.props.color)?.props.color
+    const dot = await headerDot(ui)
     const empty = (await rowsOf(ui)).find(r => /only loops running|no agents yet/.test(r))?.replace(/[│ ]+/g, ' ').trim()
     await ui.unmount()
-    return { borders, idle, empty }
+    return { borders, dot, empty }
   }
-  // An active loop is activity, as a running agent is: AGENTS is green, the rest the frame red, IDLE dim.
-  expect(await look()).toEqual({ borders: [C.frame, C.green, C.frame], idle: C.dim, empty: 'only loops running' })
+  // An active loop is activity, as a running agent is: AGENTS is green, the rest the frame red, the header dot green.
+  expect(await look()).toEqual({ borders: [C.frame, C.green, C.frame], dot: C.green, empty: 'only loops running' })
   // Once the loops end, nothing runs.
   for (const id of ['m1', 'm2']) await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, turnId: `T-${id}`, agentId: id, reason: 'answer' })
-  expect(await look()).toEqual({ borders: [C.idle, C.idle, C.idle], idle: C.idle, empty: 'no agents yet' })
+  expect(await look()).toEqual({ borders: [C.idle, C.idle, C.idle], dot: C.idle, empty: 'no agents yet' })
 })
 test('a loop that falls quiet without ending draws as idle once it no longer counts as active', async ($, on) => {
   const clock = engine(on)
@@ -268,21 +274,20 @@ test('the wide layout holds AGENTS beside INFO from the start; a column the conf
     expect(vm.layout).toBe('wide'); expect(vm.columns).toBeNull(); expect(vm.widths[p]).toBe(120)
   }
 })
-test('while nothing runs, every frame and the header ○ IDLE are the idle dark red', async ($, on) => {
+test('while nothing runs, every frame and the header ○ are the idle dark red', async ($, on) => {
   const clock = engine(on)
   on('agent.spawn', () => ({ model: 'claude-sonnet-5-5', agentId: 'r1' }))
   on('tool.call', () => ok)
   await clock.advance(1000)
   await $.tool.call({ tool: 'Read', file_path: '/repo/src/a.ts' } as never)
   const C = COLORS
-  /** Each frame's border colour, top to bottom, and the colour of the header's IDLE word while it shows. */
+  /** Each frame's border colour, top to bottom, and the colour of the header's dot. */
   const look = async () => {
     const ui = await $.ui.mount({ ...pane(66), surface: 'terminal' })
     const borders = (await ui.findAll({ type: 'Box' })).filter(b => b.props.borderStyle === 'single').map(b => b.props.borderColor)
-    // The word is a coloured run inside the header's words, which read ` IDLE` too.
-    const idle = (await ui.findAll({ type: 'Text', text: /^ IDLE$/ })).find(t => t.props.color)?.props.color
+    const dot = await headerDot(ui)
     await ui.unmount()
-    return { borders, idle }
+    return { borders, dot }
   }
   /** The desktop's pictures, where the frames are strokes. */
   const strokes = async () => {
@@ -291,16 +296,16 @@ test('while nothing runs, every frame and the header ○ IDLE are the idle dark 
     await ui.unmount()
     return svg
   }
-  // Nothing runs: INFO, TOOLS & FILES and LOG, and the header's word too.
-  expect(await look()).toEqual({ borders: [C.idle, C.idle, C.idle], idle: C.idle })
+  // Nothing runs: INFO, TOOLS & FILES and LOG, and the header's dot too.
+  expect(await look()).toEqual({ borders: [C.idle, C.idle, C.idle], dot: C.idle })
   expect(await strokes()).toContain(`stroke="${C.idle}"`)
-  // A background agent after the turn: AGENTS is green, the rest the frame red, and IDLE dim.
+  // A background agent after the turn: AGENTS is green, the rest the frame red, and the dot green.
   await $.agent.spawn(spawn('Explore', 'map the call sites'))
-  expect(await look()).toEqual({ borders: [C.frame, C.green, C.frame, C.frame], idle: C.dim })
+  expect(await look()).toEqual({ borders: [C.frame, C.green, C.frame, C.frame], dot: C.green })
   expect(await strokes()).not.toContain(`stroke="${C.idle}"`)
-  // A turn: INFO is green too, and the header reads WORKING.
+  // A turn: INFO is green too, and the dot stays green.
   await $.turn.start({ text: 'go', turnId: 'T1' })
-  expect(await look()).toEqual({ borders: [C.green, C.green, C.frame, C.frame], idle: undefined })
+  expect(await look()).toEqual({ borders: [C.green, C.green, C.frame, C.frame], dot: C.green })
 })
 test('every atom holding garbage still draws the header and LOG (Review Focus 1)', async ($, on) => {
   engine(on)
