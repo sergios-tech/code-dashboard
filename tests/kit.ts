@@ -4,7 +4,6 @@ import type { AgentSpawnInput, On, RenderElement } from 'claude-code'
 import { mock } from 'claude-code/testing'
 
 import { parseConfig } from '../hooks/config'
-import { PANE_ID, PLUGIN } from '../hooks/state/atoms'
 import {
   DEFAULT_ACTIVITY,
   DEFAULT_ARCHITECT,
@@ -14,7 +13,7 @@ import {
   DEFAULT_USAGE,
   DEFAULT_VIEW,
 } from '../hooks/state/schema'
-import type { Snapshot } from '../hooks/state/store'
+import type { Snapshot } from '../hooks/state/schema'
 import { cellsOf, layoutCells } from '../hooks/view/cells'
 import type { Draw } from '../hooks/view/draw'
 import { buildViewModel } from '../hooks/view/model'
@@ -30,9 +29,9 @@ export const engine = (on: On) => {
 
 /** The mount spec of the dashboard pane at a body width; spread it and add the `surface`. */
 export const pane = (bodyColumns: number, placement: 'dock' | 'inline' = 'dock') => ({
-  plugin: PLUGIN,
+  plugin: 'st-code',
   component: 'Pane' as const,
-  requestId: PANE_ID,
+  requestId: 'st-code',
   props: {
     title: "Sergio's Tech · Code",
     isFocused: true,

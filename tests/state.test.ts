@@ -3,7 +3,7 @@ import { read, update } from 'claude-code'
 import type { EngineInterface } from 'claude-code'
 
 import { parseConfig } from '../hooks/config'
-import { activity, agents, architect, log, loops, main, meta, roster, turn, usage, view } from '../hooks/state/atoms'
+import { activity, agents, architect, loadSnapshot, log, loops, main, meta, migrate, resetAll, roster, turn, usage, view } from '../hooks/register'
 import {
   DEFAULT_ACTIVITY,
   DEFAULT_ARCHITECT,
@@ -20,7 +20,6 @@ import {
   normalizeMain,
   normalizeUsage,
 } from '../hooks/state/schema'
-import { loadSnapshot, migrate, resetAll } from '../hooks/state/store'
 
 test('config is read leniently: bad values fall back to defaults', () => {
   const d = parseConfig({})

@@ -17,6 +17,7 @@ import {
   momentOf,
   startConsult,
 } from '../hooks/domain/architect'
+import { addArchitectId, loadSnapshot, markSeen } from '../hooks/register'
 import {
   DEFAULT_ACTIVITY,
   DEFAULT_ARCHITECT,
@@ -26,8 +27,7 @@ import {
   DEFAULT_USAGE,
   DEFAULT_VIEW,
 } from '../hooks/state/schema'
-import { addArchitectId, loadSnapshot, markSeen } from '../hooks/state/store'
-import type { Snapshot } from '../hooks/state/store'
+import type { Snapshot } from '../hooks/state/schema'
 import { buildViewModel } from '../hooks/view/model'
 import { COLORS } from '../hooks/view/palette'
 import { architectPanel } from '../hooks/view/panels/architect'

@@ -12,7 +12,7 @@ import {
   normalizeMain,
   normalizeUsage,
 } from '../hooks/state/schema'
-import type { Snapshot } from '../hooks/state/store'
+import type { Snapshot } from '../hooks/state/schema'
 
 /** The fixed moment the sample session is drawn at. */
 export const NOW = Date.UTC(2026, 9, 23, 12, 0, 0)

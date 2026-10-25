@@ -36,6 +36,20 @@ export const DEFAULT_ACTIVITY: Activity = { tools: [], files: [], calls: 0 }
 export const DEFAULT_VIEW: View = { expanded: null, layout: null }
 export const DEFAULT_ROSTER: Roster = { architectTypes: [] }
 
+/** Every stored key but `meta`, each normalized: the one set of values a frame is drawn from. */
+export type Snapshot = {
+  main: Main
+  usage: Usage
+  turn: Turn
+  agents: AgentCard[]
+  loops: Loop[]
+  architect: Architect
+  activity: Activity
+  log: LogLine[]
+  view: View
+  roster: Roster
+}
+
 // ---------------------------------------------------------------- primitives
 
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
@@ -83,7 +97,8 @@ const strings = (stored: unknown): string[] => listOf<unknown>(stored).filter((s
 // ---------------------------------------------------------------- per-key normalizers
 
 const MOMENTS: readonly Moment[] = ['before a plan', 'error repeats', 'before done']
-const LAYOUTS: readonly Layout[] = ['auto', 'compact', 'wide', 'mini']
+/** The layouts a person can choose, as `/st-code layout` takes them and the view key stores them. */
+export const LAYOUTS: readonly Layout[] = ['auto', 'compact', 'wide', 'mini']
 const STATUSES: readonly AgentStatus[] = ['running', 'done', 'stopped', 'failed']
 const KINDS: readonly LogKind[] = ['info', 'error', 'consult', 'done']
 const MARKS: readonly LogMark[] = ['✗', '· denied']

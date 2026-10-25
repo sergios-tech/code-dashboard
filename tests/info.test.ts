@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import type { Snapshot } from '../hooks/state/store'
+import type { Snapshot } from '../hooks/state/schema'
 import { COLORS } from '../hooks/view/palette'
 import { infoPanel } from '../hooks/view/panels/info'
 import { FRESH, cellWidth, draw, drawRows, engine, pane, rowsOf, texts, vmOf } from './kit'

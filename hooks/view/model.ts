@@ -9,7 +9,7 @@ import { consultLine, consultTimeline, hasArchitect, isAdvising } from '../domai
 import { logRows } from '../domain/log'
 import { effortLevel } from '../domain/vitals'
 import { kTokens, plural, prettyModel, wrapText } from '../format/text'
-import type { Snapshot } from '../state/store'
+import type { Snapshot } from '../state/schema'
 import { WIDE_LEFT, WIDE_RIGHT, clampWidth, pickLayout, wideColumns } from './layout'
 import { ROW_PX } from './picture'
 import { lanesHeight } from './svg'

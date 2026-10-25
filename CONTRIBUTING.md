@@ -50,13 +50,12 @@ python3 -I -m unittest discover -s scripts/capture
 | --- | --- |
 | `.claude-plugin/` | `plugin.json` (name, version, options) and `marketplace.json` |
 | `hooks/hooks.json` | names the one hooks module, `register.tsx` |
-| `hooks/register.tsx` | composition only: parses the options and calls each concern's `wire*` function |
+| `hooks/register.tsx` | the atoms, every helper that reads or writes state or calls `$`, and every hook, written inline in the `on(...)` call that registers it |
 | `hooks/config.ts` | `parseConfig`: options read leniently, with a default for anything malformed |
-| `hooks/events/` | one module per concern (session, command, turns, agents, architect, tools, measures, render), wiring host events to reducers and store helpers |
-| `hooks/state/` | atoms, defaults, normalizers and the schema version; `store.ts` holds every state read and write |
+| `hooks/state/` | `schema.ts`: defaults, normalizers, the schema version and the snapshot a frame is drawn from |
 | `hooks/domain/` | pure reducers: the main model's vitals, the turn tally (kept for the architect's moments), agents and loops, architect, activity (tools and files), log |
 | `hooks/format/` | pure text helpers: model names, durations, tokens, USD, gauges, and `redact()` |
-| `hooks/view/` | palette, frame, header, layout math, the view model, the mini layout, the cell layout and pictures for the desktop app and VS Code, and the time-axis SVG; `panels/` has one renderer per panel |
+| `hooks/view/` | palette, frame, header, the panels' arrangement under it, layout math, the view model, the mini layout, the cell layout and pictures for the desktop app and VS Code, and the time-axis SVG; `panels/` has one renderer per panel |
 | `hooks/client/` | client modules: the ticking clock, the header pulse and the AGENTS sweep |
 | `types/index.d.ts` | the `PluginState['st-code']` declaration |
 | `tests/` | one test file per module group, plus shared helpers in `kit.ts` |
@@ -75,8 +74,8 @@ slice of the model. Renderers never read state.
 - **Watch, don't act.** Every hook passes its event on unchanged. Nothing denies, rewrites or blocks
   an event. There are no network requests, no processes and no file access.
 - **Behaviour lives in pure modules with tests.** `domain/`, `format/`, `view/layout.ts` and
-  `view/model.ts` never touch `$`. The `events/` modules wire events and the panels draw. A change in
-  behaviour comes with a test.
+  `view/model.ts` never touch `$`. `register.tsx` wires the events to them and the panels draw. A
+  change in behaviour comes with a test.
 - **Check 40, 64 and 120 columns.** Every panel draws cleanly at all three widths, with no row wider
   than the pane and no wrapped borders. The mini layout never goes past 8 rows.
 - **Everything stored goes through `redact()`.** Prompts, tasks, answers, advice, tool summaries and
@@ -90,12 +89,15 @@ slice of the model. Renderers never read state.
 
 ## Host rules worth knowing
 
-- Every `read` and `update` call lives in `hooks/state/store.ts`. The host's scan only lists calls on
-  atoms declared in the same file, so `events/` and `view/` go through store helpers.
-- A plugin hooks `session.start` only once. Put any start-of-session work inside the handler in
-  `events/session.ts`.
-- A helper that takes `$` and lives in another file must be a `function` declaration, not an arrow
-  function held in a `const`.
+- Every `read` and `update` call lives in `hooks/register.tsx`, beside the atoms. The host's scan
+  only lists calls on atoms declared in the same file, so `view/` gets state only from the snapshot.
+- Write each hook inline, as `on(event, async ($, e, next) => { ... })` on a line of its own in
+  `register.tsx`, and pass the event on as `next(e)`. Hand `$` whole to a top-level `function` of
+  that file, or to `read` and `update`, and never to an imported function.
+- Call each `$.noun.method(...)` the module uses directly in a hook at least once, so
+  `claude plugin validate .` lists none of them as `(via ...)` a helper. Spell the command, pane and
+  matcher names as literals (`'st-code'`) so the scan can read them.
+- A plugin hooks `session.start` only once. Put any start-of-session work inside that one handler.
 - A client module's `module` path is a string literal relative to the file that draws it.
 
 ## Pull requests

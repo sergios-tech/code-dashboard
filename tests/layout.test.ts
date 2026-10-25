@@ -15,7 +15,7 @@ import {
   DEFAULT_VIEW,
   normalizeCard,
 } from '../hooks/state/schema'
-import type { Snapshot } from '../hooks/state/store'
+import type { Snapshot } from '../hooks/state/schema'
 import { clampWidth, wideColumns } from '../hooks/view/layout'
 import { buildViewModel } from '../hooks/view/model'
 import { COLORS } from '../hooks/view/palette'

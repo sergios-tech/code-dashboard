@@ -1,6 +1,10 @@
 // The on-call architect: the consults it is asked for, the moment each one is inferred at, the
-// one-row timeline they share, and the advice a report leaves. Pure.
+// one-row timeline they share, the reply blocks a server-side advisor shows in, and the advice a
+// report leaves. Pure.
+import type { ApiContentBlock } from 'claude-code'
+
 import type { Architect, Moment, Turn } from '../../types'
+import type { Config } from '../config'
 import { redact } from '../format/redact'
 import { fmtClock, fmtDuration, shorten } from '../format/text'
 
@@ -14,6 +18,12 @@ const ADVICE_MAX = 160
 
 /** The moments a consult is inferred at, in the order the panel lists them. */
 export const MOMENTS: readonly Moment[] = ['before a plan', 'error repeats', 'before done']
+
+/** The log's name for the architect: its label, as a source column reads. */
+export const whoOf = (cfg: Config): string => cfg.architectLabel.toLowerCase()
+
+/** An agent type as a consult names it: `fable-advisor:fable-advisor` is `fable-advisor`. */
+export const viaOf = (type: string): string => type.split(':').pop() || 'agent'
 
 /** When in the turn a consult was asked: errors repeating, nothing edited yet, or after edits. */
 export const momentOf = (t: Pick<Turn, 'edits' | 'errorStreak'>): Moment =>
@@ -66,6 +76,14 @@ export const consultLine = (a: Architect, now: number): string => {
   const end = last.endAt ?? last.at
   return `last ${agoOf(now - end)} ago · took ${fmtDuration(end - last.at)}`
 }
+
+/** A server-side advisor's call in a reply: a server tool use with an id, named as the architect pattern matches. */
+export const isAdvisorUse = (cfg: Config, b: ApiContentBlock): b is ApiContentBlock & { id: string; name: string } =>
+  b.type === 'server_tool_use' && typeof b.id === 'string' && b.id !== '' && typeof b.name === 'string' && cfg.architect.test(b.name)
+
+/** A server tool's result in a reply, naming the call it answers. */
+export const isServerResult = (b: ApiContentBlock): b is ApiContentBlock & { tool_use_id: string } =>
+  typeof b.type === 'string' && b.type.endsWith('_tool_result') && typeof b.tool_use_id === 'string'
 
 /** The first line with words in it, past the engine's bracketed notes and tags. */
 const firstLine = (s: string): string =>

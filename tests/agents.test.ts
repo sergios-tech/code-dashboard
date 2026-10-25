@@ -23,9 +23,9 @@ import {
   stepLoop,
 } from '../hooks/domain/agents'
 import { modelFamily } from '../hooks/format/text'
+import { addAgent, finishAgent, loadSnapshot, noteAgentStep, noteArchitectType } from '../hooks/register'
 import { DEFAULT_VIEW, normalizeCard } from '../hooks/state/schema'
-import { addAgent, finishAgent, loadSnapshot, noteAgentStep, noteArchitectType } from '../hooks/state/store'
-import type { Snapshot } from '../hooks/state/store'
+import type { Snapshot } from '../hooks/state/schema'
 import type { Draw } from '../hooks/view/draw'
 import { COLORS } from '../hooks/view/palette'
 import { agentsPanel } from '../hooks/view/panels/agents'

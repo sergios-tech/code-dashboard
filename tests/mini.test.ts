@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
 import { normalizeCard } from '../hooks/state/schema'
-import type { Snapshot } from '../hooks/state/store'
+import type { Snapshot } from '../hooks/state/schema'
 import { miniPane } from '../hooks/view/mini'
 import { COLORS } from '../hooks/view/palette'
 import { draw, drawRows, found, texts, vmOf } from './kit'
