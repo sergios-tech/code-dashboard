@@ -267,12 +267,17 @@ test("a background architect's advice is read from its hand-back", async ($, on)
   await $.turn.start({ text: '<agent-message from="fab2">\nThe report follows:\n**Rename the flag** first', turnId: 'H3' })
   rows = await drawn($)
   expect(rows.some(r => /^│ » Rename the flag first +│$/.test(r))).toBe(true); expect(rows.some(r => r.includes('consults 2'))).toBe(true)
-  // A hand-back from an agent that is not the architect is an engine line, and leaves the advice alone.
+  // A hand-back from an agent that is not the architect is logged under that agent, and leaves the advice alone.
   await $.agent.spawn(spawn('general-purpose', 'write tests'))
   await $.tool.call({ tool: 'SubagentHandback', message: 'Tests written.', agentId: 'w1' } as never)
   await $.turn.start({ text: '<agent-message from="w1">\nThe report follows:\nTests written.', turnId: 'H4' })
   rows = await drawn($)
-  expect(rows.some(r => /engine +agent message from w1/.test(r))).toBe(true); expect(rows.some(r => r.includes('» Rename the flag first'))).toBe(true)
+  expect(rows.some(r => /write tes… +agent message +│$/.test(r))).toBe(true); expect(rows.some(r => r.includes('from w1'))).toBe(false)
+  expect(rows.some(r => r.includes('» Rename the flag first'))).toBe(true)
+  // One from an id no card has stays an engine line.
+  await $.turn.start({ text: '<agent-message from="zz9">\nThe report follows:\nDone.', turnId: 'H5' })
+  rows = await drawn($)
+  expect(rows.some(r => /engine +agent message from zz9/.test(r))).toBe(true)
 })
 test("an architect's answer at its end is its advice", async ($, on) => {
   const clock = engine(on)

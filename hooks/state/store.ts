@@ -237,6 +237,11 @@ export async function isOfferedArchitect($: EngineInterface, type: string): Prom
   return normalizeRoster(await read($, roster)).architectTypes.includes(type)
 }
 
+/** The agent cards as stored now. */
+export async function readAgents($: EngineInterface): Promise<AgentCard[]> {
+  return normalizeAgents(await read($, agents))
+}
+
 /** The architect as stored now. */
 export async function readArchitect($: EngineInterface): Promise<Architect> {
   return normalizeArchitect(await read($, architect))

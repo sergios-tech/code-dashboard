@@ -2,7 +2,7 @@ import { expect, test } from 'claude-code/testing'
 import type { Engine } from 'claude-code/testing'
 
 import type { LogLine } from '../types'
-import { fitCells } from '../hooks/domain/agents'
+import { fitCells, newCard } from '../hooks/domain/agents'
 import { LINE_MAX, LOG_MAX, appendLog, logRows, promptLine } from '../hooks/domain/log'
 import type { LogView } from '../hooks/view/model'
 import { COLORS } from '../hooks/view/palette'
@@ -31,6 +31,11 @@ test('prompts and engine-opened turns read as one log line', () => {
   expect(promptLine('<task-notification from="abcdef123456">…').who).toBe('engine')
   expect(promptLine('<task-notification from="abcdef123456">…').text).toBe('task notification from abcdef12')
   expect(promptLine('<agent-message>').text).toBe('agent message')
+  // A message from an agent with a card is logged under that agent, by its title, not by its id.
+  const card = newCard({ id: 'a288e0e2ab3d5c279', type: 'Explore', model: '', description: 'Survey st-code view panels', at: 1 })
+  const cardOf = (id: string) => (id === card.id ? card : undefined)
+  expect(promptLine('<agent-message from="a288e0e2ab3d5c279">\nreport', cardOf)).toEqual({ who: 'Survey st-…', text: 'agent message', agentId: 'a288e0e2ab3d5c279' })
+  expect(promptLine('<agent-message from="zz9">\nreport', cardOf)).toEqual({ who: 'engine', text: 'agent message from zz9' })
   // The whole prompt is kept up to LINE_MAX characters; the pane cuts it to its own width.
   expect(promptLine('a'.repeat(300)).text).toBe('a'.repeat(300)); expect(LINE_MAX).toBe(400)
   expect([Array.from(promptLine('a'.repeat(500)).text).length, promptLine('a'.repeat(500)).text.endsWith('…')]).toEqual([400, true])

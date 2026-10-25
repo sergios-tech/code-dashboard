@@ -10,7 +10,7 @@ import { handbackOf } from '../domain/architect'
 import { promptLine } from '../domain/log'
 import { stepSpeed } from '../domain/vitals'
 import { fmtDuration } from '../format/text'
-import { beginRequest, beginTurn, endTurn, finishAgent, isArchitectId, noteAgentStep, noteMode, say, storeSpeed } from '../state/store'
+import { beginRequest, beginTurn, endTurn, finishAgent, isArchitectId, noteAgentStep, noteMode, readAgents, say, storeSpeed } from '../state/store'
 import { finishConsult, handedBack } from './architect'
 
 export const wireTurns = (on: On, cfg: Config): void => {
@@ -29,8 +29,9 @@ export const wireTurns = (on: On, cfg: Config): void => {
         // hand-back tool call normally carries the advice first; this is the fallback.
         const back = handbackOf(e.text)
         if (!back || !(await handedBack($, cfg, back.from, back.body))) {
-          const p = promptLine(e.text)
-          await say($, p.who, p.text)
+          const cards = await readAgents($)
+          const p = promptLine(e.text, id => cards.find(c => c.id === id))
+          await say($, p.who, p.text, 'info', p.agentId ?? null)
         }
       }
     }
