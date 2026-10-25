@@ -14,7 +14,7 @@ Please don't open a public issue for a vulnerability. In the report, include:
 
 ## Supported versions
 
-Fixes go into the latest release, which is currently 0.1.x.
+Fixes go into the latest release, which is currently 0.4.x.
 
 ## What the plugin can see
 
