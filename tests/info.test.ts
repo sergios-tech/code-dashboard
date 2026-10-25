@@ -32,14 +32,14 @@ test('at 40 columns each row drops its least telling part first', () => {
     '$ spend  $0.94   1.2s · 107 tok/s',
   ])
 })
-test('INFO colours: icons orange, gauges by level, bypass coral, compactions gold (Review Focus 3)', () => {
+test('INFO colours: icons orange, gauges by their own levels, bypass coral, compactions gold (Review Focus 3)', () => {
   const s = busy()
   const hot = { ...s, main: { ...s.main, mode: 'bypassPermissions', speed: null }, usage: { ...s.usage, pct: 96, compactions: 3, limits: [{ kind: 'five_hour', pct: 79.5, resetsAt: null }, { kind: 'seven_day', pct: 104, resetsAt: null }] } }
   const tree = infoPanel(draw({ now: NOW }), vmOf(hot, 66, 'dock', NOW).info, 66)
   const run = (t: string) => texts(tree).find(x => x.text === t)
   expect(run('◐ ')?.color).toBe(COLORS.orange); expect(run('bypass')).toMatchObject({ color: COLORS.error, bold: true }); expect(run('↺3')?.color).toBe(COLORS.gold)
   expect(info(hot, 66)[4]).toContain('  80%'); expect(info(hot, 66)[5]).toContain('▰'.repeat(16) + ' 104%')
-  expect(texts(tree).filter(x => /^▰+$/.test(x.text)).map(x => x.color)).toEqual([COLORS.error, COLORS.gold, COLORS.error])
+  expect(texts(tree).filter(x => /^▰+$/.test(x.text)).map(x => x.color)).toEqual([COLORS.error, COLORS.orange, COLORS.error])
   expect(texts(tree).find(x => x.text === ' ● working ')?.color).toBe(COLORS.orange)
   const idle = infoPanel(draw({ now: NOW }), vmOf(FRESH, 66, 'dock', NOW).info, 66)
   expect(texts(idle).find(x => x.text === ' ○ idle ')?.color).toBe(COLORS.dim)
@@ -63,21 +63,43 @@ test('a gauge clamps to its track, prints the rounded figure and takes its colou
     const row = info(snap, 66)[3] ?? ''
     return { row, filled: row.split('▰').length - 1, empty: row.split('▱').length - 1, color: texts(tree).find(x => /^▰+$/.test(x.text))?.color }
   }
-  const { green, gold, error } = COLORS
+  const { green, orange, error } = COLORS
   const cases: [number, string, number, string | undefined][] = [
     [Number.NaN, '  0%', 0, undefined],
     [-5, ' -5%', 0, undefined],
-    [79.5, ' 80%', 13, gold],
-    [89.5, ' 90%', 14, error],
+    [29, ' 29%', 5, green],
+    [29.5, ' 30%', 5, orange],
+    [30, ' 30%', 5, orange],
+    [49, ' 49%', 8, orange],
+    [49.5, ' 50%', 8, error],
+    [50, ' 50%', 8, error],
     [100, '100%', 16, error],
     [104, '104%', 16, error],
-    [42, ' 42%', 7, green],
+    [42, ' 42%', 7, orange],
+    [11, ' 11%', 2, green],
   ]
   for (const [pct, figure, filled, color] of cases) {
     const got = at(pct)
     expect(got.row, `pct ${pct}`).toContain(`${figure}`)
     expect(got.row).not.toContain('NaN')
     expect([got.filled, got.filled + got.empty, got.color], `pct ${pct}`).toEqual([filled, 16, color])
+  }
+})
+test('limit gauges turn orange from 80 and red from 90 on the rounded figure, in every window', () => {
+  const s = busy()
+  const at = (pct: number, kind: string) => {
+    const snap = { ...s, usage: { ...s.usage, pct: null, limits: [{ kind, pct, resetsAt: null }] } }
+    const tree = infoPanel(draw({ now: NOW }), vmOf(snap, 66, 'dock', NOW).info, 66)
+    return { row: info(snap, 66)[3] ?? '', color: texts(tree).find(x => /^▰+$/.test(x.text))?.color }
+  }
+  const { green, orange, error } = COLORS
+  const cases: [number, string, string][] = [[79, ' 79%', green], [79.5, ' 80%', orange], [80, ' 80%', orange], [89, ' 89%', orange], [89.5, ' 90%', error], [90, ' 90%', error], [30, ' 30%', green], [50, ' 50%', green]]
+  for (const kind of ['five_hour', 'seven_day', 'seven_day_opus']) {
+    for (const [pct, figure, color] of cases) {
+      const got = at(pct, kind)
+      expect(got.row, `${kind} ${pct}`).toContain(figure)
+      expect(got.color, `${kind} ${pct}`).toBe(color)
+    }
   }
 })
 test('a group with nothing to show goes with its divider; nothing at all reads waiting', () => {

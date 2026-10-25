@@ -10,7 +10,7 @@ import { clock } from './draw'
 import type { Draw } from './draw'
 import { stateDot } from './header'
 import type { MiniView } from './model'
-import { familyColor, levelColor } from './palette'
+import { ctxColor, familyColor, limitColor } from './palette'
 import { LOOP_GLYPH, bar, loopTone } from './panels/agents'
 import { agentTone } from './svg'
 
@@ -76,19 +76,19 @@ const headRow = (d: Draw, m: MiniView, width: number): RenderElement => {
   const arch: Piece[] = m.header.arch ? [{ text: ` · ${m.header.arch}`, color: m.header.isAdvising ? C.architect : C.dim }] : []
   const effort: Piece[] = m.effort ? [{ text: '◆ ', color: C.orange }, { text: shorten(m.effort, EFFORT_MAX), color: C.green, bold: true }] : []
   const compacted: Piece[] = m.ctx && m.ctx.compactions > 0 ? [{ text: ` ↺${m.ctx.compactions}`, color: C.gold }] : []
-  const meter = (pct: number, cells: number): Piece[] => {
+  const meter = (pct: number, cells: number, level: (pct: number) => string): Piece[] => {
     const g = gauge(pct, cells)
     return [
-      { text: g.on, color: levelColor(pct) },
+      { text: g.on, color: level(pct) },
       { text: g.off, color: C.faint },
       { text: ` ${figureOf(pct)}%`, color: C.text, bold: true },
     ]
   }
-  const ctxGauge: Piece[] = m.ctx ? [{ text: '◐ ', color: C.orange }, ...meter(m.ctx.pct, CTX_GAUGE), ...compacted] : []
-  const ctxFigure: Piece[] = m.ctx ? [{ text: '◐ ', color: C.orange }, { text: `${figureOf(m.ctx.pct)}%`, color: levelColor(m.ctx.pct), bold: true }, ...compacted] : []
+  const ctxGauge: Piece[] = m.ctx ? [{ text: '◐ ', color: C.orange }, ...meter(m.ctx.pct, CTX_GAUGE, ctxColor), ...compacted] : []
+  const ctxFigure: Piece[] = m.ctx ? [{ text: '◐ ', color: C.orange }, { text: `${figureOf(m.ctx.pct)}%`, color: ctxColor(m.ctx.pct), bold: true }, ...compacted] : []
   const label = (l: Limit): Piece => ({ text: `${shorten(limitLabel(l.kind), LIMIT_LABEL)} `, color: C.dim })
-  const limitGauge = (l: Limit): Piece[] => [label(l), ...meter(l.pct, LIMIT_GAUGE)]
-  const limitFigure = (l: Limit): Piece[] => [label(l), { text: `${figureOf(l.pct)}%`, color: levelColor(l.pct), bold: true }]
+  const limitGauge = (l: Limit): Piece[] => [label(l), ...meter(l.pct, LIMIT_GAUGE, limitColor)]
+  const limitFigure = (l: Limit): Piece[] => [label(l), { text: `${figureOf(l.pct)}%`, color: limitColor(l.pct), bold: true }]
   const [hot] = m.limits
   const spend: Piece[] = m.costUsd === null ? [] : [{ text: '$ ', color: C.orange }, { text: fmtUsd(m.costUsd).replace(/^\$/, ''), color: C.text, bold: true }]
   const roomy = (groups: Piece[][]) => joined(d, groups, '   ')

@@ -6,7 +6,7 @@ import { dividerRow, frame } from '../hooks/view/frame'
 import { header } from '../hooks/view/header'
 import { WIDE_LEFT, WIDE_RIGHT, clampWidth, pickLayout, wideColumns } from '../hooks/view/layout'
 import type { ViewModel } from '../hooks/view/model'
-import { COLORS, TEXT_TOKENS, contrast, familyColor, levelColor, to256 } from '../hooks/view/palette'
+import { COLORS, TEXT_TOKENS, contrast, ctxColor, familyColor, limitColor, to256 } from '../hooks/view/palette'
 import { CELL_PX } from '../hooks/view/picture'
 import { ELS, cellWidth, draw, drawRows, engine, found, pane, rowsOf, texts, vmOf } from './kit'
 
@@ -35,9 +35,15 @@ test('no token is blue', () => {
     expect(b > r && b > g).toBe(false)
   }
 })
-test('levels go green, gold from 80, coral from 90, by the rounded figure (Review Focus 3)', () => {
-  const { green, gold, error } = COLORS
-  expect([Number.NaN, -5, 0, 79.4, 79.5, 80, 89.4, 89.5, 90, 100, 104].map(levelColor)).toEqual([green, green, green, green, gold, gold, gold, error, error, error, error])
+test('ctx goes green, orange from 30, red from 50, by the rounded figure', () => {
+  const { green, orange, error } = COLORS
+  expect([Number.NaN, -5, 0, 29, 29.4, 29.5, 30, 49, 49.5, 50, 100, 104].map(ctxColor)).toEqual([green, green, green, green, green, orange, orange, orange, error, error, error, error])
+})
+test('limits go green, orange from 80, red from 90, by the rounded figure; gold is no level colour', () => {
+  const { green, orange, error, gold } = COLORS
+  const got = [Number.NaN, -5, 0, 29, 30, 50, 79, 79.4, 79.5, 80, 89, 89.4, 89.5, 90, 100, 104].map(limitColor)
+  expect(got).toEqual([green, green, green, green, green, green, green, green, orange, orange, orange, orange, error, error, error, error])
+  expect([...got, ...[0, 30, 50, 80, 90].map(ctxColor)].includes(gold)).toBe(false)
 })
 test('model families: Opus brand, Sonnet orange, Haiku green, Fable gold, any other dim', () => {
   expect(['claude-opus-5-5', 'Sonnet 5.5', 'claude-haiku-4-5', 'Fable 5.1', 'gpt-x', ''].map(familyColor)).toEqual([COLORS.brand, COLORS.orange, COLORS.green, COLORS.gold, COLORS.dim, COLORS.dim])

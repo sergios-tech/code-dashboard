@@ -49,16 +49,26 @@ export const to256 = (hex: string): string => {
   return `#${[CUBE[Math.floor(n / 36)]!, CUBE[Math.floor(n / 6) % 6]!, CUBE[n % 6]!].map(hex2).join('')}`
 }
 
-/** A level turns gold from this percent. */
-export const HOT = 80
-/** A level turns coral from this percent. */
-export const CRITICAL = 90
+/** The context gauge turns orange from this percent. */
+export const CTX_ORANGE = 30
+/** The context gauge turns red from this percent. */
+export const CTX_RED = 50
+/** A rate-limit window turns orange from this percent. */
+export const LIMIT_ORANGE = 80
+/** A rate-limit window turns red from this percent. */
+export const LIMIT_RED = 90
 
-/** The colour of a level: green, gold from 80, coral from 90, by the rounded figure. A non-finite figure counts as 0. */
-export const levelColor = (pct: number): string => {
+/** Green below `orange`, orange from it, red (the error coral) from `red`, by the rounded figure. A non-finite figure counts as 0. */
+const levelOf = (pct: number, orange: number, red: number): string => {
   const p = Number.isFinite(pct) ? Math.round(pct) : 0
-  return p >= CRITICAL ? COLORS.error : p >= HOT ? COLORS.gold : COLORS.green
+  return p >= red ? COLORS.error : p >= orange ? COLORS.orange : COLORS.green
 }
+
+/** The colour of the context gauge and figure: green, orange from 30, red from 50. */
+export const ctxColor = (pct: number): string => levelOf(pct, CTX_ORANGE, CTX_RED)
+
+/** The colour of a rate-limit gauge and figure, for every window: green, orange from 80, red from 90. */
+export const limitColor = (pct: number): string => levelOf(pct, LIMIT_ORANGE, LIMIT_RED)
 
 /** The colour of a model by family: Opus brand, Sonnet orange, Haiku green, Fable gold, any other dim. */
 export const familyColor = (model: string): string => {

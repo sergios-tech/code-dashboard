@@ -10,7 +10,7 @@ import { fmtResetIn, fmtUsd, gauge, kTokens, limitLabel, shorten } from '../../f
 import type { Draw } from '../draw'
 import { dividerRow, frame } from '../frame'
 import type { InfoView } from '../model'
-import { levelColor } from '../palette'
+import { ctxColor, limitColor } from '../palette'
 
 type Piece = { text: string; color: string; bold?: boolean }
 
@@ -65,11 +65,11 @@ const head = (d: Draw, label: string, icon?: string): Piece[] => [icon ? { text:
 /** The percentage as printed: rounded, and 0 when the reading is not a number. */
 const figureOf = (pct: number): number => (Number.isFinite(pct) ? Math.round(pct) : 0)
 
-/** `▰▰▱▱▱▱▱▱▱▱  11%`: the gauge clamped to its track in the level's colour, then the right-aligned figure. */
-const meter = (d: Draw, pct: number, cellsWide: number): Piece[] => {
+/** `▰▰▱▱▱▱▱▱▱▱  11%`: the gauge clamped to its track in the colour `level` gives (ctx or limit rules), then the right-aligned figure. */
+const meter = (d: Draw, pct: number, cellsWide: number, level: (pct: number) => string): Piece[] => {
   const g = gauge(pct, cellsWide)
   return [
-    { text: g.on, color: levelColor(pct) },
+    { text: g.on, color: level(pct) },
     { text: g.off, color: d.C.faint },
     { text: lpad(`${figureOf(pct)}%`, FIGURE), color: d.C.text, bold: true },
   ]
@@ -140,11 +140,11 @@ export const infoPanel = (d: Draw, v: InfoView, width: number): RenderElement =>
       const { ctx } = v
       const tokens: Piece[] = ctx.tokens !== null && ctx.window > 0 ? [{ text: `${kTokens(ctx.tokens)}/${kTokens(ctx.window)}`, color: d.C.dim }] : []
       const compacted: Piece[] = ctx.compactions > 0 ? [{ text: `↺${ctx.compactions}`, color: d.C.gold }] : []
-      const top = [...head(d, 'ctx', '◐'), ...meter(d, ctx.pct, gaugeCells)]
+      const top = [...head(d, 'ctx', '◐'), ...meter(d, ctx.pct, gaugeCells, ctxColor)]
       rows.push(rowOf(d, 'ctx', fit(top, [after(d, [tokens, compacted]), after(d, [compacted]), []], room)))
     }
     v.limits.forEach((l, i) => {
-      const top = [...head(d, shorten(limitLabel(l.kind), LABEL), v.ctx || i > 0 ? undefined : '◐'), ...meter(d, l.pct, gaugeCells)]
+      const top = [...head(d, shorten(limitLabel(l.kind), LABEL), v.ctx || i > 0 ? undefined : '◐'), ...meter(d, l.pct, gaugeCells, limitColor)]
       rows.push(rowOf(d, `limit-${i}`, fit(top, [after(d, [resetPieces(d, l, v.now)]), []], room)))
     })
   }

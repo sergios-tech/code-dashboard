@@ -3,7 +3,8 @@ import { expect, test } from 'claude-code/testing'
 import { normalizeCard } from '../hooks/state/schema'
 import type { Snapshot } from '../hooks/state/store'
 import { miniPane } from '../hooks/view/mini'
-import { draw, drawRows, found, vmOf } from './kit'
+import { COLORS } from '../hooks/view/palette'
+import { draw, drawRows, found, texts, vmOf } from './kit'
 import { NOW, busy } from './fixture'
 
 const mini = (s: Snapshot, w: number) => drawRows(miniPane(draw({ now: NOW, motion: false, hasClient: false }), vmOf(s, w, 'inline', NOW).mini!, w)).map(r => r.trimEnd())
@@ -30,4 +31,27 @@ test('twelve agents still fit eight rows, with the rest counted', () => {
   const s = busy(); const many = Array.from({ length: 12 }, (_, i) => normalizeCard({ id: `m${i}`, description: `Agent ${i}`, status: 'done', spawnedAt: NOW - 9000, endedAt: NOW - 1000 }))
   const rows = mini({ ...s, agents: many }, 100)
   expect(rows).toHaveLength(8); expect(rows[7]).toMatch(/^\+6 earlier · loops 2 seen/)
+})
+
+test('the inline summary colours ctx orange from 30 and red from 50, a limit orange from 80 and red from 90, in gauges and figures', () => {
+  const s = busy()
+  const { green, orange, error } = COLORS
+  const colours = (pct: number | null, limit: number | null, w: number) => {
+    const snap = { ...s, agents: [], usage: { ...s.usage, pct, limits: limit === null ? [] : [{ kind: 'five_hour', pct: limit, resetsAt: null }] } }
+    const tree = miniPane(draw({ now: NOW, motion: false, hasClient: false }), vmOf(snap, w, 'inline', NOW).mini!, w)
+    const t = texts(tree)
+    return { gauges: t.filter(x => /^▰+$/.test(x.text)).map(x => x.color), figures: t.filter(x => /^ ?\d+%$/.test(x.text)).map(x => x.color) }
+  }
+  const ctxCases: [number, string][] = [[29, green], [29.5, orange], [30, orange], [49, orange], [49.5, error], [50, error]]
+  const limitCases: [number, string][] = [[79, green], [79.5, orange], [80, orange], [89, orange], [89.5, error], [90, error]]
+  for (const w of [100, 44]) {
+    for (const [pct, color] of ctxCases) expect(colours(pct, null, w), `ctx ${pct} at ${w}`).toMatchObject({ [w === 100 ? 'gauges' : 'figures']: [color] })
+  }
+  for (const w of [100, 60]) {
+    for (const [pct, color] of limitCases) {
+      const got = colours(10, pct, w)
+      expect(w === 100 ? got.gauges : got.figures, `limit ${pct} at ${w}`).toEqual([green, color])
+    }
+  }
+  expect(colours(30, 50, 100).gauges).toEqual([orange, green])
 })
