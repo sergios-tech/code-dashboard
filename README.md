@@ -10,7 +10,7 @@ consults, the busiest tools and files, and a session log. Every number comes fro
 your machine.
 
 <p align="center">
-  <img src="docs/media/demo.gif" alt="The st-code pane, docked at 66 columns, through a real three-subagent run: INFO switches to working, three agents appear in AGENTS with a bouncing bar while they run and a full green bar with a check once done, TOOLS &amp; FILES counts the calls and edited files, TRENDS draws the context and cost sparklines, and the LOG fills with spawns, tool calls and completions" width="528">
+  <img src="docs/media/demo.gif" alt="The st-code pane, docked at 66 columns, through a real three-subagent run: INFO switches to working, three agents appear in AGENTS with a bouncing bar while they run and a full green bar with a check once done, TOOLS &amp; FILES counts the calls and the files each agent edited, and the LOG fills with the prompt, spawns, edits and completions" width="528">
 </p>
 
 <p align="center">
@@ -51,15 +51,15 @@ releases. If something breaks after an update, see [Troubleshooting](#troublesho
 ## What you see
 
 <p align="center">
-  <img src="docs/media/docked-session.png" alt="A fullscreen session 160 columns wide: on the left, the transcript reports three finished subagents that added docstrings; on the right, the docked st-code pane shows the SERGIO'S TECH · CODE header over INFO, TRENDS, AGENTS with three finished agents, TOOLS &amp; FILES and LOG in one column, one failed Bash call marked in red; below the prompt, the status line reads st-code: ctx 5% · agents 0/3" width="820">
+  <img src="docs/media/docked-session.png" alt="A fullscreen session 160 columns wide: on the left, the transcript reports three finished subagents that added docstrings and lists each function's new docstring; on the right, the docked st-code pane shows the SERGIO'S TECH · CODE header over INFO, AGENTS with three finished agents, TOOLS &amp; FILES and LOG in one column" width="820">
 </p>
 
 | Two columns, in a 120-column dock | One column, in the default 66-column dock |
 | --- | --- |
-| <img src="docs/media/docked-wide.png" alt="The wide layout: INFO, TRENDS and TOOLS &amp; FILES stacked on the left, AGENTS on the right with three finished agents, and the LOG across the full width underneath, listing edits to tally/utils.py, tally/cli.py and tally/parser.py and the agents finishing" width="480"> | <img src="docs/media/compact.png" alt="The compact layout close up: INFO, TRENDS, AGENTS with three finished agents, TOOLS &amp; FILES and LOG stacked in one column under the header, with the gauges, sparklines and the one failed Bash call in red" width="300"> |
+| <img src="docs/media/docked-wide.png" alt="The wide layout: INFO and TOOLS &amp; FILES stacked on the left, AGENTS on the right with three finished agents, and the LOG across the full width underneath, listing edits to tally/cli.py and tally/parser.py and the agents finishing" width="480"> | <img src="docs/media/compact.png" alt="The compact layout close up: INFO, AGENTS with three finished agents, TOOLS &amp; FILES and LOG stacked in one column under the header, with the gauges and the reads and edits of each file" width="300"> |
 
 <p align="center">
-  <img src="docs/media/inline-mini.png" alt="A 100-column session with the summary inline above the prompt, in five rows: the model and its state, the effort, a context gauge, the 7-day and 5-hour limits and the session cost; a context sparkline; and three finished subagents, each with a check, a full green bar and its clock" width="620">
+  <img src="docs/media/inline-mini.png" alt="A 100-column session with the summary inline above the prompt, in four rows: the model and its state, the effort, a context gauge, the 7-day and 5-hour limits and the session cost; then three finished subagents, each with a check, a full green bar and its clock" width="620">
 </p>
 
 The header is one unfilled row on black. `▌SERGIO'S TECH · CODE` sits on the left. On the right are
