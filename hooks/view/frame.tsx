@@ -19,6 +19,8 @@ export type FrameProps = {
   key: string
   label: string
   meta?: string
+  /** The colour of the meta text; `dim` when not given. */
+  metaColor?: string
   width: number
   /** The frame holds running work: the border and dividers are drawn in `green` instead of `frame`. */
   isActive?: boolean
@@ -57,7 +59,7 @@ export const frame = (d: Draw, p: FrameProps): RenderElement => {
       </Box>
       {meta ? (
         <Box position="absolute" top={0} right={1}>
-          <Text color={C.dim} wrap="truncate">{` ${meta} `}</Text>
+          <Text color={p.metaColor ?? C.dim} wrap="truncate">{` ${meta} `}</Text>
         </Box>
       ) : null}
       {(p.dividers ?? []).map(i => (

@@ -155,7 +155,7 @@ export const infoPanel = (d: Draw, v: InfoView, width: number): RenderElement =>
   if (rows.length === 0) rows.push(<Text key="waiting" color={d.C.dim} wrap="truncate">waiting for the first request</Text>)
   return (
     <Box key="info" marginTop={1} flexDirection="column" width={width}>
-      {frame(d, { key: 'info-frame', label: 'INFO', meta: v.isRunning ? '● working' : '○ idle', width, isActive: v.isRunning, dividers, children: rows })}
+      {frame(d, { key: 'info-frame', label: 'INFO', meta: v.isRunning ? '● working' : '○ idle', metaColor: v.isRunning ? d.C.orange : d.C.dim, width, isActive: v.isRunning, dividers, children: rows })}
     </Box>
   )
 }

@@ -40,6 +40,9 @@ test('INFO colours: icons orange, gauges by level, bypass coral, compactions gol
   expect(run('◐ ')?.color).toBe(COLORS.orange); expect(run('bypass')).toMatchObject({ color: COLORS.error, bold: true }); expect(run('↺3')?.color).toBe(COLORS.gold)
   expect(info(hot, 66)[4]).toContain('  80%'); expect(info(hot, 66)[5]).toContain('▰'.repeat(16) + ' 104%')
   expect(texts(tree).filter(x => /^▰+$/.test(x.text)).map(x => x.color)).toEqual([COLORS.error, COLORS.gold, COLORS.error])
+  expect(texts(tree).find(x => x.text === ' ● working ')?.color).toBe(COLORS.orange)
+  const idle = infoPanel(draw({ now: NOW }), vmOf(FRESH, 66, 'dock', NOW).info, 66)
+  expect(texts(idle).find(x => x.text === ' ○ idle ')?.color).toBe(COLORS.dim)
 })
 test('a gauge clamps to its track, prints the rounded figure and takes its colour from it (Review Focus 3)', () => {
   const s = busy()
