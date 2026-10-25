@@ -6,6 +6,9 @@ import { shorten } from '../format/text'
 /** The log keeps this many lines; older ones are dropped as new ones arrive. */
 export const LOG_MAX = 60
 
+/** A line keeps this many characters of its text; the panel cuts it again to the pane's width. */
+export const LINE_MAX = 400
+
 /** `list` with `line` last, kept to the newest LOG_MAX. */
 export const appendLog = (list: LogLine[], line: LogLine): LogLine[] => [...list, line].slice(-LOG_MAX)
 
@@ -16,9 +19,9 @@ export const appendLog = (list: LogLine[], line: LogLine): LogLine[] => [...list
  */
 export const promptLine = (text: string): { who: string; text: string } => {
   const tag = /^\s*<([a-z][\w-]*)/i.exec(text)?.[1]
-  if (!tag) return { who: 'you', text: shorten(redact(text), 70) }
+  if (!tag) return { who: 'you', text: shorten(redact(text), LINE_MAX) }
   const from = /\bfrom="([^"]+)"/.exec(text)?.[1]
-  return { who: 'engine', text: shorten(`${tag.replace(/[-_]/g, ' ')}${from ? ` from ${from.slice(0, 8)}` : ''}`, 70) }
+  return { who: 'engine', text: shorten(`${tag.replace(/[-_]/g, ' ')}${from ? ` from ${from.slice(0, 8)}` : ''}`, LINE_MAX) }
 }
 
 /** The rows a pane that reports no height is taken to have. */

@@ -7,10 +7,11 @@ import { recordCall } from '../domain/activity'
 import type { Call } from '../domain/activity'
 import { addCard, applyStep, finishCard, finishLoop, noteTool, stepLoop } from '../domain/agents'
 import { IDS_MAX, SEEN_MAX, endConsult, momentOf, startConsult } from '../domain/architect'
-import { appendLog } from '../domain/log'
+import { LINE_MAX, appendLog } from '../domain/log'
 import { afterCall } from '../domain/turn'
 import { usageFrom } from '../domain/vitals'
 import { redact } from '../format/redact'
+import { shorten } from '../format/text'
 import {
   DEFAULT_ACTIVITY,
   DEFAULT_ARCHITECT,
@@ -124,9 +125,9 @@ export async function resetAll($: EngineInterface): Promise<void> {
   await update($, view, () => DEFAULT_VIEW)
 }
 
-/** One line into the session log, credentials masked, the log kept to its newest lines; `mark` is drawn after the text, never cut. */
+/** One line into the session log, credentials masked before its text is cut to LINE_MAX, the log kept to its newest lines; `mark` is drawn after the text, never cut. */
 export async function say($: EngineInterface, who: string, text: string, kind: LogKind = 'info', agentId: string | null = null, mark: LogMark | null = null): Promise<void> {
-  const line: LogLine = { at: await $.clock.now(), who, text: redact(text), kind, agentId, mark }
+  const line: LogLine = { at: await $.clock.now(), who, text: shorten(redact(text), LINE_MAX), kind, agentId, mark }
   await update($, log, list => appendLog(normalizeLog(list), line))
 }
 

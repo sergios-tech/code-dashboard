@@ -37,7 +37,7 @@ The plugin keeps short summaries in session state, held by the host for the curr
 
 - tool calls as a name plus a command, a path cut to its last two segments, a pattern, a URL or a
   description
-- prompts' first 70 characters
+- the first 400 characters of each log line, prompts included
 - agent tasks and the start of their answers
 - the first line of architect advice
 - counts and timings

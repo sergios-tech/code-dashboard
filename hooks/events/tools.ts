@@ -8,11 +8,7 @@ import { timedMs } from '../domain/activity'
 import { whoOf } from '../domain/agents'
 import { EDIT_TOOLS } from '../domain/turn'
 import { describeInput } from '../format/redact'
-import { shorten } from '../format/text'
 import { noteAgentTool, noteTurnCall, recordTool, say } from '../state/store'
-
-/** A call as the log and the cards name it, `Edit → src/main.ts`, cut to this many characters. */
-const CALL_TEXT = 64
 
 /** What a call's check said about it: it waited on an approval prompt, or it was refused. */
 type Pending = { isAsked: boolean; isDenied: boolean }
@@ -49,7 +45,8 @@ export const wireTools = (on: On): void => {
 
     const isEdit = didRun && !hasFailed && EDIT_TOOLS.has(e.tool)
     await noteTurnCall($, { inSubagent, hasFailed, isEdit })
-    const text = shorten(describeInput(e.tool, e), CALL_TEXT)
+    // A call as the log and the cards name it, `Edit → src/main.ts`; each keeps as much as it holds.
+    const text = describeInput(e.tool, e)
     const card = e.agentId ? await noteAgentTool($, e.agentId, { tool: e.tool, text, isError: hasFailed || isDenied }) : null
     const who = card ? whoOf(card) : e.agentId ? 'agent' : 'main'
     const agentId = e.agentId ?? null

@@ -6,7 +6,6 @@ import type { ApiContentBlock, EngineInterface, On } from 'claude-code'
 
 import type { Config } from '../config'
 import { adviceLine } from '../domain/architect'
-import { shorten } from '../format/text'
 import { addArchitectId, closeConsult, isArchitectId, markSeen, openConsult, readArchitect, say, storeAdvice } from '../state/store'
 
 /** The log's name for the architect: its label, as a source column reads. */
@@ -14,8 +13,6 @@ const whoOf = (cfg: Config): string => cfg.architectLabel.toLowerCase()
 
 /** An agent type as a consult names it: `fable-advisor:fable-advisor` is `fable-advisor`. */
 const viaOf = (type: string): string => type.split(':').pop() || 'agent'
-
-const LOGGED_ADVICE = 60
 
 /** A consult opened: logged at the moment it is inferred at, or plainly with the moments switched off. */
 async function beginConsult($: EngineInterface, cfg: Config, id: string, via: string): Promise<void> {
@@ -35,7 +32,7 @@ export async function finishConsult($: EngineInterface, cfg: Config, report: str
   const isNew = advice !== '' && advice !== a.lastAdvice
   if (!isOpen && !isNew) return
   await closeConsult($, advice || null, id)
-  await say($, whoOf(cfg), isNew ? `advice: ${shorten(advice, LOGGED_ADVICE)}` : 'advice returned', 'consult')
+  await say($, whoOf(cfg), isNew ? `advice: ${advice}` : 'advice returned', 'consult')
 }
 
 /** A spawned architect agent: followed as a consult under its id, never as a card or a loop. */
@@ -51,7 +48,7 @@ export async function architectSpawned($: EngineInterface, cfg: Config, id: stri
 export async function handedBack($: EngineInterface, cfg: Config, from: string, report: string): Promise<boolean> {
   if (!(await isArchitectId($, from))) return false
   const advice = adviceLine(report)
-  if (await storeAdvice($, advice)) await say($, whoOf(cfg), `advice: ${shorten(advice, LOGGED_ADVICE)}`, 'consult')
+  if (await storeAdvice($, advice)) await say($, whoOf(cfg), `advice: ${advice}`, 'consult')
   return true
 }
 

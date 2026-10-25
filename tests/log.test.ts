@@ -2,7 +2,8 @@ import { expect, test } from 'claude-code/testing'
 import type { Engine } from 'claude-code/testing'
 
 import type { LogLine } from '../types'
-import { LOG_MAX, appendLog, logRows, promptLine } from '../hooks/domain/log'
+import { fitCells } from '../hooks/domain/agents'
+import { LINE_MAX, LOG_MAX, appendLog, logRows, promptLine } from '../hooks/domain/log'
 import type { LogView } from '../hooks/view/model'
 import { COLORS } from '../hooks/view/palette'
 import { logPanel } from '../hooks/view/panels/log'
@@ -30,7 +31,9 @@ test('prompts and engine-opened turns read as one log line', () => {
   expect(promptLine('<task-notification from="abcdef123456">…').who).toBe('engine')
   expect(promptLine('<task-notification from="abcdef123456">…').text).toBe('task notification from abcdef12')
   expect(promptLine('<agent-message>').text).toBe('agent message')
-  expect(promptLine('a'.repeat(300)).text).toHaveLength(70)
+  // The whole prompt is kept up to LINE_MAX characters; the pane cuts it to its own width.
+  expect(promptLine('a'.repeat(300)).text).toBe('a'.repeat(300)); expect(LINE_MAX).toBe(400)
+  expect([Array.from(promptLine('a'.repeat(500)).text).length, promptLine('a'.repeat(500)).text.endsWith('…')]).toEqual([400, true])
   expect(promptLine('line one\nline two\twith a tab').text).toBe('line one line two with a tab')
   expect(promptLine('use password=hunter2hunter2 now').text).toBe('use password=••• now')
 })
@@ -86,6 +89,23 @@ test('a fresh session shows the header and an empty LOG; a prompt lands in it', 
   expect(await ui.find({ text: /fix the login redirect/ })).toBeDefined()
   expect(await ui.find({ text: /nothing yet/ })).toBeUndefined()
   await ui.unmount()
+})
+test('a line runs as far as the pane is wide and is cut only there', async ($, on) => {
+  const clock = engine(on)
+  on('tool.call', () => failed)
+  await clock.advance(45_296_000)
+  const prompt = Array.from({ length: 80 }, (_, i) => `word${i}`).join(' ')
+  const command = `npm run build -- ${Array.from({ length: 30 }, (_, i) => `--flag${i}`).join(' ')}`
+  await $.turn.start({ text: prompt, turnId: 'T1' })
+  await $.tool.call({ tool: 'Bash', command } as never)
+  for (const cols of [64, 120, 280]) {
+    const rows = await rowsAt($, cols, 40)
+    // The cells the frame, the clock and the actor leave the text; a failed call keeps ` ✗` after it.
+    const room = cols - 4 - 9 - 11
+    const textOf = (re: RegExp) => (rows.find(r => re.test(r)) ?? '').slice(2 + 9 + 11, -2).trimEnd()
+    expect(textOf(/^│ \d\d:\d\d:\d\d you /)).toBe(fitCells(prompt, room))
+    expect(textOf(/^│ \d\d:\d\d:\d\d main /)).toBe(`${fitCells(`Bash → ${command}`, room - 2)} ✗`)
+  }
 })
 test('log rows are timed, labelled by source, one row each and within the width', async ($, on) => {
   const clock = engine(on)

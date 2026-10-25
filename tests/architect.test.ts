@@ -285,6 +285,10 @@ test("an architect's answer at its end is its advice", async ($, on) => {
   expect(rows.some(r => /^│ » Keep the store flat\. +│$/.test(r))).toBe(true)
   expect(rows.some(r => /^│ last 0s ago · took 9s +│$/.test(r))).toBe(true)
   expect(rows.some(r => /architect +advice: Keep the store flat\./.test(r))).toBe(true)
+  // A longer verdict is logged whole, as far as the pane is wide.
+  const long = 'Keep the parser pure and move normalize into utils.py, so the CLI and the tests share one copy of it.'
+  await $.turn.complete({ answer: long, durationMs: 9000, isAborted: false, turnId: 'A2', agentId: 'arc1', reason: 'answer' })
+  expect((await drawn($, 160)).some(r => r.includes(`advice: ${long}`))).toBe(true)
 })
 test('with no architect anywhere, the panel stays hidden and no status line is set', async ($, on) => {
   const { clock, statuses } = watched(on)

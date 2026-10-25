@@ -4,6 +4,14 @@ All notable changes to this project are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- **LOG**: a line now runs as far as the pane is wide. Prompts were cut to 70 characters, tool calls
+  to 64 and advice to 60 when they were stored, so a wide LOG showed them cut short with room to
+  spare. Each line now keeps its first 400 characters and is cut only to the pane's width.
+
 ## [0.5.1] - 2026-10-25
 
 ### Fixed
