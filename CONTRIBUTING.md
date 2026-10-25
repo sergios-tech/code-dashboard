@@ -38,12 +38,6 @@ source ~/.nvm/nvm.sh && nvm use 24
 `tsc` needs `.claude-plugin/types/`, so load the plugin once with `claude --plugin-dir .` before you
 run it.
 
-If you change the media scripts, also run their tests:
-
-```sh
-python3 -I -m unittest discover -s scripts/capture
-```
-
 ## Layout
 
 | Path | Holds |
@@ -59,7 +53,6 @@ python3 -I -m unittest discover -s scripts/capture
 | `hooks/client/` | client modules: the ticking clock, the header pulse and the AGENTS sweep |
 | `types/index.d.ts` | the `PluginState['st-code-display']` declaration |
 | `tests/` | one test file per module group, plus shared helpers in `kit.ts` |
-| `scripts/capture/` | the media pipeline: tmux capture, ANSI to SVG, PNG, GIF and social card |
 | `docs/media/` | the screenshots, demo GIF and social preview that the README uses |
 
 A frame is drawn in three steps. The `ui.render` handler loads one state snapshot, and

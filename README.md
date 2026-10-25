@@ -306,9 +306,8 @@ Derived from [Flightdeck](https://github.com/scasella/claude-flightdeck) by Step
 MIT license. Flightdeck proved the idea and the event-to-reducer approach. Code Display is a rewrite with
 its own panels, layouts and look. Both copyright notices are in [LICENSE](LICENSE).
 
-Screenshots and the demo are captured from a real session with the scripts in
-[`scripts/capture/`](scripts/capture/README.md). The social preview card is
-[docs/media/social-preview.png](docs/media/social-preview.png).
+Screenshots and the demo are captured from a real session; the capture scripts are kept outside the
+plugin. The social preview card is [docs/media/social-preview.png](docs/media/social-preview.png).
 
 Contributing: [CONTRIBUTING.md](CONTRIBUTING.md) · Security: [SECURITY.md](SECURITY.md) · License:
 [MIT](LICENSE)

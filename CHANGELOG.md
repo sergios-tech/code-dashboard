@@ -29,6 +29,11 @@ All notable changes to this project are listed here. The format follows
   `● OPUS 5.5 · ARCHITECT ADVISING`. Narrow panes drop the suffix, then the model, and keep the dot.
   The inline summary keeps its `WORKING` / `IDLE` word.
 
+### Removed
+
+- **Media scripts**: the capture and render scripts for the screenshots, the demo GIF and the social
+  card left the plugin and now live in a separate folder, so a plugin install no longer carries them.
+
 ## [0.5.5] - 2026-10-25
 
 ### Fixed
