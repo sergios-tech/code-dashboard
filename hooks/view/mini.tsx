@@ -75,7 +75,7 @@ const headRow = (d: Draw, m: MiniView, width: number): RenderElement => {
   const state = stateWords(d, m.header)
   const arch: Piece[] = m.header.arch ? [{ text: ` · ${m.header.arch}`, color: m.header.isAdvising ? C.architect : C.dim }] : []
   const effort: Piece[] = m.effort ? [{ text: '◆ ', color: C.orange }, { text: shorten(m.effort, EFFORT_MAX), color: C.green, bold: true }] : []
-  const compacted: Piece[] = m.ctx && m.ctx.compactions > 0 ? [{ text: ` ↺${m.ctx.compactions}`, color: C.gold }] : []
+  const compacted: Piece[] = m.ctx && m.ctx.compactions > 0 ? [{ text: ` ↺ ${m.ctx.compactions}`, color: C.gold }] : []
   const meter = (pct: number, cells: number, level: (pct: number) => string): Piece[] => {
     const g = gauge(pct, cells)
     return [

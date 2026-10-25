@@ -20,9 +20,9 @@ All notable changes to this project are listed here. The format follows
   Before, it read the local clock time the consult opened at, `consulting since 14:02:11`.
 - **LOG times**: each line now reads how long into the session it was logged, `0:42`, `12:04`, then
   `1:02:04` past an hour, right-aligned to the widest time shown. Before, it read the local clock
-  time, `14:02:11`. The session's start is stored once, so `/st-code reset` and `/clear` keep it; a
-  state stored by 0.5.5 counts from its earliest log line until the next session start, and a line
-  with no known time reads `--:--`.
+  time, `14:02:11`. The session's start is stored once, so `/st-code-display reset` and `/clear`
+  keep it; a state stored by 0.5.5 counts from its earliest log line until the next session start,
+  and a line with no known time reads `--:--`.
 - **Header state word**: the header no longer reads `WORKING` or `IDLE`; INFO's frame already says
   `● working` or `○ idle`. The state dot stays, pulsing while work runs, and the model and the
   architect suffix follow it. Before, it read `● OPUS 5.5 WORKING · ARCHITECT ADVISING`; now it reads
@@ -33,6 +33,12 @@ All notable changes to this project are listed here. The format follows
 
 - **Media scripts**: the capture and render scripts for the screenshots, the demo GIF and the social
   card left the plugin and now live in a separate folder, so a plugin install no longer carries them.
+
+### Fixed
+
+- **Compaction mark**: INFO's context row and the inline summary now read `↺ 2`, with a space, as
+  the reset countdowns read `↻ 2h01m`. Before, `↺2` let a font that draws the arrow wider than its
+  cell lay the arrow and the count over each other.
 
 ## [0.5.5] - 2026-10-25
 

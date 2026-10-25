@@ -139,7 +139,7 @@ export const infoPanel = (d: Draw, v: InfoView, width: number): RenderElement =>
     if (v.ctx) {
       const { ctx } = v
       const tokens: Piece[] = ctx.tokens !== null && ctx.window > 0 ? [{ text: `${kTokens(ctx.tokens)}/${kTokens(ctx.window)}`, color: d.C.dim }] : []
-      const compacted: Piece[] = ctx.compactions > 0 ? [{ text: `↺${ctx.compactions}`, color: d.C.gold }] : []
+      const compacted: Piece[] = ctx.compactions > 0 ? [{ text: `↺ ${ctx.compactions}`, color: d.C.gold }] : []
       const top = [...head(d, 'ctx', '◐'), ...meter(d, ctx.pct, gaugeCells, ctxColor)]
       rows.push(rowOf(d, 'ctx', fit(top, [after(d, [tokens, compacted]), after(d, [compacted]), []], room)))
     }

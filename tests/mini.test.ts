@@ -10,16 +10,16 @@ import { NOW, busy } from './fixture'
 const mini = (s: Snapshot, w: number) => drawRows(miniPane(draw({ now: NOW, motion: false, hasClient: false }), vmOf(s, w, 'inline', NOW).mini!, w)).map(r => r.trimEnd())
 test('the mini is state and digest, the agents and a last row', () => {
   const rows = mini(busy(), 100)
-  expect(rows[0]).toBe('● OPUS 5.5 WORKING · ARCHITECT ON CALL   ◆ xhigh   ◐ ▰▱▱▱▱▱▱▱ 11% ↺1   7d ▰▰▰▰▰▱ 84%   $ 0.94')
+  expect(rows[0]).toBe('● OPUS 5.5 WORKING · ARCHITECT ON CALL   ◆ xhigh   ◐ ▰▱▱▱▱▱▱▱ 11% ↺ 1   7d ▰▰▰▰▰▱ 84%   $ 0.94')
   expect(rows[1]).toBe(`● ${'Count tests by file'.padEnd(69)}${'Haiku'.padEnd(8)} ▰▰▰▱▱▱▱▱▱▱▱▱▱▱  0:37`)
   expect(rows.slice(1, 6).map(r => r.slice(0, 2))).toEqual(['● ', '● ', '✗ ', '✓ ', '✓ '])
   expect(rows[6]).toBe('loops 2 seen · 1 active  ✓●'); expect(rows).toHaveLength(7)
 })
 test('row one gives way: the cooler limit, the architect words, the gauges, effort, the hotter limit, then spend', () => {
-  expect(mini(busy(), 60)[0]).toBe('● OPUS 5.5 WORKING   ◆ xhigh  ◐ 11% ↺1  7d 84%  $ 0.94')
-  expect(mini(busy(), 44)[0]).toBe('● OPUS 5.5 WORKING   ◐ 11% ↺1  $ 0.94')
+  expect(mini(busy(), 60)[0]).toBe('● OPUS 5.5 WORKING   ◆ xhigh  ◐ 11% ↺ 1  7d 84%  $ 0.94')
+  expect(mini(busy(), 44)[0]).toBe('● OPUS 5.5 WORKING   ◐ 11% ↺ 1  $ 0.94')
   const s = busy(); const long = { ...s, main: { ...s.main, model: 'claude-sonnet-4-5[1m]' }, usage: { ...s.usage, costUsd: 1234.56 } }
-  expect(mini(long, 40)[0]).toBe('● SONNET 4.5 1M WORKING   ◐ 11% ↺1')
+  expect(mini(long, 40)[0]).toBe('● SONNET 4.5 1M WORKING   ◐ 11% ↺ 1')
 })
 test('agent rows carry no digits or Buttons; tags go under 50 columns; bars are 14, 10 and 6', () => {
   const tree = miniPane(draw({ now: NOW }), vmOf(busy(), 100, 'inline', NOW).mini!, 100)

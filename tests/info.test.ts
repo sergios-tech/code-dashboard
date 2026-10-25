@@ -13,7 +13,7 @@ test('INFO is a labelled table in three groups split by dividers', () => {
     '┌ INFO ─────────────────────────────────────────────── ● working ┐',
     '│ ◆ effort ▮▮▮▮ xhigh   mode auto   req 7                        │',
     '├────────────────────────────────────────────────────────────────┤',
-    '│ ◐ ctx    ▰▰▱▱▱▱▱▱▱▱▱▱▱▱▱▱  11%  112k/1.0M  ↺1                  │',
+    '│ ◐ ctx    ▰▰▱▱▱▱▱▱▱▱▱▱▱▱▱▱  11%  112k/1.0M  ↺ 1                 │',
     '│   5h     ▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱   2%  ↻ 3h51m                        │',
     '│   7d     ▰▰▰▰▰▰▰▰▰▰▰▰▰▱▱▱  84%  ↻ 1d20h                        │',
     '├────────────────────────────────────────────────────────────────┤',
@@ -25,7 +25,7 @@ test('at 40 columns each row drops its least telling part first', () => {
   const content = info(busy(), 40).filter(r => r.startsWith('│')).map(r => r.slice(2, -2).trimEnd())
   expect(content).toEqual([
     '◆ effort ▮▮▮▮ xhigh   mode auto',
-    '◐ ctx    ▰▱▱▱▱▱▱▱▱▱  11%  ↺1',
+    '◐ ctx    ▰▱▱▱▱▱▱▱▱▱  11%  ↺ 1',
     '  5h     ▱▱▱▱▱▱▱▱▱▱   2%  ↻ 3h51m',
     '  7d     ▰▰▰▰▰▰▰▰▱▱  84%  ↻ 1d20h',
     '$ spend  $0.94   1.2s · 107 tok/s',
@@ -36,7 +36,7 @@ test('INFO colours: icons orange, gauges by their own levels, bypass coral, comp
   const hot = { ...s, main: { ...s.main, mode: 'bypassPermissions', speed: null }, usage: { ...s.usage, pct: 96, compactions: 3, limits: [{ kind: 'five_hour', pct: 79.5, resetsAt: null }, { kind: 'seven_day', pct: 104, resetsAt: null }] } }
   const tree = infoPanel(draw({ now: NOW }), vmOf(hot, 66, 'dock', NOW).info, 66)
   const run = (t: string) => texts(tree).find(x => x.text === t)
-  expect(run('◐ ')?.color).toBe(COLORS.orange); expect(run('bypass')).toMatchObject({ color: COLORS.error, bold: true }); expect(run('↺3')?.color).toBe(COLORS.gold)
+  expect(run('◐ ')?.color).toBe(COLORS.orange); expect(run('bypass')).toMatchObject({ color: COLORS.error, bold: true }); expect(run('↺ 3')?.color).toBe(COLORS.gold)
   expect(info(hot, 66)[4]).toContain('  80%'); expect(info(hot, 66)[5]).toContain('▰'.repeat(16) + ' 104%')
   expect(texts(tree).filter(x => /^▰+$/.test(x.text)).map(x => x.color)).toEqual([COLORS.error, COLORS.orange, COLORS.error])
   expect(texts(tree).find(x => x.text === ' ● working ')?.color).toBe(COLORS.orange)
@@ -138,8 +138,8 @@ test('a compaction counts, is logged, and shows beside the context gauge', async
   await $.session.compact({ trigger: 'manual', messages: kept } as never)
   await $.session.compact({ trigger: 'precompute', messages: kept } as never)
   const ui = await $.ui.mount({ ...pane(64), surface: 'terminal' })
-  expect(await ui.find({ text: /↺1/ })).toBeDefined(); expect(await ui.find({ text: /↺2/ })).toBeUndefined()
-  expect((await rowsOf(ui)).some(r => /◐ ctx .* 10% {2}20k\/200k {2}↺1/.test(r))).toBe(true)
+  expect(await ui.find({ text: /↺ 1/ })).toBeDefined(); expect(await ui.find({ text: /↺ 2/ })).toBeUndefined()
+  expect((await rowsOf(ui)).some(r => /◐ ctx .* 10% {2}20k\/200k {2}↺ 1/.test(r))).toBe(true)
   expect(await ui.find({ text: /context compacted \(manual\)/ })).toBeDefined()
   await ui.unmount()
 })

@@ -13,7 +13,8 @@ export const COLORS = {
   /**
    * The frames turned down while nothing runs: the Sergio's Tech themes' dark red `#800000`, one step
    * under it so 256 colours draw `#870000`, not the `#af0000` it rounds up to. Its one text is the
-   * resting `○ IDLE` of the header and the inline summary, below 4.5:1, whose `○` shape says the same.
+   * resting `○` of the header and the inline summary's `○ IDLE`, below 4.5:1, whose `○` shape says
+   * the same.
    */
   idle: '#7f0000',
   brand: '#ff0000',
