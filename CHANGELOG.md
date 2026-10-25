@@ -8,6 +8,14 @@ All notable changes to this project are listed here. The format follows
 
 ### Fixed
 
+- **AGENTS in one column**: a model loop that no agent claims, such as a workflow's agents, now
+  shows AGENTS with its `loops` row. Before, a docked pane under 110 columns showed nothing at all
+  while only such loops ran; the wide layout and the inline summary already showed them.
+- **Loops are activity**: a running loop that no agent claims counts as a running agent does. The
+  header dot stays green and pulses, AGENTS is green and reads `only loops running`, and the frames
+  no longer turn the idle dark red while a background workflow works. A loop counts as running for
+  15 seconds after its last step, and the pane redraws then, so one that ends without saying so
+  does not leave it green.
 - **Durations**: the LOG's `done · 21s`, the architect's `took` and the averages past a minute now
   count whole seconds, as the running clock does, so an agent's row and its log line agree. A
   21.8-second agent read `0:21` in its row and `done · 22s` in the LOG.

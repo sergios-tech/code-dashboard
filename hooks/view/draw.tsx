@@ -18,7 +18,7 @@ export type Draw = {
   motion: boolean
   surface: string
   now: number
-  /** Nothing runs, neither a turn nor a subagent: the frames are drawn in `idle`. */
+  /** Nothing runs, neither a turn nor a subagent nor another loop: the frames are drawn in `idle`. */
   isIdle: boolean
 }
 

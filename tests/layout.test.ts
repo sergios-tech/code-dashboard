@@ -4,6 +4,7 @@ import type { On } from 'claude-code'
 
 import { parseConfig } from '../hooks/config'
 import { recordCall } from '../hooks/domain/activity'
+import { LOOP_ACTIVE_MS } from '../hooks/domain/agents'
 import {
   DEFAULT_ACTIVITY,
   DEFAULT_ARCHITECT,
@@ -83,6 +84,55 @@ test('a fresh session draws on every surface and width, empty panels hidden but 
     }
     await ui.unmount()
   }
+})
+test('one column shows AGENTS once a loop no card claims has stepped, as two columns do', async ($, on) => {
+  const clock = engine(on)
+  model(on)
+  let n = 0
+  on('agent.spawn', () => ({ model: 'claude-sonnet-5-5', agentId: `m${++n}` }))
+  await clock.advance(1000)
+  // A workflow script's agents are loops, not cards.
+  await $.agent.spawn({ ...spawn('general-purpose', 'wf one'), workflow: { runId: 'wf_1', agentIndex: 1 } })
+  await $.agent.spawn({ ...spawn('general-purpose', 'wf two'), workflow: { runId: 'wf_1', agentIndex: 2 } })
+  await step($, 'm1')
+  await step($, 'm2')
+  for (const cols of [64, 103, 120]) {
+    const ui = await $.ui.mount({ ...pane(cols), surface: 'terminal' })
+    const rows = await rowsOf(ui)
+    expect(rows.some(r => /AGENTS ─+ 0 running · 0 total ┐/.test(r))).toBe(true)
+    expect(rows.some(r => r.includes('loops  2 seen · 2 active  ●●'))).toBe(true)
+    await ui.unmount()
+  }
+  const C = COLORS
+  /** Each frame's border colour, top to bottom, the header's IDLE colour and AGENTS' empty row. */
+  const look = async () => {
+    const ui = await $.ui.mount({ ...pane(66), surface: 'terminal' })
+    const borders = (await ui.findAll({ type: 'Box' })).filter(b => b.props.borderStyle === 'single').map(b => b.props.borderColor)
+    const idle = (await ui.findAll({ type: 'Text', text: /^ IDLE$/ })).find(t => t.props.color)?.props.color
+    const empty = (await rowsOf(ui)).find(r => /only loops running|no agents yet/.test(r))?.replace(/[│ ]+/g, ' ').trim()
+    await ui.unmount()
+    return { borders, idle, empty }
+  }
+  // An active loop is activity, as a running agent is: AGENTS is green, the rest the frame red, IDLE dim.
+  expect(await look()).toEqual({ borders: [C.frame, C.green, C.frame], idle: C.dim, empty: 'only loops running' })
+  // Once the loops end, nothing runs.
+  for (const id of ['m1', 'm2']) await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, turnId: `T-${id}`, agentId: id, reason: 'answer' })
+  expect(await look()).toEqual({ borders: [C.idle, C.idle, C.idle], idle: C.idle, empty: 'no agents yet' })
+})
+test('a loop that falls quiet without ending draws as idle once it no longer counts as active', async ($, on) => {
+  const clock = engine(on)
+  model(on)
+  on('agent.spawn', () => ({ model: 'claude-sonnet-5-5', agentId: 'q1' }))
+  await clock.advance(1000)
+  await $.agent.spawn({ ...spawn('general-purpose', 'wf quiet'), workflow: { runId: 'wf_q', agentIndex: 1 } })
+  await step($, 'q1')
+  const ui = await $.ui.mount({ ...pane(66), surface: 'terminal' })
+  const borders = async () => (await ui.findAll({ type: 'Box' })).filter(b => b.props.borderStyle === 'single').map(b => b.props.borderColor)
+  expect(await borders()).toEqual([COLORS.frame, COLORS.green, COLORS.frame])
+  // No event arrives: the pane redraws by itself when the loop stops counting as active.
+  await clock.advance(LOOP_ACTIVE_MS)
+  expect(await borders()).toEqual([COLORS.idle, COLORS.idle, COLORS.idle])
+  await ui.unmount()
 })
 test('a busy session draws inside every width from 28 to 220, frames whole, docked and inline (Review Focus 1)', { timeoutMs: 30_000 }, async ($, on) => {
   engine(on)

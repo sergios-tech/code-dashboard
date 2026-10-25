@@ -68,14 +68,17 @@ export const bar = (d: Draw, c: AgentCard, w: number): RenderElement[] => {
   ]
 }
 
-/** One row per agent, `● 1: title  Haiku  ▰▰▰▱▱▱▱▱▱▱▱▱▱▱  0:37`, and `+N earlier` above them; `no agents yet` with none. */
+/**
+ * One row per agent, `● 1: title  Haiku  ▰▰▰▱▱▱▱▱▱▱▱▱▱▱  0:37`, and `+N earlier` above them; with none,
+ * `only loops running` while a loop no agent claims runs, else `no agents yet`.
+ */
 const rows = (d: Draw, a: AgentsView, width: number, expand: Expand): RenderElement[] => {
   const { Box, Text, Button } = d.els
   const { C } = d
   if (a.shown.length === 0) {
     return [
       <Text key="agents-none" color={C.dim}>
-        no agents yet
+        {a.loops && a.loops.active > 0 ? 'only loops running' : 'no agents yet'}
       </Text>,
     ]
   }

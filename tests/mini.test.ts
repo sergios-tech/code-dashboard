@@ -57,8 +57,11 @@ test('the inline summary colours ctx orange from 30 and red from 50, a limit ora
 })
 test('at rest the inline ○ and IDLE are the idle dark red, as in the header', () => {
   const at = (s: Partial<Snapshot>) => texts(miniPane(draw({ now: NOW, motion: false, hasClient: false }), vmOf(s, 100, 'inline', NOW).mini!, 100))
-  const rest = at({ ...busy(), main: { ...busy().main, isRunning: false }, agents: [] })
+  const rest = at({ ...busy(), main: { ...busy().main, isRunning: false }, agents: [], loops: busy().loops.map(l => ({ ...l, isDone: true })) })
   expect([rest.find(t => t.text === '○')?.color, rest.find(t => t.text === ' IDLE')?.color]).toEqual([COLORS.idle, COLORS.idle])
+  // A loop still running, with no agent: the dot is green and IDLE stays dim, as for an agent.
+  const looping = at({ ...busy(), main: { ...busy().main, isRunning: false }, agents: [] })
+  expect([looping.find(t => t.text === '●')?.color, looping.find(t => t.text === ' IDLE')?.color]).toEqual([COLORS.green, COLORS.dim])
   // An agent still running after the turn: the dot is green and IDLE stays dim.
   const background = at({ ...busy(), main: { ...busy().main, isRunning: false } })
   expect([background.find(t => t.text === '●')?.color, background.find(t => t.text === ' IDLE')?.color]).toEqual([COLORS.green, COLORS.dim])

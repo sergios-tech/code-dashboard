@@ -229,11 +229,14 @@ test('a running bar sweeps as a Client; the frame is green while any agent runs'
   expect(found(tree, 'Client').filter(c => String(c.module).endsWith('sweep.tsx'))).toHaveLength(2)
   expect(found(tree, 'Box').filter(b => b.borderStyle === 'single').map(b => b.borderColor)).toEqual([COLORS.green])
 })
-test('with no agent running the frame is red and no bar sweeps', () => {
-  const s = { ...busy(), agents: busy().agents.filter(c => c.status !== 'running') }
+test('with no agent or loop running the frame is red and no bar sweeps; a running loop alone keeps it green', () => {
+  const stopped = busy().agents.filter(c => c.status !== 'running')
+  const s = { ...busy(), agents: stopped, loops: busy().loops.map(l => ({ ...l, isDone: true })) }
   const tree = agentsPanel(draw({ now: NOW }), vmOf(s, 66, 'dock', NOW).agents!, 66, () => () => undefined)
   expect(found(tree, 'Client').filter(c => String(c.module).endsWith('sweep.tsx'))).toHaveLength(0)
   expect(found(tree, 'Box').filter(b => b.borderStyle === 'single').map(b => b.borderColor)).toEqual([COLORS.frame])
+  const looping = agentsPanel(draw({ now: NOW }), vmOf({ ...busy(), agents: stopped }, 66, 'dock', NOW).agents!, 66, () => () => undefined)
+  expect(found(looping, 'Box').filter(b => b.borderStyle === 'single').map(b => b.borderColor)).toEqual([COLORS.green])
 })
 test('the opened agent and the loops sit inside the AGENTS frame under dividers', () => {
   const s = { ...busy(), view: { ...DEFAULT_VIEW, expanded: 'a3' } }
@@ -481,12 +484,13 @@ test('loops no card claim show as N seen · M active, newest last, under AGENTS'
     const ui = await $.ui.mount({ ...pane(64), surface: 'terminal' })
     const rows = await rowsOf(ui)
     await ui.unmount()
-    return rows.find(r => r.includes('loops')) ?? ''
+    return rows.find(r => r.includes(' seen · ')) ?? ''
   }
-  // Loops alone draw nothing: the row shows only while AGENTS does.
-  const quiet = await $.ui.mount({ ...pane(64), surface: 'terminal' })
-  expect(await quiet.find({ text: /AGENTS/ })).toBeUndefined(); expect(await quiet.find({ text: /loops/ })).toBeUndefined()
-  await quiet.unmount()
+  // Loops alone show AGENTS, empty of agents, so loops that run are never out of sight.
+  const alone = await $.ui.mount({ ...pane(64), surface: 'terminal' })
+  expect(await alone.find({ text: /AGENTS/ })).toBeDefined(); expect(await alone.find({ text: /^only loops running$/ })).toBeDefined()
+  await alone.unmount()
+  expect(await rowOf()).toMatch(/^│ loops {2}2 seen · 2 active {2}●● *│$/)
   await $.agent.spawn(spawn('Explore', 'a real agent'))
   expect(await rowOf()).toMatch(/^│ loops {2}2 seen · 2 active {2}●● *│$/)
   await end($, 'wf-1', 'answer')

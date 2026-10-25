@@ -63,7 +63,7 @@ export type ExpandedView = {
 
 /**
  * The agents panel: one row per agent, running ones first. `shown` are the rows drawn, each with
- * hotkey 1 to 6 in order; none in the wide layout before the first agent, which reads `no agents yet`.
+ * hotkey 1 to 6 in order; none before the first agent, which reads `no agents yet`.
  */
 export type AgentsView = {
   /** `N running · N total`. */
@@ -77,7 +77,7 @@ export type AgentsView = {
   mainModel: string
   /** The agent whose transcript is being viewed, marked `▶`. */
   viewedId: string | null
-  /** Some agent is running: the frame turns green. */
+  /** Some agent or other loop is running: the frame turns green. */
   isActive: boolean
   now: number
   /** The opened agent, only while it is among `shown`. */
@@ -164,7 +164,7 @@ export type ViewModel = {
     model: string
     /** The main loop is working on a turn. */
     isRunning: boolean
-    /** A turn or any subagent is running: what the header pulse shows. */
+    /** A turn, any subagent or another loop is running: what the header pulse shows. */
     isActive: boolean
     /** The architect's status words (`ARCHITECT ADVISING`), or null with no architect seen. */
     arch: string | null
@@ -174,7 +174,7 @@ export type ViewModel = {
   viewedAgentId: string | null
   /** The info panel; never null, since a fresh session still shows it. */
   info: InfoView
-  /** The agents panel, null until a subagent has been spawned; the wide layout holds it empty before that. */
+  /** The agents panel, null until a subagent has been spawned or another loop has stepped; the wide layout holds it empty before that. */
   agents: AgentsView | null
   /** The architect panel, null until an architect has been spawned or consulted. */
   architect: ArchitectView | null
@@ -208,8 +208,9 @@ export function buildViewModel(s: Snapshot, ctx: ViewContext): ViewModel {
   const info = infoView(s, ctx.now)
   const tools = toolsView(s, layout)
   // Which panels have something to show, known before the agents and architect are laid out for a width.
-  // The wide layout holds AGENTS beside INFO from the start, so the first agent moves nothing.
-  const has: Record<Panel, boolean> = { info: true, agents: s.agents.length > 0 || layout === 'wide', architect: hasArchitect(s.architect), tools: tools !== null, log: true }
+  // The wide layout holds AGENTS beside INFO from the start, so the first agent moves nothing. A loop
+  // no card claims (a workflow's agent) shows it too, or nothing would say that agents are running.
+  const has: Record<Panel, boolean> = { info: true, agents: s.agents.length > 0 || s.loops.length > 0 || layout === 'wide', architect: hasArchitect(s.architect), tools: tools !== null, log: true }
   const shown = ctx.cfg.panels.filter(p => has[p])
   // The wide layout splits only while both columns have a panel; a lone column takes the pane's width.
   const isSplit = layout === 'wide' && shown.some(p => WIDE_LEFT.includes(p)) && shown.some(p => WIDE_RIGHT.includes(p))
@@ -241,7 +242,7 @@ export function buildViewModel(s: Snapshot, ctx: ViewContext): ViewModel {
   const header: ViewModel['header'] = {
     model: s.main.model ? prettyModel(s.main.model) : '',
     isRunning,
-    isActive: isRunning || s.agents.some(a => a.status === 'running'),
+    isActive: isRunning || s.agents.some(a => a.status === 'running') || s.loops.some(l => isLoopActive(l, ctx.now)),
     arch: hasArchitect(s.architect) ? `${ctx.cfg.architectLabel.toUpperCase()} ${isAdvising(s.architect) ? 'ADVISING' : 'ON CALL'}` : null,
     isAdvising: isAdvising(s.architect),
   }
@@ -318,12 +319,12 @@ const FRAME_CHROME = 4
 const TASK_ROWS = 2
 
 /**
- * Hidden until the first agent, but in the wide layout, which shows it empty; then the first six of
- * the list, running first, and a row for those left out.
+ * Hidden until the first agent or loop, but in the wide layout, which shows it empty; then the first
+ * six of the list, running first, and a row for those left out.
  */
 function agentsView(s: Snapshot, ctx: ViewContext, width: number, layout: ViewModel['layout']): AgentsView | null {
   const cards = s.agents
-  if (cards.length === 0 && layout !== 'wide') return null
+  if (cards.length === 0 && s.loops.length === 0 && layout !== 'wide') return null
   const ordered = listOrder(cards)
   const shown = ordered.slice(0, LIST_SHOWN)
   const running = cards.filter(c => c.status === 'running').length
@@ -338,7 +339,7 @@ function agentsView(s: Snapshot, ctx: ViewContext, width: number, layout: ViewMo
     all: cards,
     mainModel: s.main.model ? prettyModel(s.main.model) : '',
     viewedId: ctx.viewedAgentId,
-    isActive: running > 0,
+    isActive: running > 0 || (loops?.active ?? 0) > 0,
     now: ctx.now,
     expanded,
     loops,

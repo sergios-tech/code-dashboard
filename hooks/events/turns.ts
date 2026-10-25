@@ -2,16 +2,19 @@
 // hand-back, its advice), its requests are timed as they stream, and its end clears the turn's tally. A
 // subagent's requests fill its card (or count among the other loops when no card claims it and it
 // is not the architect's), and its end settles the card, or the architect's consult, and is logged.
-import type { On } from 'claude-code'
+import type { On, Timer } from 'claude-code'
 
 import type { Config } from '../config'
-import { whoOf } from '../domain/agents'
+import { LOOP_ACTIVE_MS, whoOf } from '../domain/agents'
 import { handbackOf } from '../domain/architect'
 import { promptLine } from '../domain/log'
 import { stepSpeed } from '../domain/vitals'
 import { fmtDuration } from '../format/text'
 import { beginRequest, beginTurn, endTurn, finishAgent, isArchitectId, noteAgentStep, noteMode, readAgents, say, storeSpeed } from '../state/store'
 import { finishConsult, handedBack } from './architect'
+
+/** The redraw due when the loops last heard from stop counting as running. */
+let quiet: Timer | null = null
 
 export const wireTurns = (on: On, cfg: Config): void => {
   // The permission mode rides on the person's prompt; read it and pass the event on.
@@ -46,6 +49,12 @@ export const wireTurns = (on: On, cfg: Config): void => {
       // architect's requests belong to its consult: they make neither a card nor a loop.
       const card = await noteAgentStep($, id, { model: result.usage?.model || e.model, usage: result.usage, stopReason: result.stopReason })
       if (card && result.stopReason === 'max_tokens') await say($, whoOf(card), 'hit max_tokens', 'error', id, '✗')
+      // A loop no card claims counts as running until LOOP_ACTIVE_MS after its last step, and no event
+      // need come when it falls quiet, so the pane is drawn again then; a later step moves the redraw on.
+      if (!card) {
+        quiet?.cancel()
+        quiet = $.clock.after(LOOP_ACTIVE_MS, () => $.ui.invalidate('ui.render'))
+      }
       return result
     }
     // The main loop's model and effort are known when its request starts, so a long first request does not read `—`.
