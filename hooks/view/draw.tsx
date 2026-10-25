@@ -27,20 +27,20 @@ export const canAnimate = (d: Draw): boolean => d.motion && ((d.hasClient && 'Cl
 
 /**
  * A region an animated client module draws: the surface's own `Client` when its table has one, else a
- * plain node that only a picture reads (it stands in for the module). The module is named here so each
- * path stays a literal in the source, as the host requires.
+ * plain node that only a picture reads (it stands in for the module). `kind` picks the module here,
+ * so each path stays a literal in the source, as the host requires.
  */
-export const clientNode = (d: Draw, key: string, module: 'pulse' | 'sweep', width: number, props: Record<string, string | number | boolean>): RenderElement => {
+export const clientNode = (d: Draw, key: string, kind: 'pulse' | 'sweep', width: number, props: Record<string, string | number | boolean>): RenderElement => {
   const { els } = d
   if ('Client' in els) {
-    return module === 'pulse' ? (
+    return kind === 'pulse' ? (
       <els.Client key={key} module="../client/pulse.tsx" width={width} height={1} props={props} />
     ) : (
       <els.Client key={key} module="../client/sweep.tsx" width={width} height={1} props={props} />
     )
   }
   return (
-    module === 'pulse'
+    kind === 'pulse'
       ? { type: 'Client', props: { key, module: '../client/pulse.tsx', width, height: 1, props }, children: [] }
       : { type: 'Client', props: { key, module: '../client/sweep.tsx', width, height: 1, props }, children: [] }
   ) as unknown as RenderElement

@@ -261,15 +261,15 @@ export const layoutCells = (tree: RenderElement, width: number | undefined, reso
  */
 export const standIn = (client: RenderElement): RenderElement | null => {
   const p = propsOf(client)
-  const module = String(p.module ?? '')
+  const file = String(p.module ?? '')
   const q = (typeof p.props === 'object' && p.props !== null ? p.props : {}) as Record<string, unknown>
   const text = (content: string, props: Record<string, unknown>): RenderElement => ({ type: 'Text', props, children: [content] }) as unknown as RenderElement
-  if (module.endsWith('elapsed.tsx')) {
+  if (file.endsWith('elapsed.tsx')) {
     const since = Number(q.since)
     const end = typeof q.endAt === 'number' ? q.endAt : Number(q.now)
     return text(since > 0 ? fmtTimer(end - since) : '—', { color: q.color })
   }
-  if (module.endsWith('sweep.tsx')) return text('▱'.repeat(Math.max(1, Number(q.width) || 1)), { color: q.track, tag: `sweep:${String(q.color)}` })
-  if (module.endsWith('pulse.tsx')) return text('●', { color: q.color, bold: true, tag: `pulse:${String(q.color)}:${String(q.dim)}` })
+  if (file.endsWith('sweep.tsx')) return text('▱'.repeat(Math.max(1, Number(q.width) || 1)), { color: q.track, tag: `sweep:${String(q.color)}` })
+  if (file.endsWith('pulse.tsx')) return text('●', { color: q.color, bold: true, tag: `pulse:${String(q.color)}:${String(q.dim)}` })
   return null
 }
