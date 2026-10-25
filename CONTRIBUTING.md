@@ -26,7 +26,7 @@ Run all three from the repo root before you open a pull request:
 ```sh
 claude plugin validate .
 claude plugin test .
-npx -y -p typescript tsc -p .
+npx -y -p typescript@7.0.2 tsc -p .
 ```
 
 If `node` and `npx` aren't on your `PATH`, load a Node version first, for example with nvm:

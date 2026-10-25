@@ -27,7 +27,7 @@ Code Display only watches the session. Its hooks receive the following:
 - The main loop's replies, read only for server-side advisor calls.
 - Context, cost and rate-limit readings, and compactions.
 
-Every hook passes its event on unchanged. The plugin never denies, rewrites or blocks a tool call, a
+Apart from its own command and its own pane, every hook passes its event on unchanged ([what each hook does](README.md#what-each-hook-does) lists them one by one). The plugin never denies, rewrites or blocks a tool call, a
 prompt or a subagent. It makes no network requests, runs no processes, reads and writes no files and
 calls no model.
 
