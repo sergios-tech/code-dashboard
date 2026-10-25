@@ -2,9 +2,9 @@ import { expect, test } from 'claude-code/testing'
 
 import { describeInput, redact } from '../hooks/format/redact'
 import {
-  fmtClock,
   fmtDuration,
   fmtResetIn,
+  fmtSession,
   fmtSpeed,
   fmtTimer,
   fmtUsd,
@@ -37,7 +37,7 @@ test('numbers, money, durations and clocks', () => {
   expect(kTokens(950)).toBe('950'); expect(kTokens(102_400)).toBe('102k'); expect(kTokens(1_250_000)).toBe('1.3M')
   expect(fmtUsd(3.123)).toBe('$3.12'); expect(fmtUsd(123.4)).toBe('$123')
   expect(fmtDuration(42_000)).toBe('42s'); expect(fmtDuration(102_000)).toBe('1m42s'); expect(fmtDuration(3_900_000)).toBe('1h05m')
-  expect(fmtTimer(102_000)).toBe('1:42'); expect(fmtClock(0)).toBe('--:--:--')
+  expect(fmtTimer(102_000)).toBe('1:42'); expect([fmtSession(42_000), fmtSession(724_000), fmtSession(3_724_000), fmtSession(-5)]).toEqual(['0:42', '12:04', '1:02:04', '0:00'])
   // A duration counts whole seconds, as the running clock does, so a row and its log line agree.
   expect([fmtDuration(21_782), fmtTimer(21_782)]).toEqual(['21s', '0:21']); expect(fmtDuration(59_900)).toBe('59s')
   expect(plural(1, 'edit')).toBe('1 edit'); expect(plural(2, 'edit')).toBe('2 edits')

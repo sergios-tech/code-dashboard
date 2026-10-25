@@ -17,6 +17,7 @@ import type {
   Main,
   Moment,
   Roster,
+  Session,
   ToolNote,
   ToolRow,
   Turn,
@@ -35,6 +36,7 @@ export const DEFAULT_ARCHITECT: Architect = { consults: [], ids: [], seen: [], l
 export const DEFAULT_ACTIVITY: Activity = { tools: [], files: [], calls: 0 }
 export const DEFAULT_VIEW: View = { expanded: null, layout: null }
 export const DEFAULT_ROSTER: Roster = { architectTypes: [] }
+export const DEFAULT_SESSION: Session = { startedAt: null }
 
 /** Every stored key but `meta`, each normalized: the one set of values a frame is drawn from. */
 export type Snapshot = {
@@ -48,6 +50,7 @@ export type Snapshot = {
   log: LogLine[]
   view: View
   roster: Roster
+  session: Session
 }
 
 // ---------------------------------------------------------------- primitives
@@ -211,3 +214,6 @@ export const normalizeView = (stored: unknown): View => {
 }
 
 export const normalizeRoster = (stored: unknown): Roster => ({ architectTypes: strings(isObject(stored) ? stored.architectTypes : []) })
+
+/** The session's start time; a state stored before this key existed has none, and reads as unset. */
+export const normalizeSession = (stored: unknown): Session => ({ startedAt: numOrNull(isObject(stored) ? stored.startedAt : null) })

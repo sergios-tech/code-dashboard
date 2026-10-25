@@ -3,7 +3,8 @@ import type { Engine } from 'claude-code/testing'
 
 import type { LogLine } from '../types'
 import { fitCells, newCard } from '../hooks/domain/agents'
-import { LINE_MAX, LOG_MAX, appendLog, logRows, promptLine } from '../hooks/domain/log'
+import { LINE_MAX, LOG_MAX, appendLog, logRows, promptLine, sessionStart } from '../hooks/domain/log'
+import { loadSnapshot } from '../hooks/register'
 import type { LogView } from '../hooks/view/model'
 import { COLORS } from '../hooks/view/palette'
 import { logPanel } from '../hooks/view/panels/log'
@@ -67,11 +68,31 @@ test('docked, the log gets every row the other panels leave, none below 2; inlin
   }
 })
 
-const logOf = (lines: LogLine[], mainModel = 'Opus 5.5'): LogView => ({ lines, isViewingAgent: false, mainModel, rows: Math.max(1, lines.length) })
+const logOf = (lines: LogLine[], mainModel = 'Opus 5.5', startedAt: number | null = NOW - 180_000): LogView => ({ lines, isViewingAgent: false, mainModel, rows: Math.max(1, lines.length), startedAt })
+const lineAt = (at: number): LogLine => ({ at, who: 'you', text: 'hi', agentId: null, kind: 'info', mark: null })
+test('the session starts at its stored start, else at the earliest line, else is unknown', () => {
+  expect(sessionStart({ startedAt: 500 }, [lineAt(900)])).toBe(500); expect(sessionStart({ startedAt: 0 }, [lineAt(900)])).toBe(0)
+  // A state stored before the start was kept: the earliest line stands in, a line at 0 having no time.
+  expect(sessionStart({ startedAt: null }, [lineAt(0), lineAt(900), lineAt(700)])).toBe(700)
+  expect(sessionStart({ startedAt: null }, [lineAt(0)])).toBeNull(); expect(sessionStart({ startedAt: null }, [])).toBeNull()
+})
+test('LOG times count from the session start, right-aligned to the widest shown, and read --:-- when unknown', () => {
+  // The time column of each row: the cells between the frame's border and the actor.
+  const timesOf = (lines: LogLine[], startedAt: number | null) =>
+    drawRows(logPanel(draw(), logOf(lines, '', startedAt), 40))
+      .slice(2, -1)
+      .map(r => /^│ (.*?) you /.exec(r)?.[1])
+  // Under an hour the times are `m:ss`; one past an hour widens the column, and the others line up on its right.
+  expect(timesOf([lineAt(1_042_000), lineAt(1_724_000)], 1_000_000)).toEqual([' 0:42', '12:04'])
+  expect(timesOf([lineAt(1_042_000), lineAt(4_724_000)], 1_000_000)).toEqual(['   0:42', '1:02:04'])
+  // A line at 0, or no start at all, has no time to show.
+  expect(timesOf([lineAt(0), lineAt(1_042_000)], 1_000_000)).toEqual(['--:--', ' 0:42'])
+  expect(timesOf([lineAt(1_042_000)], null)).toEqual(['--:--'])
+})
 test('LOG names the main loop by its model, colours only the marks', () => {
   const tree = logPanel(draw({ now: NOW }), logOf(busy().log), 66)
   const rows = drawRows(tree).slice(1)
-  expect(rows[5]).toMatch(/^│ \d\d:\d\d:\d\d opus {7}Bash rm -rf build · denied {17}│$/)
+  expect(rows[5]).toMatch(/^│ 1:38 opus {7}Bash rm -rf build · denied {21}│$/)
   const by = (t: string) => texts(tree).find(x => x.text.trim() === t)
   expect(by('opus')).toMatchObject({ color: COLORS.brand, bold: true }); expect(by('Explore 1')?.color).toBe(COLORS.orange)
   expect(by('architect')?.color).toBe(COLORS.architect); expect(by('· denied')).toMatchObject({ color: COLORS.gold, bold: true })
@@ -112,16 +133,19 @@ test('a line runs as far as the pane is wide and is cut only there', async ($, o
   await $.tool.call({ tool: 'Bash', command } as never)
   for (const cols of [64, 120, 280]) {
     const rows = await rowsAt($, cols, 40)
-    // The cells the frame, the clock and the actor leave the text; a failed call keeps ` ✗` after it.
-    const room = cols - 4 - 9 - 11
-    const textOf = (re: RegExp) => (rows.find(r => re.test(r)) ?? '').slice(2 + 9 + 11, -2).trimEnd()
-    expect(textOf(/^│ \d\d:\d\d:\d\d you /)).toBe(fitCells(prompt, room))
-    expect(textOf(/^│ \d\d:\d\d:\d\d main /)).toBe(`${fitCells(`Bash → ${command}`, room - 2)} ✗`)
+    // The cells the frame, the time (`0:00`, and a space) and the actor leave the text; a failed call keeps ` ✗` after it.
+    const room = cols - 4 - 5 - 11
+    const textOf = (re: RegExp) => (rows.find(r => re.test(r)) ?? '').slice(2 + 5 + 11, -2).trimEnd()
+    expect(textOf(/^│ 0:00 you /)).toBe(fitCells(prompt, room))
+    expect(textOf(/^│ 0:00 main /)).toBe(`${fitCells(`Bash → ${command}`, room - 2)} ✗`)
   }
 })
-test('log rows are timed, labelled by source, one row each and within the width', async ($, on) => {
+test('log rows are timed from the session start, labelled by source, one row each and within the width', async ($, on) => {
   const clock = engine(on)
-  // The mocked clock starts at 0, which has no time of day to show.
+  on('command.register', () => ({ value: undefined }) as never)
+  on('session.start', (_$, e) => ({ cwd: e.cwd }))
+  await clock.advance(1_000)
+  await $.session.start({ sessionId: 's', cwd: '/p' } as never)
   await clock.advance(45_296_000)
   await $.turn.start({ text: 'first\nsecond line with 🚀 and a tab\t' + 'w'.repeat(300), turnId: 'T1' })
   await $.turn.start({ text: '<task-notification from="abcdef123456">x', turnId: 'T2' })
@@ -132,14 +156,27 @@ test('log rows are timed, labelled by source, one row each and within the width'
     expect(at > 0).toBe(true)
     expect(rows[at - 1]?.trim()).toBe('')
     // The frame is intact and holds the two entries, one row each, then blank rows down to the bottom border.
-    expect(rows[at + 1]).toMatch(/^│ \d\d:\d\d:\d\d you {8}first second/)
-    expect(rows[at + 2]).toMatch(/^│ \d\d:\d\d:\d\d engine {5}task notif/)
+    expect(rows[at + 1]).toMatch(/^│ 12:34:56 you {8}first second/)
+    expect(rows[at + 2]).toMatch(/^│ 12:34:56 engine {5}task notif/)
     if (cols >= 64) expect(rows[at + 2]).toContain('task notification from abcdef12')
     expect(rows[at + 3]).toMatch(/^│ *│$/)
     expect(rows.at(-1)?.startsWith('└')).toBe(true)
     for (const r of rows) expect(cellWidth(r) <= Math.max(40, cols)).toBe(true)
     await ui.unmount()
   }
+})
+test('the first session.start stores the session\'s start; a reload keeps it', async ($, on) => {
+  const clock = engine(on)
+  on('command.register', () => ({ value: undefined }) as never)
+  on('session.start', (_$, e) => ({ cwd: e.cwd }))
+  await clock.advance(7_000)
+  await $.session.start({ sessionId: 's', cwd: '/p' } as never)
+  await clock.advance(5_000)
+  await $.session.start({ sessionId: 's', cwd: '/p' } as never)
+  await clock.advance(8_000)
+  await $.turn.start({ text: 'after the reload', turnId: 'T1' })
+  // 20s on the clock, 13s after the first start; had the reload moved it, the line would read 0:08.
+  expect((await rowsAt($, 64, 40)).some(r => /^│ 0:13 you +after the reload/.test(r))).toBe(true)
 })
 test('a short pane shrinks the LOG to the rows left and drops it below 2, never past its bottom edge', async ($, on) => {
   const clock = engine(on)

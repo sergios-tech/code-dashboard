@@ -3,12 +3,13 @@ import { read, update } from 'claude-code'
 import type { EngineInterface } from 'claude-code'
 
 import { parseConfig } from '../hooks/config'
-import { activity, agents, architect, loadSnapshot, log, loops, main, meta, migrate, resetAll, roster, turn, usage, view } from '../hooks/register'
+import { activity, agents, architect, loadSnapshot, log, loops, main, meta, migrate, resetAll, roster, session, turn, usage, view } from '../hooks/register'
 import {
   DEFAULT_ACTIVITY,
   DEFAULT_ARCHITECT,
   DEFAULT_MAIN,
   DEFAULT_ROSTER,
+  DEFAULT_SESSION,
   DEFAULT_TURN,
   DEFAULT_USAGE,
   DEFAULT_VIEW,
@@ -95,13 +96,13 @@ const junkOf = [null, 7, 'x', [], { consults: 'no' }, [null, 3, 'y']]
 
 test('a store full of garbage loads as all defaults', async () => {
   const $ = memoryState()
-  const atoms = [main, usage, turn, agents, loops, architect, activity, log, view, roster]
+  const atoms = [main, usage, turn, agents, loops, architect, activity, log, view, roster, session]
   for (const junk of junkOf) {
     for (const a of atoms) await update($, a as never, (() => junk) as never)
     expect(await loadSnapshot($)).toEqual({
       main: DEFAULT_MAIN, usage: DEFAULT_USAGE, turn: DEFAULT_TURN, agents: [], loops: [],
       architect: DEFAULT_ARCHITECT, activity: DEFAULT_ACTIVITY,
-      log: [], view: DEFAULT_VIEW, roster: DEFAULT_ROSTER,
+      log: [], view: DEFAULT_VIEW, roster: DEFAULT_ROSTER, session: DEFAULT_SESSION,
     })
   }
 })
@@ -112,12 +113,13 @@ test('state from the 0.1.0 build migrates to schema 2 (Review Focus 2)', async (
   await migrate($)
   expect(await read($, meta)).toEqual({ schemaVersion: 2 }); expect(await read($, turn)).toEqual({ edits: 2, errorStreak: 0 })
 })
-test('reset keeps cost, limits, compactions, model, mode and the offered architect types, and empties the rest', async () => {
+test('reset keeps cost, limits, compactions, model, mode, the offered architect types and the session start, and empties the rest', async () => {
   const $ = memoryState()
   await update($, main, () => ({ ...DEFAULT_MAIN, model: 'model-x', mode: 'plan', steps: 9, isRunning: true }))
   await update($, usage, () => ({ pct: 51, tokens: 100, window: 200, costUsd: 2.5, limits: [{ kind: 'five_hour', pct: 10, resetsAt: null }], compactions: 2, lastCompactAt: 8 }))
   await update($, log, () => [{ at: 1, who: 'you', text: 'hi', agentId: null, kind: 'info' as const, mark: null }])
   await update($, roster, () => ({ architectTypes: ['advisor'] }))
+  await update($, session, () => ({ startedAt: 5 }))
   await update($, architect, () => ({ ...DEFAULT_ARCHITECT, ids: ['a1'], lastAdvice: 'Ship it' }))
   await resetAll($)
   const s = await loadSnapshot($)
@@ -126,5 +128,7 @@ test('reset keeps cost, limits, compactions, model, mode and the offered archite
   expect([s.log, s.architect]).toEqual([[], DEFAULT_ARCHITECT])
   // The agent listing is not sent again after a clear, so the types it offered are kept.
   expect(s.roster).toEqual({ architectTypes: ['advisor'] })
+  // The session goes on, so its log's times keep counting from where it started.
+  expect(s.session).toEqual({ startedAt: 5 })
   expect(await read($, main)).toEqual(s.main)
 })

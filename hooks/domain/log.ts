@@ -1,5 +1,5 @@
 // The session log: what a line says and how many fit. Pure, so it is tested without an engine.
-import type { AgentCard, LogLine } from '../../types'
+import type { AgentCard, LogLine, Session } from '../../types'
 import { redact } from '../format/redact'
 import { plural, shorten } from '../format/text'
 import { whoOf } from './agents'
@@ -12,6 +12,16 @@ export const LINE_MAX = 400
 
 /** `list` with `line` last, kept to the newest LOG_MAX. */
 export const appendLog = (list: LogLine[], line: LogLine): LogLine[] => [...list, line].slice(-LOG_MAX)
+
+/**
+ * When the session started, which the log's times count from: the stored start, else (a state
+ * stored before it was kept) the earliest line logged; null with neither.
+ */
+export const sessionStart = (session: Session, lines: LogLine[]): number | null => {
+  if (session.startedAt !== null) return session.startedAt
+  const ats = lines.map(l => l.at).filter(at => at > 0)
+  return ats.length > 0 ? Math.min(...ats) : null
+}
 
 /** A paste in a prompt as the host wraps it. Only its own id closes it, so a wrapper escaped inside it (`<\pasted_content`) does not. */
 const PASTE = /<pasted_content id="([^"]*)">\n?([\s\S]*?)\n?<\/pasted_content id="\1">/g

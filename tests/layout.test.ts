@@ -10,6 +10,7 @@ import {
   DEFAULT_ARCHITECT,
   DEFAULT_MAIN,
   DEFAULT_ROSTER,
+  DEFAULT_SESSION,
   DEFAULT_TURN,
   DEFAULT_USAGE,
   DEFAULT_VIEW,
@@ -62,6 +63,7 @@ const FRESH: Snapshot = {
   log: [],
   view: DEFAULT_VIEW,
   roster: DEFAULT_ROSTER,
+  session: DEFAULT_SESSION,
 }
 
 test('a fresh session draws on every surface and width, empty panels hidden but AGENTS when wide', async ($, on) => {

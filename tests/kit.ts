@@ -9,6 +9,7 @@ import {
   DEFAULT_ARCHITECT,
   DEFAULT_MAIN,
   DEFAULT_ROSTER,
+  DEFAULT_SESSION,
   DEFAULT_TURN,
   DEFAULT_USAGE,
   DEFAULT_VIEW,
@@ -79,6 +80,7 @@ export const FRESH: Snapshot = {
   log: [],
   view: DEFAULT_VIEW,
   roster: DEFAULT_ROSTER,
+  session: DEFAULT_SESSION,
 }
 export const vmOf = (s: Partial<Snapshot>, bodyColumns = 64, placement: 'dock' | 'inline' = 'dock', now = 0) =>
   buildViewModel({ ...FRESH, ...s }, { cfg: parseConfig({}), now, bodyColumns, placement, viewedAgentId: null })

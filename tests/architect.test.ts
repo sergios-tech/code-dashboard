@@ -23,6 +23,7 @@ import {
   DEFAULT_ARCHITECT,
   DEFAULT_MAIN,
   DEFAULT_ROSTER,
+  DEFAULT_SESSION,
   DEFAULT_TURN,
   DEFAULT_USAGE,
   DEFAULT_VIEW,
@@ -94,6 +95,7 @@ const FRESH: Snapshot = {
   log: [],
   view: DEFAULT_VIEW,
   roster: DEFAULT_ROSTER,
+  session: DEFAULT_SESSION,
 }
 
 // The kit's `$` carries no `state` noun, so the store functions get a small in-memory one, and a clock.

@@ -57,8 +57,12 @@ export const fmtTimer = (ms: number): string => {
   return m < 60 ? `${m}:${pad2(s % 60)}` : `${Math.floor(m / 60)}h${pad2(m % 60)}`
 }
 
-/** Local wall-clock time `HH:MM:SS`; `--:--:--` when the time is unknown (zero or less). */
-export const fmtClock = (ms: number): string => (ms > 0 ? new Date(ms).toTimeString().slice(0, 8) : '--:--:--')
+/** How far into the session a moment is, as the LOG reads it: `m:ss`, or `h:mm:ss` past an hour. */
+export const fmtSession = (ms: number): string => {
+  const s = Math.max(0, Math.floor(ms / 1000))
+  const m = Math.floor(s / 60)
+  return m < 60 ? `${m}:${pad2(s % 60)}` : `${Math.floor(m / 60)}:${pad2(m % 60)}:${pad2(s % 60)}`
+}
 
 const ISO_TIME = /^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d):(\d\d)(?:\.(\d+))?(?:(Z)|([+-])(\d\d):(\d\d))$/
 

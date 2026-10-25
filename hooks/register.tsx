@@ -33,6 +33,7 @@ import {
   DEFAULT_ARCHITECT,
   DEFAULT_MAIN,
   DEFAULT_ROSTER,
+  DEFAULT_SESSION,
   DEFAULT_TURN,
   DEFAULT_USAGE,
   DEFAULT_VIEW,
@@ -45,6 +46,7 @@ import {
   normalizeLoops,
   normalizeMain,
   normalizeRoster,
+  normalizeSession,
   normalizeTurn,
   normalizeUsage,
   normalizeView,
@@ -76,6 +78,7 @@ export const activity = atom({ plugin: 'st-code', key: 'activity' } as const, DE
 export const log = atom({ plugin: 'st-code', key: 'log' } as const, [])
 export const view = atom({ plugin: 'st-code', key: 'view' } as const, DEFAULT_VIEW)
 export const roster = atom({ plugin: 'st-code', key: 'roster' } as const, DEFAULT_ROSTER)
+export const session = atom({ plugin: 'st-code', key: 'session' } as const, DEFAULT_SESSION)
 
 // ---------------------------------------------------------------- state
 //
@@ -84,7 +87,7 @@ export const roster = atom({ plugin: 'st-code', key: 'roster' } as const, DEFAUL
 
 /** Every key read once, so a frame is drawn from one consistent set of values. */
 export async function loadSnapshot($: EngineInterface): Promise<Snapshot> {
-  const [m, u, t, a, l, ar, ac, lg, v, ro] = await Promise.all([
+  const [m, u, t, a, l, ar, ac, lg, v, ro, se] = await Promise.all([
     read($, main),
     read($, usage),
     read($, turn),
@@ -95,6 +98,7 @@ export async function loadSnapshot($: EngineInterface): Promise<Snapshot> {
     read($, log),
     read($, view),
     read($, roster),
+    read($, session),
   ])
   return {
     main: normalizeMain(m),
@@ -107,6 +111,7 @@ export async function loadSnapshot($: EngineInterface): Promise<Snapshot> {
     log: normalizeLog(lg),
     view: normalizeView(v),
     roster: normalizeRoster(ro),
+    session: normalizeSession(se),
   }
 }
 
@@ -125,13 +130,15 @@ export async function migrate($: EngineInterface): Promise<void> {
   await update($, log, normalizeLog)
   await update($, view, normalizeView)
   await update($, roster, normalizeRoster)
+  await update($, session, normalizeSession)
   await update($, meta, () => ({ schemaVersion: SCHEMA_VERSION }))
 }
 
 /**
  * `/st-code reset` and `/clear`: the session is the same, so what it spent stays; the context
  * gauge waits for the next measurement instead of showing the pre-clear fill.
- * The architect types offered stay too, as the agent listing is not sent again.
+ * The architect types offered stay too, as the agent listing is not sent again, and so does
+ * the session's start time, which the log's times count from.
  */
 export async function resetAll($: EngineInterface): Promise<void> {
   const keptMain = normalizeMain(await read($, main))
@@ -144,6 +151,15 @@ export async function resetAll($: EngineInterface): Promise<void> {
   await update($, activity, () => DEFAULT_ACTIVITY)
   await update($, log, () => [])
   await update($, view, () => DEFAULT_VIEW)
+}
+
+/** The session's start, noted once: a reload runs `session.start` again, and `/clear` and `/st-code reset` keep the same session. */
+async function noteSessionStart($: EngineInterface): Promise<void> {
+  const now = await $.clock.now()
+  await update($, session, x => {
+    const s = normalizeSession(x)
+    return s.startedAt === null ? { startedAt: now } : s
+  })
 }
 
 /** One line into the session log, credentials masked before its text is cut to LINE_MAX, the log kept to its newest lines; `mark` is drawn after the text, never cut. */
@@ -453,6 +469,7 @@ export const register: Register = (on, options) => {
       argumentHint: '[open|close|reset|layout auto|compact|wide|mini]',
     })
     await migrate($)
+    await noteSessionStart($)
     // The host's own reading of the context, cost and rate limits, stored as the first measurement.
     // A host without usage (headless, an SDK host, a session not yet bound), or one that throws,
     // just starts without it.

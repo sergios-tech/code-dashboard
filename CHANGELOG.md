@@ -11,6 +11,11 @@ All notable changes to this project are listed here. The format follows
 - **ARCHITECT line**: an open consult now reads how long it has run, `consulting for 42s` or
   `consulting for 2m`, as the closed line already reads how long ago (`last 2m ago · took 14s`).
   Before, it read the local clock time the consult opened at, `consulting since 14:02:11`.
+- **LOG times**: each line now reads how long into the session it was logged, `0:42`, `12:04`, then
+  `1:02:04` past an hour, right-aligned to the widest time shown. Before, it read the local clock
+  time, `14:02:11`. The session's start is stored once, so `/st-code reset` and `/clear` keep it; a
+  state stored by 0.5.5 counts from its earliest log line until the next session start, and a line
+  with no known time reads `--:--`.
 
 ## [0.5.5] - 2026-10-25
 

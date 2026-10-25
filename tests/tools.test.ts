@@ -182,7 +182,7 @@ test('hot files rank by touches; subagent-only files are dimmed', async ($, on) 
     expect([subOnly?.props.color, subOnly?.props.dimColor]).toEqual([COLORS.dim, undefined])
   }
   // Only the edit is logged; reads and the passing command stay on the panel.
-  const logged = (await rowsOf(ui)).filter(r => /\d\d:\d\d:\d\d main/.test(r))
+  const logged = (await rowsOf(ui)).filter(r => /^│ \d+:\d\d main/.test(r))
   expect(logged).toHaveLength(1); expect(logged[0]).toMatch(/main +Edit → auth\/login\.ts/)
   await ui.unmount()
 
@@ -206,7 +206,7 @@ test('a denied call writes one log line ending in a gold mark, and no status lin
   const ui = await $.ui.mount({ ...pane(64), surface: 'terminal' })
   const rows = await rowsOf(ui)
   expect(rows.filter(r => r.includes('denied'))).toHaveLength(1)
-  expect(rows.some(r => /\d\d:\d\d:\d\d main +Bash → rm -rf build · denied/.test(r))).toBe(true)
+  expect(rows.some(r => /^│ \d+:\d\d main +Bash → rm -rf build · denied/.test(r))).toBe(true)
   expect((await ui.find({ type: 'Text', text: /^Bash → rm -rf build$/ }))?.props.color).toBe(COLORS.text)
   expect(await ui.find({ type: 'Text', text: /^ · denied$/ })).toMatchObject({ props: { color: COLORS.gold, bold: true } })
   expect(rows.some(r => r.includes('✗'))).toBe(false) // a refusal is not a failure

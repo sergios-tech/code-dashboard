@@ -6,7 +6,7 @@ import type { Config, Panel } from '../config'
 import { hotFiles, topTools, totalCalls } from '../domain/activity'
 import { LIST_SHOWN, cardTitle, fitCells, isCut, isLoopActive, listOrder } from '../domain/agents'
 import { consultLine, consultTimeline, hasArchitect, isAdvising } from '../domain/architect'
-import { logRows } from '../domain/log'
+import { logRows, sessionStart } from '../domain/log'
 import { effortLevel } from '../domain/vitals'
 import { kTokens, plural, prettyModel, wrapText } from '../format/text'
 import type { Snapshot } from '../state/schema'
@@ -18,8 +18,9 @@ import { lanesHeight } from './svg'
  * The log panel: the lines to draw, oldest first, whether they are one agent's alone, and the rows
  * its body takes. Docked with a known height `rows` is every row the pane has left, so the panel
  * pads the lines with blank rows down to it; otherwise it is the lines drawn, or 1 for `nothing yet`.
+ * `startedAt` is when the session began, which each line's time counts from; null when unknown.
  */
-export type LogView = { lines: LogLine[]; isViewingAgent: boolean; mainModel: string; rows: number }
+export type LogView = { lines: LogLine[]; isViewingAgent: boolean; mainModel: string; rows: number; startedAt: number | null }
 
 /**
  * The info panel: the main model's effort, context, spend, rate limits and last request, in three
@@ -236,7 +237,7 @@ export function buildViewModel(s: Snapshot, ctx: ViewContext): ViewModel {
   const axis = ctx.isPicture && agents && agents.all.length > 0 && shown.includes('agents') ? Math.ceil(lanesHeight(agents.all.length) / ROW_PX) : 0
   // The header row, then the panels above the log: one stack, or the taller of the two columns, then the axis.
   const used = 1 + (columns ? Math.max(height(columns.left), height(columns.right)) : height(shown)) + axis
-  const log = logView(s.log, s.main.model ? prettyModel(s.main.model) : '', ctx, used)
+  const log = logView(s.log, s.main.model ? prettyModel(s.main.model) : '', sessionStart(s.session, s.log), ctx, used)
   // A pane too short for the log draws none of it rather than a frame cut off at its bottom edge.
   const panels = log ? shown : shown.filter(p => p !== 'log')
   const header: ViewModel['header'] = {
@@ -414,11 +415,11 @@ function toolsView(s: Snapshot, layout: ViewModel['layout']): ToolsView | null {
  * panel adds its own to it. Docked with a known height the body is padded to every row left; inline
  * or of unknown height it is the lines alone, at most 8.
  */
-function logView(lines: LogLine[], mainModel: string, ctx: ViewContext, used: number): LogView | null {
+function logView(lines: LogLine[], mainModel: string, startedAt: number | null, ctx: ViewContext, used: number): LogView | null {
   const isPadded = ctx.placement === 'dock' && ctx.bodyRows !== undefined && Number.isFinite(ctx.bodyRows)
   const room = logRows(ctx.bodyRows, used, ctx.placement === 'dock')
   if (room === 0) return null
   const viewed = ctx.viewedAgentId
   const shown = (viewed === null ? lines : lines.filter(l => l.agentId === viewed)).slice(-room)
-  return { lines: shown, isViewingAgent: viewed !== null, mainModel, rows: isPadded ? room : Math.max(1, shown.length) }
+  return { lines: shown, isViewingAgent: viewed !== null, mainModel, rows: isPadded ? room : Math.max(1, shown.length), startedAt }
 }

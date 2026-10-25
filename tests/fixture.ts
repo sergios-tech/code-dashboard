@@ -84,4 +84,5 @@ export const busy = (now: number = NOW): Snapshot => ({
   ]),
   view: DEFAULT_VIEW,
   roster: DEFAULT_ROSTER,
+  session: { startedAt: now - 180 * S },
 })
