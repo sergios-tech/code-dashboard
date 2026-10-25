@@ -63,7 +63,7 @@ export type ExpandedView = {
 
 /**
  * The agents panel: one row per agent, running ones first. `shown` are the rows drawn, each with
- * hotkey 1 to 6 in order.
+ * hotkey 1 to 6 in order; none in the wide layout before the first agent, which reads `no agents yet`.
  */
 export type AgentsView = {
   /** `N running · N total`. */
@@ -155,9 +155,9 @@ export type ViewModel = {
   layout: 'compact' | 'wide' | 'mini'
   /** The panels to draw, in config order: enabled and with something to show, the log only with room for it. */
   panels: Panel[]
-  /** The wide layout's columns, the log running under both; null in one column. */
+  /** The wide layout's columns, the log running under both; null in one column, and while either would be empty. */
   columns: Columns | null
-  /** The cells each panel is drawn in: its column's in the wide layout, else the pane's. */
+  /** The cells each panel is drawn in: its column's while the wide layout splits, else the pane's. */
   widths: Record<Panel, number>
   header: {
     /** The main model's readable name, or empty while it is unknown. */
@@ -174,7 +174,7 @@ export type ViewModel = {
   viewedAgentId: string | null
   /** The info panel; never null, since a fresh session still shows it. */
   info: InfoView
-  /** The agents panel, null until a subagent has been spawned. */
+  /** The agents panel, null until a subagent has been spawned; the wide layout holds it empty before that. */
   agents: AgentsView | null
   /** The architect panel, null until an architect has been spawned or consulted. */
   architect: ArchitectView | null
@@ -205,17 +205,20 @@ export function buildViewModel(s: Snapshot, ctx: ViewContext): ViewModel {
   const width = clampWidth(ctx.bodyColumns)
   const isRunning = s.main.isRunning
   const layout = pickLayout(ctx.cfg.layout, s.view.layout, ctx.placement, width)
-  // In the wide layout a panel is laid out for its column, so its rows, dots and lines fit there.
-  const cols = layout === 'wide' ? wideColumns(width) : null
+  const info = infoView(s, ctx.now)
+  const tools = toolsView(s, layout)
+  // Which panels have something to show, known before the agents and architect are laid out for a width.
+  // The wide layout holds AGENTS beside INFO from the start, so the first agent moves nothing.
+  const has: Record<Panel, boolean> = { info: true, agents: s.agents.length > 0 || layout === 'wide', architect: hasArchitect(s.architect), tools: tools !== null, log: true }
+  const shown = ctx.cfg.panels.filter(p => has[p])
+  // The wide layout splits only while both columns have a panel; a lone column takes the pane's width.
+  const isSplit = layout === 'wide' && shown.some(p => WIDE_LEFT.includes(p)) && shown.some(p => WIDE_RIGHT.includes(p))
+  // Split, a panel is laid out for its column, so its rows, dots and lines fit there.
+  const cols = isSplit ? wideColumns(width) : null
   const widthOf = (p: Panel): number => (cols === null ? width : WIDE_LEFT.includes(p) ? cols.left : WIDE_RIGHT.includes(p) ? cols.right : width)
   const widths = Object.fromEntries(PANELS.map(p => [p, widthOf(p)])) as Record<Panel, number>
-  const info = infoView(s, ctx.now)
-  const agents = agentsView(s, ctx, widths.agents)
+  const agents = agentsView(s, ctx, widths.agents, layout)
   const architect = architectView(s, ctx, widths.architect)
-  const tools = toolsView(s, layout)
-  // What each panel draws, null while it has nothing to show.
-  const content: Record<Panel, unknown> = { info, agents, architect, tools, log: s.log }
-  const shown = ctx.cfg.panels.filter(p => content[p] !== null)
   const columns: Columns | null = cols
     ? { left: shown.filter(p => WIDE_LEFT.includes(p)), right: shown.filter(p => WIDE_RIGHT.includes(p)), leftWidth: cols.left, rightWidth: cols.right, gap: cols.gap }
     : null
@@ -229,7 +232,7 @@ export function buildViewModel(s: Snapshot, ctx: ViewContext): ViewModel {
   }
   const height = (ps: Panel[]) => ps.reduce((n, p) => n + tall[p], 0)
   // Off the terminal the agents' time axis is drawn under their picture, below both columns in the wide layout.
-  const axis = ctx.isPicture && agents && shown.includes('agents') ? Math.ceil(lanesHeight(agents.all.length) / ROW_PX) : 0
+  const axis = ctx.isPicture && agents && agents.all.length > 0 && shown.includes('agents') ? Math.ceil(lanesHeight(agents.all.length) / ROW_PX) : 0
   // The header row, then the panels above the log: one stack, or the taller of the two columns, then the axis.
   const used = 1 + (columns ? Math.max(height(columns.left), height(columns.right)) : height(shown)) + axis
   const log = logView(s.log, s.main.model ? prettyModel(s.main.model) : '', ctx, used)
@@ -314,10 +317,13 @@ function infoView(s: Snapshot, now: number): InfoView {
 const FRAME_CHROME = 4
 const TASK_ROWS = 2
 
-/** Hidden until the first agent; then the first six of the list, running first, and a row for those left out. */
-function agentsView(s: Snapshot, ctx: ViewContext, width: number): AgentsView | null {
+/**
+ * Hidden until the first agent, but in the wide layout, which shows it empty; then the first six of
+ * the list, running first, and a row for those left out.
+ */
+function agentsView(s: Snapshot, ctx: ViewContext, width: number, layout: ViewModel['layout']): AgentsView | null {
   const cards = s.agents
-  if (cards.length === 0) return null
+  if (cards.length === 0 && layout !== 'wide') return null
   const ordered = listOrder(cards)
   const shown = ordered.slice(0, LIST_SHOWN)
   const running = cards.filter(c => c.status === 'running').length
@@ -336,8 +342,8 @@ function agentsView(s: Snapshot, ctx: ViewContext, width: number): AgentsView | 
     now: ctx.now,
     expanded,
     loops,
-    // Each of the opened block and the loops row sits after a divider row of its own.
-    rows: shown.length + (ordered.length > shown.length ? 1 : 0) + (expanded ? 1 + expanded.rows : 0) + (loops ? 2 : 0),
+    // The rows, or the one row saying there are none; the opened block and the loops row each after a divider row of its own.
+    rows: Math.max(1, shown.length) + (ordered.length > shown.length ? 1 : 0) + (expanded ? 1 + expanded.rows : 0) + (loops ? 2 : 0),
   }
 }
 
@@ -388,7 +394,7 @@ function architectView(s: Snapshot, ctx: ViewContext, width: number): ArchitectV
   }
 }
 
-/** Tool rows drawn: more where the wide layout gives the panel a column of its own. */
+/** Tool rows drawn: more in the wide layout, where the panel never sits above the agents. */
 const TOOLS_SHOWN = { compact: 4, wide: 6, mini: 4 } as const
 const FILES_SHOWN = 5
 

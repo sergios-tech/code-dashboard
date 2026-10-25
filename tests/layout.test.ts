@@ -63,19 +63,23 @@ const FRESH: Snapshot = {
   roster: DEFAULT_ROSTER,
 }
 
-test('a fresh session draws on every surface and width, empty panels hidden', async ($, on) => {
+test('a fresh session draws on every surface and width, empty panels hidden but AGENTS when wide', async ($, on) => {
   engine(on)
   for (const surface of ['terminal', 'desktop', 'vscode', 'mobile'] as const) for (const cols of [40, 64, 120]) {
     const ui = await $.ui.mount({ ...pane(cols), surface })
+    // The wide layout holds an empty AGENTS beside INFO; one column hides it until the first agent.
+    const isWide = cols >= 110
     if (surface === 'terminal') {
       expect(await ui.find({ text: /SERGIO'S TECH · CODE/ })).toBeDefined(); expect(await ui.find({ text: /INFO/ })).toBeDefined()
-      expect(await ui.find({ text: /AGENTS|TOOLS & FILES|ARCHITECT/ })).toBeUndefined()
+      expect(await ui.find({ text: /TOOLS & FILES|ARCHITECT/ })).toBeUndefined(); expect((await ui.find({ text: /^no agents yet$/ })) !== undefined).toBe(isWide)
       expect(await ui.find({ type: 'Text', text: /^ LOG $/ })).toBeDefined(); expect(await ui.find({ text: /TURN|loops/ })).toBeUndefined()
     } else {
-      // Off the terminal the words are in the pictures, one `<text>` each.
-      const all = (await ui.findAll({ type: 'Svg' })).map(s => String(s.props.source)).join('')
+      // Off the terminal the words are in the pictures, one `<text>` each, and no agent means no time axis.
+      const svgs = await ui.findAll({ type: 'Svg' })
+      const all = svgs.map(s => String(s.props.source)).join('')
       for (const word of ["SERGIO'S", 'INFO', 'LOG']) expect(all).toContain(`>${word}<`)
-      expect(/>(AGENTS|TOOLS|ARCHITECT|TURN|loops)</.test(all)).toBe(false)
+      expect(/>(TOOLS|ARCHITECT|TURN|loops)</.test(all)).toBe(false); expect(all.includes('>AGENTS<')).toBe(isWide)
+      expect(svgs.some(s => /on one time axis$/.test(String(s.props.alt)))).toBe(false)
     }
     await ui.unmount()
   }
@@ -179,6 +183,38 @@ test('wide puts info and tools left, agents and architect right, and the log und
   expect(vmAt(100, 22).columns).toBeNull(); expect(vmAt(100, 22).log?.lines).toHaveLength(2)
   // Two columns: the header and the taller column (12) leave the log every row left of 26 (10), padded to it.
   expect(wide.log?.lines).toHaveLength(10); expect(wide.log?.rows).toBe(10)
+})
+test('the wide layout holds AGENTS beside INFO from the start; a column the config empties gives the other the width', async ($, on) => {
+  const clock = engine(on)
+  on('agent.spawn', () => ({ model: 'claude-sonnet-5-5', agentId: 'w1' }))
+  on('tool.call', () => ok)
+  await clock.advance(1000)
+  await $.tool.call({ tool: 'Read', file_path: '/repo/src/a.ts' } as never)
+  const { left, gap } = wideColumns(130)
+  const at = (rows: string[], label: string) => rows.findIndex(r => r.startsWith(`┌ ${label}`))
+  // No agent yet: AGENTS stands empty beside INFO, and the first agent takes its row with nothing moving.
+  const ui = await $.ui.mount({ ...pane(130), surface: 'terminal' })
+  const before = await rowsOf(ui)
+  const top = at(before, 'INFO')
+  expect(before[top]?.indexOf('┌ AGENTS')).toBe(left + gap); expect(before[top]?.endsWith(' 0 running · 0 total ┐')).toBe(true)
+  expect(before[top + 1]?.slice(left + gap)).toMatch(/^│ no agents yet +│$/)
+  await ui.unmount()
+  await $.agent.spawn(spawn('Explore', 'map the call sites'))
+  const split = await $.ui.mount({ ...pane(130), surface: 'terminal' })
+  const after = await rowsOf(split)
+  expect(after[top]?.indexOf('┌ AGENTS')).toBe(left + gap); expect(after[top + 1]?.slice(left + gap)).toMatch(/^│ ● 1: map the call sites/)
+  for (const label of ['TOOLS & FILES', 'LOG']) expect(at(after, label)).toBe(at(before, label))
+  await split.unmount()
+
+  // The model: the empty AGENTS is the wide layout's alone, and a column the config leaves empty gives the other the pane's width.
+  const vmWith = (panels: string, cols = 120) => buildViewModel(FRESH, { cfg: parseConfig({ panels }), now: 2, bodyColumns: cols, placement: 'dock', viewedAgentId: null, bodyRows: 40 })
+  expect(vmWith('info,agents,log', 100).agents).toBeNull()
+  expect(vmWith('info,agents,log').agents).toMatchObject({ shown: [], all: [], meta: '0 running · 0 total', isActive: false, rows: 1 })
+  expect(vmWith('info,agents,log').columns).toMatchObject({ left: ['info'], right: ['agents'], leftWidth: wideColumns(120).left })
+  for (const [panels, p] of [['info,log', 'info'], ['info,architect,log', 'info'], ['agents,log', 'agents']] as const) {
+    const vm = vmWith(panels)
+    expect(vm.layout).toBe('wide'); expect(vm.columns).toBeNull(); expect(vm.widths[p]).toBe(120)
+  }
 })
 test('every atom holding garbage still draws the header and LOG (Review Focus 1)', async ($, on) => {
   engine(on)

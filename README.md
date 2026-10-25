@@ -71,7 +71,8 @@ background agents after a turn read `● HAIKU 5.5 IDLE`. A frame turns green wh
 running work: INFO while the main loop works, AGENTS while an agent runs, ARCHITECT while the
 architect advises.
 
-Panels with nothing to show take no room, so a fresh session shows the header, INFO and LOG.
+Panels with nothing to show take no room, so a fresh session shows the header, INFO and LOG. The
+wide layout is the exception: it shows AGENTS beside INFO from the start, reading `no agents yet`.
 
 | Panel | Shows | From |
 | --- | --- | --- |
@@ -211,7 +212,9 @@ malformed value falls back to its default.
 
 `motion: off` stops the header pulse and the AGENTS sweep, but the clocks keep ticking. The wide layout
 puts INFO and TOOLS & FILES in the left column and AGENTS and ARCHITECT in the right, with the LOG
-underneath. There, `panels` still hides panels and sets the order inside each column.
+underneath. AGENTS shows there from the start, so the first agent doesn't move the panels. There,
+`panels` still hides panels and sets the order inside each column, and when it leaves one column
+with nothing to show, the other takes the full width.
 
 ## Troubleshooting
 

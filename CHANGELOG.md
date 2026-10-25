@@ -4,6 +4,15 @@ All notable changes to this project are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- **Wide layout**: AGENTS now shows in the right column from the start, reading `no agents yet`
+  until the first agent. Before, the right half stayed blank and INFO and TOOLS & FILES took only
+  the left half of the pane. When `panels` leaves one column with nothing to show, the other now
+  takes the full width.
+
 ## [0.5.0] - 2026-10-25
 
 ### Added

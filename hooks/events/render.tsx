@@ -20,7 +20,7 @@ import { logPanel } from '../view/panels/log'
 import { toolsPanel } from '../view/panels/tools'
 import { pictures } from '../view/picture'
 
-/** One panel's drawing, in the cells the view model gave it: its column's in the wide layout. */
+/** One panel's drawing, in the cells the view model gave it: its column's while the wide layout splits. */
 const panel = (d: Draw, vm: ViewModel, p: Panel, expand: Expand): RenderElement | null => {
   const w = vm.widths[p]
   if (p === 'info') return infoPanel(d, vm.info, w)

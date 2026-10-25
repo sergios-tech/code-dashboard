@@ -68,10 +68,17 @@ export const bar = (d: Draw, c: AgentCard, w: number): RenderElement[] => {
   ]
 }
 
-/** One row per agent, `● 1: title  Haiku  ▰▰▰▱▱▱▱▱▱▱▱▱▱▱  0:37`, and `+N earlier` above them. */
+/** One row per agent, `● 1: title  Haiku  ▰▰▰▱▱▱▱▱▱▱▱▱▱▱  0:37`, and `+N earlier` above them; `no agents yet` with none. */
 const rows = (d: Draw, a: AgentsView, width: number, expand: Expand): RenderElement[] => {
   const { Box, Text, Button } = d.els
   const { C } = d
+  if (a.shown.length === 0) {
+    return [
+      <Text key="agents-none" color={C.dim}>
+        no agents yet
+      </Text>,
+    ]
+  }
   const inside = width - CHROME
   const hasTag = inside >= TAG_FROM
   const tagCells = hasTag ? TAG_CELLS : 0
@@ -194,7 +201,7 @@ const loopsRow = (d: Draw, l: LoopsView): RenderElement => {
 /** The agents on one time axis as a vector drawing, under the AGENTS picture. */
 const axisSvg = (d: Draw, a: AgentsView, width: number): RenderElement | null => {
   const { els } = d
-  if (!d.isPicture || !('Svg' in els)) return null
+  if (!d.isPicture || !('Svg' in els) || a.all.length === 0) return null
   return <els.Svg key="agents-axis" source={svgLanes(a.all, a.now, width * CELL_PX)} alt={`${plural(a.all.length, 'agent')} on one time axis`} />
 }
 
