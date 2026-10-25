@@ -177,8 +177,8 @@ test('wide puts info and tools left, agents and architect right, and the log und
   expect([wide.widths.info, wide.widths.tools, wide.widths.agents, wide.widths.log]).toEqual([left, left, right, 120])
   // One column stacks info (4), agents (4) and tools (8) under the header: in 22 rows the log takes the 2 left.
   expect(vmAt(100, 22).columns).toBeNull(); expect(vmAt(100, 22).log?.lines).toHaveLength(2)
-  // Two columns: the header and the taller column (10) leave the log its most.
-  expect(wide.log?.lines).toHaveLength(8)
+  // Two columns: the header and the taller column (12) leave the log every row left of 26 (10), padded to it.
+  expect(wide.log?.lines).toHaveLength(10); expect(wide.log?.rows).toBe(10)
 })
 test('every atom holding garbage still draws the header and LOG (Review Focus 1)', async ($, on) => {
   engine(on)

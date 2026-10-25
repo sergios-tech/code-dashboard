@@ -40,14 +40,19 @@ test('the log keeps the last 60 lines (Review Focus 5)', () => {
   expect(l).toHaveLength(60); expect(l[59]?.text).toBe('999')
   expect(l[0]?.text).toBe('940'); expect(LOG_MAX).toBe(60)
 })
-test('the log gets what the other panels leave, at most 8 rows, and none below 2', () => {
-  expect(logRows(70, 10)).toBe(8); expect(logRows(20, 10)).toBe(7); expect(logRows(15, 10)).toBe(2)
-  expect(logRows(14, 10)).toBe(0); expect(logRows(3, 10)).toBe(0)
-  // A pane of unknown height is taken to have 40 rows, and its log keeps between 4 and 8.
-  expect(logRows(undefined, 10)).toBe(8); expect(logRows(undefined, 33)).toBe(4); expect(logRows(Number.NaN, 60)).toBe(4)
+test('docked, the log gets every row the other panels leave, none below 2; inline, at most 8', () => {
+  expect(logRows(70, 10, true)).toBe(57); expect(logRows(20, 10, true)).toBe(7); expect(logRows(15, 10, true)).toBe(2)
+  expect(logRows(14, 10, true)).toBe(0); expect(logRows(3, 10, true)).toBe(0)
+  // Inline, bodyRows may be the whole terminal: the log keeps today's cap of 8.
+  expect(logRows(70, 10, false)).toBe(8); expect(logRows(20, 10, false)).toBe(7); expect(logRows(15, 10, false)).toBe(2)
+  expect(logRows(14, 10, false)).toBe(0); expect(logRows(3, 10, false)).toBe(0)
+  // A pane of unknown height is taken to have 40 rows, and its log keeps between 4 and 8, docked or not.
+  for (const isDocked of [true, false]) {
+    expect(logRows(undefined, 10, isDocked)).toBe(8); expect(logRows(undefined, 33, isDocked)).toBe(4); expect(logRows(Number.NaN, 60, isDocked)).toBe(4)
+  }
 })
 
-const logOf = (lines: LogLine[], mainModel = 'Opus 5.5'): LogView => ({ lines, isViewingAgent: false, mainModel })
+const logOf = (lines: LogLine[], mainModel = 'Opus 5.5'): LogView => ({ lines, isViewingAgent: false, mainModel, rows: Math.max(1, lines.length) })
 test('LOG names the main loop by its model, colours only the marks', () => {
   const tree = logPanel(draw({ now: NOW }), logOf(busy().log), 66)
   const rows = drawRows(tree).slice(1)
@@ -94,11 +99,12 @@ test('log rows are timed, labelled by source, one row each and within the width'
     const at = rows.findIndex(r => r.includes('┌ LOG'))
     expect(at > 0).toBe(true)
     expect(rows[at - 1]?.trim()).toBe('')
-    // The frame is intact and holds the two entries, one row each.
+    // The frame is intact and holds the two entries, one row each, then blank rows down to the bottom border.
     expect(rows[at + 1]).toMatch(/^│ \d\d:\d\d:\d\d you {8}first second/)
     expect(rows[at + 2]).toMatch(/^│ \d\d:\d\d:\d\d engine {5}task notif/)
     if (cols >= 64) expect(rows[at + 2]).toContain('task notification from abcdef12')
-    expect(rows[at + 3]?.startsWith('└')).toBe(true)
+    expect(rows[at + 3]).toMatch(/^│ *│$/)
+    expect(rows.at(-1)?.startsWith('└')).toBe(true)
     for (const r of rows) expect(cellWidth(r) <= Math.max(40, cols)).toBe(true)
     await ui.unmount()
   }
@@ -164,15 +170,63 @@ test('a credential in a prompt is masked before it is stored', async ($, on) => 
   expect(await ui.find({ text: /token=•••/ })).toBeDefined()
   await ui.unmount()
 })
-test('1,000 prompts leave a pane that draws the newest lines and no more than 8 (Review Focus 5)', async ($, on) => {
+test('1,000 prompts leave a pane that draws the newest lines, up to the 60 the store keeps (Review Focus 5)', async ($, on) => {
   engine(on)
   for (let i = 0; i < 1000; i++) await $.turn.start({ text: `prompt ${i}`, turnId: `L${i}` })
   const ui = await $.ui.mount({ ...pane(64), surface: 'terminal' })
   const rows = await rowsOf(ui)
-  expect(rows.filter(r => /prompt \d+/.test(r))).toHaveLength(8)
+  expect(rows.filter(r => /prompt \d+/.test(r))).toHaveLength(60)
   expect(await ui.find({ text: /prompt 999/ })).toBeDefined()
-  expect(await ui.find({ text: /prompt 991/ })).toBeUndefined()
+  expect(await ui.find({ text: /prompt 940/ })).toBeDefined()
+  expect(await ui.find({ text: /prompt 939/ })).toBeUndefined()
   await ui.unmount()
+})
+test('docked, the LOG fills the pane: a 60-row pane puts its bottom border on the last body row, padded below 3 lines', async ($, on) => {
+  engine(on)
+  for (const t of ['one', 'two', 'three']) await $.turn.start({ text: `prompt ${t}`, turnId: t })
+  for (const cols of [40, 64, 120]) {
+    const rows = await rowsAt($, cols, 60)
+    const top = rows.findIndex(r => r.startsWith('┌ LOG'))
+    // The header, the panels, the gap and the LOG add up to the body rows, no more.
+    expect(rows).toHaveLength(60); expect(rows.at(-1)?.startsWith('└')).toBe(true)
+    expect(rows.slice(top + 1, top + 4).map(r => /prompt (one|two|three)/.exec(r)?.[1])).toEqual(['one', 'two', 'three'])
+    // The blank rows keep the side borders running down.
+    for (const r of rows.slice(top + 4, -1)) expect(r).toMatch(/^│ *│$/)
+    expect(rows.length - top - 2).toBe(60 - top - 2)
+    expect(cellWidth(rows.at(-1) ?? '') <= Math.max(40, cols)).toBe(true)
+  }
+  // An agent's transcript view pads the same way, its empty state too.
+  const ui = await $.ui.mount({ ...pane(64), props: { ...pane(64).props, scroll: { offset: 0, bodyRows: 60 }, view: { agentId: 'nobody' } }, surface: 'terminal' })
+  const viewed = await rowsOf(ui)
+  await ui.unmount()
+  expect(viewed.some(r => r.includes('LOG · THIS AGENT'))).toBe(true); expect(viewed.some(r => r.includes('nothing yet'))).toBe(true); expect(viewed).toHaveLength(60); expect(viewed.at(-1)?.startsWith('└')).toBe(true)
+})
+test('docked with more lines than room, the LOG shows the newest that fit, oldest at the top', async ($, on) => {
+  engine(on)
+  for (let i = 0; i < 40; i++) await $.turn.start({ text: `prompt ${i}`, turnId: `L${i}` })
+  const rows = await rowsAt($, 64, 20)
+  const top = rows.findIndex(r => r.startsWith('┌ LOG'))
+  const body = rows.slice(top + 1, -1)
+  expect(rows).toHaveLength(20); expect(rows.at(-1)?.startsWith('└')).toBe(true)
+  expect(body.length > 8).toBe(true)
+  expect(body.map(r => Number(/prompt (\d+)/.exec(r)?.[1]))).toEqual(body.map((_, i) => 40 - body.length + i))
+})
+test('an inline pane that is not the mini summary keeps the 8-line cap and no padding, however tall its body', async ($, on) => {
+  engine(on)
+  on('ui.open', () => ({ value: { isPlaced: true } }) as never)
+  await slash($, 'layout compact')
+  await $.turn.start({ text: 'only line', turnId: 'T1' })
+  const few = await $.ui.mount({ ...pane(64, 'inline'), surface: 'terminal' })
+  const fewRows = await rowsOf(few)
+  await few.unmount()
+  const top = fewRows.findIndex(r => r.startsWith('┌ LOG'))
+  expect(top > 0).toBe(true); expect(fewRows.length - top).toBe(3); expect(fewRows.at(-1)?.startsWith('└')).toBe(true)
+  for (let i = 0; i < 30; i++) await $.turn.start({ text: `prompt ${i}`, turnId: `L${i}` })
+  const many = await $.ui.mount({ ...pane(64, 'inline'), surface: 'terminal' })
+  const manyRows = await rowsOf(many)
+  await many.unmount()
+  expect(manyRows.filter(r => /prompt \d+/.test(r))).toHaveLength(8)
+  expect(manyRows.at(-1)?.startsWith('└')).toBe(true); expect(manyRows.length < 40).toBe(true)
 })
 test('only the viewed agent\'s lines show, under a THIS AGENT label', async ($, on) => {
   engine(on)

@@ -12,8 +12,12 @@ import { kTokens, plural, prettyModel, wrapText } from '../format/text'
 import type { Snapshot } from '../state/store'
 import { WIDE_LEFT, WIDE_RIGHT, clampWidth, pickLayout, wideColumns } from './layout'
 
-/** The log panel: the lines to draw, oldest first, and whether they are one agent's alone. */
-export type LogView = { lines: LogLine[]; isViewingAgent: boolean; mainModel: string }
+/**
+ * The log panel: the lines to draw, oldest first, whether they are one agent's alone, and the rows
+ * its body takes. Docked with a known height `rows` is every row the pane has left, so the panel
+ * pads the lines with blank rows down to it; otherwise it is the lines drawn, or 1 for `nothing yet`.
+ */
+export type LogView = { lines: LogLine[]; isViewingAgent: boolean; mainModel: string; rows: number }
 
 /**
  * The info panel: the main model's effort, context, spend, rate limits and last request, in three
@@ -186,7 +190,10 @@ export type ViewContext = {
   bodyColumns: number
   placement: 'dock' | 'inline'
   viewedAgentId: string | null
-  /** Rows the pane body can show; the log takes what the other panels leave. Unknown: 40, the log keeping 4 to 8. */
+  /**
+   * Rows the pane body can show; the log takes what the other panels leave. Docked, that is all of
+   * them, padded with blank rows; inline, at most 8. Unknown: 40, the log keeping 4 to 8.
+   */
   bodyRows?: number
 }
 
@@ -390,13 +397,15 @@ function toolsView(s: Snapshot, layout: ViewModel['layout']): ToolsView | null {
 
 /**
  * The newest lines that fit, those of the viewed agent alone while its transcript is open; null
- * when fewer than 2 fit. `used` is the rows the header and the other panels take; each panel adds
- * its own to it.
+ * when fewer than 2 rows are left. `used` is the rows the header and the other panels take; each
+ * panel adds its own to it. Docked with a known height the body is padded to every row left; inline
+ * or of unknown height it is the lines alone, at most 8.
  */
 function logView(lines: LogLine[], mainModel: string, ctx: ViewContext, used: number): LogView | null {
-  const rows = logRows(ctx.bodyRows, used)
-  if (rows === 0) return null
+  const isDocked = ctx.placement === 'dock' && ctx.bodyRows !== undefined && Number.isFinite(ctx.bodyRows)
+  const room = logRows(ctx.bodyRows, used, ctx.placement === 'dock')
+  if (room === 0) return null
   const viewed = ctx.viewedAgentId
-  const shown = viewed === null ? lines : lines.filter(l => l.agentId === viewed)
-  return { lines: shown.slice(-rows), isViewingAgent: viewed !== null, mainModel }
+  const shown = (viewed === null ? lines : lines.filter(l => l.agentId === viewed)).slice(-room)
+  return { lines: shown, isViewingAgent: viewed !== null, mainModel, rows: isDocked ? room : Math.max(1, shown.length) }
 }

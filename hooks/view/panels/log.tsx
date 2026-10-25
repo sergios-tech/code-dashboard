@@ -31,7 +31,7 @@ const actorTone = (d: Draw, l: LogLine, mainModel: string): string => {
 export const logPanel = (d: Draw, log: LogView, width: number): RenderElement => {
   const { Box, Text } = d.els
   const { C } = d
-  const rows =
+  const lines =
     log.lines.length === 0
       ? [
           <Text key="empty" color={C.dim}>
@@ -63,6 +63,8 @@ export const logPanel = (d: Draw, log: LogView, width: number): RenderElement =>
             </Box>
           )
         })
+  // Blank rows keep the side borders running down to the bottom border, at the pane's last row.
+  const rows = [...lines, ...Array.from({ length: Math.max(0, log.rows - lines.length) }, (_, i) => <Text key={`pad-${i}`}>{' '}</Text>)]
   return (
     <Box key="log" marginTop={1} flexDirection="column" width={width}>
       {frame(d, { key: 'log-frame', label: log.isViewingAgent ? 'LOG · THIS AGENT' : 'LOG', width, children: rows })}

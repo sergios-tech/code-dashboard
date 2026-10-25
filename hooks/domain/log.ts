@@ -25,14 +25,17 @@ export const promptLine = (text: string): { who: string; text: string } => {
 const ASSUMED_ROWS = 40
 
 /**
- * How many log lines fit: what the other panels leave of `bodyRows` after the `used` rows and the
- * log's own frame and gap (3), at most 8. With room for fewer than 2 it is 0 and the log is not
- * drawn, so its frame never runs past the pane's bottom edge. A pane of unknown height is taken to
- * have 40 rows, and its log keeps at least 4.
+ * The rows the log's body takes. Docked with a known height it is every row the other panels leave
+ * of `bodyRows` after the `used` rows and the log's own frame and gap (3), uncapped, so the log's
+ * bottom border lands on the pane's last row; with room for fewer than 2 it is 0 and the log is
+ * not drawn, so its frame never runs past the pane's bottom edge. Inline, where `bodyRows` may be
+ * the whole terminal, it is at most 8, so an inline pane never stretches to the terminal's height.
+ * A pane of unknown height is taken to have 40 rows, and its log keeps between 4 and 8.
  */
-export const logRows = (bodyRows: number | undefined, used: number): number => {
+export const logRows = (bodyRows: number | undefined, used: number, isDocked: boolean): number => {
   const isKnown = bodyRows !== undefined && Number.isFinite(bodyRows)
   const room = Number.isFinite(used) ? Math.floor((isKnown ? bodyRows : ASSUMED_ROWS) - used - 3) : 4
   if (!isKnown) return Math.max(4, Math.min(8, room))
-  return room < 2 ? 0 : Math.min(8, room)
+  if (room < 2) return 0
+  return isDocked ? room : Math.min(8, room)
 }
