@@ -196,12 +196,19 @@ test('hot files rank by touches; subagent-only files are dimmed', async ($, on) 
 })
 test('a denied call writes one log line ending in a gold mark, and no status line', async ($, on) => {
   const { clock, statuses } = watched(on)
-  // A rule refuses Bash at the check: the call then comes back as an error result, not a deny.
-  on('tool.check', { tool: 'Bash' }, () => ({ decision: 'deny', reason: 'rule' }))
+  // A rule refuses Bash. The plugin's query, which carries no call id, reads the deny before the call
+  // runs; the call's own check then refuses it, so it comes back as an error result, not a deny.
+  const queries: unknown[] = []
+  on('tool.check', { tool: 'Bash' }, (_$, e) => {
+    if (e.tool_use_id === undefined) queries.push(e)
+    return { decision: 'deny', reason: 'rule' }
+  })
   // A hook beneath the plugin refuses Write outright.
   on('tool.call', (_$, e) => (e.tool === 'Write' ? { deny: 'policy' } : ok))
   await clock.advance(1000)
   await $.tool.call({ tool: 'Bash', command: 'rm -rf build' } as never)
+  // The query names the tool and its own arguments, and nothing else of the call.
+  expect(queries).toEqual([{ tool: 'Bash', input: { command: 'rm -rf build' } }])
 
   const ui = await $.ui.mount({ ...pane(64), surface: 'terminal' })
   const rows = await rowsOf(ui)
@@ -222,6 +229,7 @@ test('a denied call writes one log line ending in a gold mark, and no status lin
 })
 test('a call that waited on an approval prompt is not timed', async ($, on) => {
   const clock = engine(on)
+  // Bash asks, both for the plugin's query and at the call's own check.
   on('tool.check', { tool: 'Bash' }, () => ({ decision: 'ask' }))
   // The prompt is answered yes, as a person would.
   on('classic.PermissionRequest', () => ({ decision: { behavior: 'allow' as const } }))
@@ -234,6 +242,33 @@ test('a call that waited on an approval prompt is not timed', async ($, on) => {
   await $.tool.call({ tool: 'Agent', description: 'look around', prompt: 'look around', subagent_type: 'Explore' } as never)
   const rows = toolsRows(await drawn($)).map(r => r.replace(/ +/g, ' '))
   expect(rows.slice(1, 4)).toEqual(['│ ▸ Bash 1 · — │', '│ › Read 1 · 0.3s │', '│ ● Agent 1 · — │'])
+})
+test('the verdict is asked before the call is timed, and a query that fails marks nothing', async ($, on) => {
+  const clock = engine(on)
+  const queries: unknown[] = []
+  on('tool.check', async (_$, e) => {
+    // The call's own check carries its id: it lets Read run and refuses Bash.
+    if (e.tool_use_id !== undefined) return e.tool === 'Bash' ? { decision: 'deny', reason: 'rule' } : { decision: 'allow' }
+    // The plugin's query takes its time, and for Bash it fails.
+    queries.push(e)
+    await clock.advance(500)
+    if (e.tool === 'Bash') throw new Error('no verdict')
+    return { decision: 'allow' }
+  })
+  on('tool.call', async () => {
+    await clock.advance(300)
+    return ok
+  })
+  await $.tool.call({ tool: 'Read', file_path: '/p/README.md', agentId: 'ag1' } as never)
+  await $.tool.call({ tool: 'Bash', command: 'rm -rf build' } as never)
+  // A subagent's query carries no loop: the tool and its own arguments only.
+  expect(queries[0]).toEqual({ tool: 'Read', input: { file_path: '/p/README.md' } })
+  const rows = await drawn($)
+  // The query's own time is not counted. A failed query leaves the call unmarked, so the call runs,
+  // and the refusal at its own check reads as a failure, not as denied.
+  expect(toolsRows(rows).map(r => r.replace(/ +/g, ' ')).slice(1, 3)).toEqual(['│ › Read 1 · 0.3s │', '│ ▸ Bash 1 ✗ 1 0ms │'])
+  expect(rows.some(r => /main +Bash → rm -rf build ✗/.test(r))).toBe(true)
+  expect(rows.some(r => r.includes('denied'))).toBe(false)
 })
 test("a subagent's calls fill its card's last three tools; a hand-back is no tool work", async ($, on) => {
   engine(on)

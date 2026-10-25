@@ -86,12 +86,14 @@ one runs.
 | **INFO** | Three groups split by dividers. Model: the effort gauge (`◆ effort ▮▮▮▮ xhigh`), `mode auto` and `req 7`. Usage: a context gauge with tokens/window and compactions (`↺ 1`), then each of the first two rate-limit windows on its own row with its reset countdown (`↻ 3h51m`). Spend: the session cost and the last main-loop request's `ttft` and `tok/s`. The effort gauge's lit cells turn red at `xhigh` and `max`; the word stays green. The context gauge is green, orange from 30% and red from 50%. Every rate-limit window is green, orange from 80% and red from 90%, judged by the printed figure. The frame meta reads `● working` in orange while the main loop runs and `○ idle` in dim. `mode bypass` shows in coral. A group with no data is left out, and with none at all the panel reads `waiting for the first request`. | `turn.step`, `classic.UserPromptSubmit`, `session.measure`, `session.compact`, `$.session.usage()` |
 | **AGENTS** | One row per agent, running agents first and the newest first among them. Each row has a status glyph, its hotkey digit and title, the model when it differs from the main one, a status bar and a clock. The bar is a 3-cell block that bounces along the track while the agent runs, and fills green, coral or grey once it is done, failed or stopped; it shows that an agent is alive, not how far along it is. A request cut at `max_tokens` shows as failed. Six rows show, hotkeys `1`–`6`, under a `+N earlier` row. The frame meta reads `N running · N total`. An opened agent shows inside the frame after a divider. The last row is `loops  2 seen · 1 active` with one dot per model loop that no agent claims (workflow agents, compactions, forks): `●` active, `✓` done, `○` idle. | `agent.spawn`, `turn.step`, `tool.call`, `turn.complete` |
 | **ARCHITECT** | `● advising` or `○ on call`. Consults on a one-row timeline (`◆` where one started, `━` while it ran). How long the open consult has run (`consulting for 42s`), or when the last one ended and how long it took. The inferred moment of the last consult. A `»` line with the first line of the advice. The frame is green while it advises. | `agent.offer`, `agent.spawn` of a matching type, matching server tools in `session.append`, `turn.complete`, the `SubagentHandback` call or hand-back turn |
-| **TOOLS & FILES** | A table of the busiest tools (4 rows, 6 in two columns): a glyph for the tool's family (`›` read, `✎` edit, `▸` run, `●` agent, `·` other), the name (an MCP tool as `server:tool`), calls, errors (`✗ 3`) and the average time per call under `avg*`. After a divider, the 5 paths touched most, each with reads and edits (`✎ 2`). Paths show their last two segments, and a file that only subagents touched is dimmed. | `tool.call`, `tool.check` |
+| **TOOLS & FILES** | A table of the busiest tools (4 rows, 6 in two columns): a glyph for the tool's family (`›` read, `✎` edit, `▸` run, `●` agent, `·` other), the name (an MCP tool as `server:tool`), calls, errors (`✗ 3`) and the average time per call under `avg*`. After a divider, the 5 paths touched most, each with reads and edits (`✎ 2`). Paths show their last two segments, and a file that only subagents touched is dimmed. | `tool.call`, `$.tool.check()` |
 | **LOG** | Prompts, spawns, completions, consults and advice, edits, errors, denials, compactions and `max_tokens` hits. Each line has a time, how long into the session it was logged (`0:42`, `12:04`, then `1:02:04` past an hour; `--:--` when unknown), right-aligned to the widest shown, an actor (`opus` for the main loop, named by its model, then `you`, an agent such as `Explore 1`, or `architect`) and its text, as much of it as the pane's width holds, with `…` where it is cut. Only the mark after the text carries a state: `✗` in coral, `· denied` in gold. Docked, it takes every row the other panels leave and pads with blank rows, so its frame ends on the pane's bottom edge. Inline it takes up to 8, and 4 to 8 when the pane's height is unknown. A pane too short for 2 hides it rather than cutting it off at the bottom edge. | all of the above |
 
 A **denial** is a call refused by a permission rule or hook. It writes one log line that ends with a
 gold `· denied` (`Bash → rm -rf build · denied`). Declining an approval prompt is not a denial: that
-call counts as a failed call (`✗`) in TOOLS & FILES and the log.
+call counts as a failed call (`✗`) in TOOLS & FILES and the log. Neither is a refusal by a PreToolUse
+hook, which counts as failed too ([What is inferred, not measured](#what-is-inferred-not-measured)
+says why).
 
 ## Use
 
@@ -161,7 +163,7 @@ unchanged: it never denies, rewrites or blocks a tool call, a prompt or a subage
 | It sees | Through |
 | --- | --- |
 | Every tool call's name and input, whether it failed, and how long it took | `tool.call` |
-| Each call's permission verdict, used only to tell an approval prompt or a refusal apart | `tool.check` |
+| Each call's permission verdict, asked just before the call runs, used only to tell an approval prompt or a refusal apart | `$.tool.check()` |
 | The agent types offered to the model, used to remember which ones are the architect | `agent.offer` |
 | Subagent spawns, their model requests and token usage, and their final answers | `agent.spawn`, `turn.step`, `turn.complete` |
 | The main loop's requests: model, effort, timing and output tokens | `turn.step` |
@@ -182,7 +184,7 @@ registers and every host call it makes.
 
 ## What each hook does
 
-The plugin hooks 15 events, with 16 hooks, in the order `claude plugin validate .` lists them
+The plugin hooks 14 events, with 15 hooks, in the order `claude plugin validate .` lists them
 (`tool.call` is hooked twice). Each row says when the hook runs, what it reads, and what it keeps.
 What it keeps goes into session state, capped and with credentials masked, as described in
 [What it can reach](#what-it-can-reach); the one exception is marked in its row. Nothing is kept
@@ -201,15 +203,15 @@ outside the session.
 | `agent.spawn` | When a subagent is spawned. | Reads the type, name and description, and the id and model the host gave it. Keeps a row for the agent and a log line. For an architect it keeps only the id, as a consult. A refused spawn, and a workflow script's agent, is left alone here. | Passed on unchanged. |
 | `session.append` | When a message is added to the conversation. | Reads the main loop's replies, only for server-side advisor calls and their results. Keeps the ids it has seen and the consult's times. Other messages, and every subagent's, are ignored. | Passed on unchanged. |
 | `tool.call` for `SubagentHandback` | When a subagent hands its report back. | Reads the report only when the sender is a known architect. Keeps the first line as the advice, and a log line. | Passed on unchanged. Other calls pass this hook by. |
-| `tool.check` | On each call's permission check. | Reads the verdict and the call's id. Keeps the verdict in memory only, until the call ends, to tell an approval prompt or a refusal from a failed tool. It does not change the verdict. | The verdict is passed on unchanged. |
-| `tool.call` for every call | Around each tool call, in every loop. | Reads the clock before and after, the tool's name and input, and whether the call failed or was refused. Keeps the tool's name and a short description of its input, counts, errors and average time, the files touched, the subagent's last three calls and a log line for each edit, failure or refusal. | The call and its result are passed on unchanged. It never denies or rewrites a call. |
+| `tool.call` for every call | Around each tool call, in every loop. | First asks the engine for the call's permission verdict with `$.tool.check`, a query that opens no dialog and runs nothing, and keeps the verdict in memory only, until the call ends, to tell an approval prompt or a refusal from a failed tool. Then reads the clock before and after, the tool's name and input, and whether the call failed or was refused. Keeps the tool's name and a short description of its input, counts, errors and average time, the files touched, the subagent's last three calls and a log line for each edit, failure or refusal. | The call and its result are passed on unchanged. It never denies or rewrites a call. |
 | `session.measure` | When the host measures the session. | Reads the context, cost and rate-limit readings. Keeps the latest. | Passed on unchanged. |
 | `session.compact` | When the conversation is compacted. | Reads the trigger, and whether the compaction was vetoed. Keeps the count, the time and a log line. A vetoed compaction, a precompute and a subagent's compaction are not counted. | Passed on unchanged. |
 | `ui.render` | Each time the pane is drawn, for its own pane only. | Reads the stored state, the clock, and the pane's size and surface. Keeps which agent your digit key has opened. | Answered: the drawing of the plugin's own pane. |
 
 **No hook decides anything.**
 
-- `tool.check` passes the permission check on and only reads its verdict, to mark a refused call.
+- No hook takes part in a permission check. `tool.call` asks the engine for a call's verdict with
+  `$.tool.check` before the call runs, and only reads it, to mark an asked or refused call.
 - `tool.call` never denies or rewrites a call. It reads the result after the call has run.
 - `turn.step` passes every streamed chunk through unchanged.
 - The only answers the plugin gives are `/st-code-display`'s own reply text and the drawing of its
@@ -224,6 +226,7 @@ The host calls it makes, as `claude plugin validate .` prints them:
 | `$.clock.after` | One timer, set when a model loop that no agent claims steps, to redraw the pane when that loop stops counting as running. |
 | `$.command.register` | Registering `/st-code-display` at session start. |
 | `$.session.usage` | The host's first context, cost and rate-limit reading at session start. |
+| `$.tool.check` | Asking the engine for a tool call's permission verdict just before the call runs, to tell an approval prompt or a refusal from a failed tool. The query opens no dialog and runs nothing. |
 | `$.ui.open`, `$.ui.close` | Opening the pane at session start and on `/st-code-display`, and closing it on `/st-code-display close`. |
 | `$.ui.invalidate` | Asking the host to draw the pane again. |
 | `$.ui.resolve` | Getting the host's drawing elements for the pane. |
@@ -251,6 +254,9 @@ The host calls it makes, as `claude plugin validate .` prints them:
   because they would time something other than the tool: calls whose permission check asked for
   approval, denied calls and `Agent` calls, which run a subagent to its end. These calls still count
   toward calls and errors.
+- **Refused calls.** A call reads `denied` when the engine's verdict, asked just before the call runs,
+  refuses it, or when a hook refuses the call itself. A deny from a PreToolUse hook is not in that
+  verdict, so a call such a hook refuses shows as failed (`✗`) rather than denied.
 
 ## Configure
 

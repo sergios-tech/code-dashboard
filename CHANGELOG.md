@@ -4,6 +4,18 @@ All notable changes to this project are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+
+- **Permission verdicts**: each tool call's hook now asks the engine for the call's verdict with
+  `$.tool.check` just before the call runs, and the plugin hooks no permission check. Before, a
+  `tool.check` hook read each call's verdict as the check passed it on. A call that asked for
+  approval is still left out of `avg*`, and a refused one still reads `· denied`, except that a deny
+  from a PreToolUse hook is not in the queried verdict, so such a call now reads as failed (`✗`). A
+  query that fails leaves the call unmarked. `claude plugin validate .` now lists 15 hooks on 14
+  events, and `$.tool.check` among the host calls.
+
 ## [0.6.0] - 2026-10-25
 
 ### Changed
