@@ -3,13 +3,12 @@ import { read, update } from 'claude-code'
 import type { EngineInterface } from 'claude-code'
 
 import { parseConfig } from '../hooks/config'
-import { activity, agents, architect, log, loops, main, meta, roster, trends, turn, usage, view } from '../hooks/state/atoms'
+import { activity, agents, architect, log, loops, main, meta, roster, turn, usage, view } from '../hooks/state/atoms'
 import {
   DEFAULT_ACTIVITY,
   DEFAULT_ARCHITECT,
   DEFAULT_MAIN,
   DEFAULT_ROSTER,
-  DEFAULT_TRENDS,
   DEFAULT_TURN,
   DEFAULT_USAGE,
   DEFAULT_VIEW,
@@ -19,14 +18,13 @@ import {
   normalizeCard,
   normalizeLog,
   normalizeMain,
-  normalizeTrends,
   normalizeUsage,
 } from '../hooks/state/schema'
 import { loadSnapshot, migrate, resetAll } from '../hooks/state/store'
 
 test('config is read leniently: bad values fall back to defaults', () => {
   const d = parseConfig({})
-  expect(d.panels).toEqual(['info', 'trends', 'agents', 'architect', 'tools', 'log'])
+  expect(d.panels).toEqual(['info', 'agents', 'architect', 'tools', 'log'])
   expect(d.architect.test('fable-ADVISOR')).toBe(true); expect(d.architectLabel).toBe('ARCHITECT')
   expect(d.layout).toBe('auto'); expect(d.motion).toBe(true)
   const bad = parseConfig({ architectPattern: '([', layout: 'huge', panels: 'gate,nope', motion: 'off', moments: 'yes' })
@@ -34,8 +32,8 @@ test('config is read leniently: bad values fall back to defaults', () => {
   expect(bad.panels).toEqual(d.panels); expect(bad.motion).toBe(false); expect(bad.moments).toBe(true)
   expect(parseConfig({ panels: 'log, info ,log' }).panels).toEqual(['log', 'info'])
 })
-test('panels default to info, trends, agents, architect, tools, log; old names are not aliases (Review Focus 2)', () => {
-  expect(parseConfig({}).panels).toEqual(['info', 'trends', 'agents', 'architect', 'tools', 'log'])
+test('panels default to info, agents, architect, tools, log; old names are not aliases (Review Focus 2)', () => {
+  expect(parseConfig({}).panels).toEqual(['info', 'agents', 'architect', 'tools', 'log'])
   expect(parseConfig({ panels: 'vitals,turn,log' }).panels).toEqual(['log'])
   expect(parseConfig({ panels: 'vitals,turn,loops' }).panels).toEqual(parseConfig({}).panels)
   expect(parseConfig({ panels: 'vitals,turn,loops', maxCards: 3 }).panels).toEqual(parseConfig({}).panels)
@@ -44,7 +42,6 @@ test('garbage in any stored key reads as its defaults (Review Focus 1)', () => {
   for (const junk of [null, 7, 'x', [], { consults: 'no' }]) {
     expect(normalizeArchitect(junk).consults).toEqual([])
     expect(normalizeActivity(junk)).toEqual(DEFAULT_ACTIVITY)
-    expect(normalizeTrends(junk).samples).toEqual([])
     expect(normalizeUsage(junk).limits).toEqual([])
     expect(normalizeLog(junk)).toEqual([])
   }
@@ -99,12 +96,12 @@ const junkOf = [null, 7, 'x', [], { consults: 'no' }, [null, 3, 'y']]
 
 test('a store full of garbage loads as all defaults', async () => {
   const $ = memoryState()
-  const atoms = [main, usage, turn, agents, loops, architect, activity, trends, log, view, roster]
+  const atoms = [main, usage, turn, agents, loops, architect, activity, log, view, roster]
   for (const junk of junkOf) {
     for (const a of atoms) await update($, a as never, (() => junk) as never)
     expect(await loadSnapshot($)).toEqual({
       main: DEFAULT_MAIN, usage: DEFAULT_USAGE, turn: DEFAULT_TURN, agents: [], loops: [],
-      architect: DEFAULT_ARCHITECT, activity: DEFAULT_ACTIVITY, trends: DEFAULT_TRENDS,
+      architect: DEFAULT_ARCHITECT, activity: DEFAULT_ACTIVITY,
       log: [], view: DEFAULT_VIEW, roster: DEFAULT_ROSTER,
     })
   }
@@ -116,12 +113,10 @@ test('state from the 0.1.0 build migrates to schema 2 (Review Focus 2)', async (
   await migrate($)
   expect(await read($, meta)).toEqual({ schemaVersion: 2 }); expect(await read($, turn)).toEqual({ edits: 2, errorStreak: 0 })
 })
-test('reset keeps cost, limits, compactions, model, mode, trends and the offered architect types, and empties the rest', async () => {
+test('reset keeps cost, limits, compactions, model, mode and the offered architect types, and empties the rest', async () => {
   const $ = memoryState()
-  const sample = { at: 5, ctxPct: 40, costUsd: 1, isCompaction: false }
   await update($, main, () => ({ ...DEFAULT_MAIN, model: 'model-x', mode: 'plan', steps: 9, isRunning: true }))
   await update($, usage, () => ({ pct: 51, tokens: 100, window: 200, costUsd: 2.5, limits: [{ kind: 'five_hour', pct: 10, resetsAt: null }], compactions: 2, lastCompactAt: 8 }))
-  await update($, trends, () => ({ samples: [sample], pendingCompaction: true }))
   await update($, log, () => [{ at: 1, who: 'you', text: 'hi', agentId: null, kind: 'info' as const, mark: null }])
   await update($, roster, () => ({ architectTypes: ['advisor'] }))
   await update($, architect, () => ({ ...DEFAULT_ARCHITECT, ids: ['a1'], lastAdvice: 'Ship it' }))
@@ -129,7 +124,6 @@ test('reset keeps cost, limits, compactions, model, mode, trends and the offered
   const s = await loadSnapshot($)
   expect(s.main).toEqual({ ...DEFAULT_MAIN, model: 'model-x', mode: 'plan' })
   expect(s.usage).toEqual({ ...DEFAULT_USAGE, costUsd: 2.5, limits: [{ kind: 'five_hour', pct: 10, resetsAt: null }], compactions: 2 })
-  expect(s.trends).toEqual({ samples: [sample], pendingCompaction: true })
   expect([s.log, s.architect]).toEqual([[], DEFAULT_ARCHITECT])
   // The agent listing is not sent again after a clear, so the types it offered are kept.
   expect(s.roster).toEqual({ architectTypes: ['advisor'] })

@@ -6,8 +6,6 @@ export const COLORS = {
   fill: '#000000',
   text: '#d0d0d0',
   dim: '#9e9e9e',
-  /** The TRENDS cost sparkline only: too dark to read as text. */
-  muted: '#4e4e4e',
   /** Empty gauge and bar cells, empty table cells and rules only: too dark to read as text. */
   faint: '#303030',
   /** Frame lines and dividers only: it never carries text. */

@@ -1,6 +1,6 @@
 // The view model: everything one frame draws, worked out from one state snapshot by a pure function,
 // so the renderers only lay it out and never read state themselves.
-import type { AgentCard, Architect, FileRow, Limit, LogLine, Moment, Sample, Speed, ToolNote, ToolRow } from '../../types'
+import type { AgentCard, Architect, FileRow, Limit, LogLine, Moment, Speed, ToolNote, ToolRow } from '../../types'
 import { PANELS } from '../config'
 import type { Config, Panel } from '../config'
 import { hotFiles, topTools, totalCalls } from '../domain/activity'
@@ -120,22 +120,6 @@ export type ToolsView = {
 }
 
 /**
- * The trends panel: the samples both lines are drawn from, and each line's current figure and
- * change. A line is null when no sample has its figure, so a host without cost shows the context
- * line alone. A change is the latest figure minus the one before it, null when either is missing or
- * when it rounds to zero (for cost, also when it is not positive).
- */
-export type TrendsView = {
-  samples: Sample[]
-  /** The latest context fill, in percent, and its change in whole percent points. */
-  ctx: { pct: number; change: number | null } | null
-  /** The latest cumulative cost, its change in dollars rounded to cents, and the range of the line. */
-  cost: { usd: number; change: number | null; min: number; max: number } | null
-  /** Rows the panel body takes. */
-  rows: number
-}
-
-/**
  * The summary inline above the prompt: no frames, one row per line and at most eight. Each part is
  * null, or empty, while it has nothing to show or its panel is switched off.
  */
@@ -147,9 +131,7 @@ export type MiniView = {
   /** The first two rate-limit windows, the hotter first. */
   limits: Limit[]
   costUsd: number | null
-  /** The samples of the ctx trend row; null under two readings or with TRENDS switched off. */
-  trend: Sample[] | null
-  /** The first 5 of the list with a trend row, 6 without; running ones first, then the newest. */
+  /** The first 6 of the list, running ones first, then the newest. */
   agents: AgentCard[]
   /** The main model's readable name: a row tags its model only when it differs. */
   mainModel: string
@@ -192,8 +174,6 @@ export type ViewModel = {
   architect: ArchitectView | null
   /** The tools and files panel, null until the first tool call. */
   tools: ToolsView | null
-  /** The trends panel, null until there are two samples with a figure to draw. */
-  trends: TrendsView | null
   /** The session log, an empty one drawn as `nothing yet`; null when the pane leaves it under 2 rows. */
   log: LogView | null
   /** The inline summary, drawn instead of the panels; null outside the mini layout. */
@@ -222,9 +202,8 @@ export function buildViewModel(s: Snapshot, ctx: ViewContext): ViewModel {
   const agents = agentsView(s, ctx, widths.agents)
   const architect = architectView(s, ctx, widths.architect)
   const tools = toolsView(s, layout)
-  const trends = trendsView(s)
   // What each panel draws, null while it has nothing to show.
-  const content: Record<Panel, unknown> = { info, trends, agents, architect, tools, log: s.log }
+  const content: Record<Panel, unknown> = { info, agents, architect, tools, log: s.log }
   const shown = ctx.cfg.panels.filter(p => content[p] !== null)
   const columns: Columns | null = cols
     ? { left: shown.filter(p => WIDE_LEFT.includes(p)), right: shown.filter(p => WIDE_RIGHT.includes(p)), leftWidth: cols.left, rightWidth: cols.right, gap: cols.gap }
@@ -232,7 +211,6 @@ export function buildViewModel(s: Snapshot, ctx: ViewContext): ViewModel {
   // Each drawn panel's gap above it and its frame's two border rows around its body.
   const tall: Record<Panel, number> = {
     info: 3 + info.rows,
-    trends: trends ? 3 + trends.rows : 0,
     agents: agents ? 3 + agents.rows : 0,
     architect: architect ? 3 + architect.rows : 0,
     tools: tools ? 3 + tools.rows : 0,
@@ -263,23 +241,19 @@ export function buildViewModel(s: Snapshot, ctx: ViewContext): ViewModel {
     agents,
     architect,
     tools,
-    trends,
     log,
-    mini: layout === 'mini' ? miniView(s, ctx, trends, header, widths.agents) : null,
+    mini: layout === 'mini' ? miniView(s, ctx, header, widths.agents) : null,
   }
 }
 
-/** Agent rows in the inline summary: six, or five beside the ctx trend row. */
+/** Agent rows in the inline summary. */
 const MINI_AGENTS = 6
-const MINI_AGENTS_WITH_TREND = 5
 
 /** The inline summary: the state and digest, then each part whose panel is switched on and has something to show. */
-function miniView(s: Snapshot, ctx: ViewContext, trends: TrendsView | null, header: ViewModel['header'], agentsWidth: number): MiniView {
+function miniView(s: Snapshot, ctx: ViewContext, header: ViewModel['header'], agentsWidth: number): MiniView {
   const drawn = (p: Panel) => ctx.cfg.panels.includes(p)
-  // The ctx trend repeats TRENDS' own line, so it needs two readings and a context figure among them.
-  const trend = drawn('trends') && trends?.ctx ? trends.samples : null
   const ordered = drawn('agents') ? listOrder(s.agents) : []
-  const agents = ordered.slice(0, trend ? MINI_AGENTS_WITH_TREND : MINI_AGENTS)
+  const agents = ordered.slice(0, MINI_AGENTS)
   const loops = drawn('agents') ? loopsView(s, ctx.now, agentsWidth) : null
   const heat = (l: Limit): number => (Number.isFinite(l.pct) ? l.pct : 0)
   return {
@@ -288,7 +262,6 @@ function miniView(s: Snapshot, ctx: ViewContext, trends: TrendsView | null, head
     ctx: s.usage.pct === null ? null : { pct: s.usage.pct, compactions: s.usage.compactions },
     limits: s.usage.limits.slice(0, LIMITS_SHOWN).sort((x, y) => heat(y) - heat(x)),
     costUsd: s.usage.costUsd,
-    trend,
     agents,
     mainModel: s.main.model ? prettyModel(s.main.model) : '',
     earlier: ordered.length - agents.length,
@@ -413,29 +386,6 @@ function toolsView(s: Snapshot, layout: ViewModel['layout']): ToolsView | null {
   const tools = topTools(a, TOOLS_SHOWN[layout])
   const files = hotFiles(a, FILES_SHOWN)
   return { meta: plural(totalCalls(a), 'call'), tools, files, rows: 1 + tools.length + (files.length > 0 ? 2 + files.length : 0) }
-}
-
-/** The latest figure minus the one before it, `round`ed; null with fewer than two figures or a zero change. */
-function changeOf(figures: number[], round: (n: number) => number): number | null {
-  const [before, latest] = figures.slice(-2)
-  if (before === undefined || latest === undefined) return null
-  const change = round(latest - before)
-  return change === 0 ? null : change
-}
-
-/** Hidden below two samples; each line only while some sample has its figure. */
-function trendsView(s: Snapshot): TrendsView | null {
-  const { samples } = s.trends
-  if (samples.length < 2) return null
-  const ctxs = samples.map(x => x.ctxPct).filter((v): v is number => v !== null)
-  const costs = samples.map(x => x.costUsd).filter((v): v is number => v !== null)
-  const lastCtx = ctxs[ctxs.length - 1]
-  const lastCost = costs[costs.length - 1]
-  const ctx = lastCtx === undefined ? null : { pct: lastCtx, change: changeOf(ctxs, Math.round) }
-  const costChange = lastCost === undefined ? null : changeOf(costs, n => Math.round(n * 100) / 100)
-  const cost = lastCost === undefined ? null : { usd: lastCost, change: costChange !== null && costChange > 0 ? costChange : null, min: Math.min(...costs), max: Math.max(...costs) }
-  const rows = (ctx ? 1 : 0) + (cost ? 1 : 0)
-  return rows === 0 ? null : { samples, ctx, cost, rows }
 }
 
 /**

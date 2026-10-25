@@ -54,8 +54,8 @@ python3 -I -m unittest discover -s scripts/capture
 | `hooks/config.ts` | `parseConfig`: options read leniently, with a default for anything malformed |
 | `hooks/events/` | one module per concern (session, command, turns, agents, architect, tools, measures, render), wiring host events to reducers and store helpers |
 | `hooks/state/` | atoms, defaults, normalizers and the schema version; `store.ts` holds every state read and write |
-| `hooks/domain/` | pure reducers: the main model's vitals, the turn tally (kept for the architect's moments), agents and loops, architect, activity (tools and files), trends, log |
-| `hooks/format/` | pure text helpers: model names, durations, tokens, USD, gauges, sparklines, and `redact()` |
+| `hooks/domain/` | pure reducers: the main model's vitals, the turn tally (kept for the architect's moments), agents and loops, architect, activity (tools and files), log |
+| `hooks/format/` | pure text helpers: model names, durations, tokens, USD, gauges, and `redact()` |
 | `hooks/view/` | palette, frame, header, layout math, the view model, the mini layout, the cell layout and pictures for the desktop app and VS Code, and the time-axis SVG; `panels/` has one renderer per panel |
 | `hooks/client/` | client modules: the ticking clock, the header pulse and the AGENTS sweep |
 | `types/index.d.ts` | the `PluginState['st-code']` declaration |
@@ -81,7 +81,7 @@ slice of the model. Renderers never read state.
   than the pane and no wrapped borders. The mini layout never goes past 8 rows.
 - **Everything stored goes through `redact()`.** Prompts, tasks, answers, advice, tool summaries and
   paths are all masked before they reach state.
-- **Every text colour reaches 4.5:1 on black.** `muted`, `faint` and `frame` never carry text, and a state
+- **Every text colour reaches 4.5:1 on black.** `faint` and `frame` never carry text, and a state
   always has a glyph beside its colour.
 - **Reads tolerate old or broken state.** Every stored value goes through its normalizer, so missing,
   older-shaped or junk state still draws.
@@ -103,4 +103,4 @@ slice of the model. Renderers never read state.
 - Keep each pull request to one concern, and say what changed and why.
 - Run the three gates and paste the test count.
 - For a visual change, attach a capture at the widths it affects.
-- Commit messages describe the work in the imperative ("Add the TRENDS panel").
+- Commit messages describe the work in the imperative ("Add the ARCHITECT panel").

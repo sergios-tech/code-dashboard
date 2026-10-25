@@ -14,8 +14,6 @@ export type Architect = { consults: Consult[]; ids: string[]; seen: string[]; la
 export type ToolRow = { tool: string; calls: number; errors: number; timedCalls: number; timedMs: number }
 export type FileRow = { path: string; reads: number; edits: number; byMain: boolean; lastAt: number }
 export type Activity = { tools: ToolRow[]; files: FileRow[]; calls: number }
-export type Sample = { at: number; ctxPct: number | null; costUsd: number | null; isCompaction: boolean }
-export type Trends = { samples: Sample[]; pendingCompaction: boolean }
 export type LogKind = 'info' | 'error' | 'consult' | 'done'
 export type LogMark = '✗' | '· denied'
 export type LogLine = { at: number; who: string; text: string; agentId: string | null; kind: LogKind; mark: LogMark | null }
@@ -28,7 +26,7 @@ declare module 'claude-code' {
       meta: { schemaVersion: number }
       main: Main; usage: Usage; turn: Turn
       agents: AgentCard[]; loops: Loop[]; architect: Architect
-      activity: Activity; trends: Trends
+      activity: Activity
       log: LogLine[]; view: View; roster: Roster
     }
   }

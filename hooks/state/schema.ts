@@ -17,10 +17,8 @@ import type {
   Main,
   Moment,
   Roster,
-  Sample,
   ToolNote,
   ToolRow,
-  Trends,
   Turn,
   Usage,
   View,
@@ -35,7 +33,6 @@ export const DEFAULT_USAGE: Usage = { pct: null, tokens: null, window: 0, costUs
 export const DEFAULT_TURN: Turn = { edits: 0, errorStreak: 0 }
 export const DEFAULT_ARCHITECT: Architect = { consults: [], ids: [], seen: [], lastAdvice: '' }
 export const DEFAULT_ACTIVITY: Activity = { tools: [], files: [], calls: 0 }
-export const DEFAULT_TRENDS: Trends = { samples: [], pendingCompaction: false }
 export const DEFAULT_VIEW: View = { expanded: null, layout: null }
 export const DEFAULT_ROSTER: Roster = { architectTypes: [] }
 
@@ -190,14 +187,6 @@ export const normalizeActivity = (stored: unknown): Activity => {
       .map((f): FileRow => ({ path: str(f.path), reads: num(f.reads), edits: num(f.edits), byMain: bool(f.byMain), lastAt: num(f.lastAt) })),
     // The running total outlives evicted rows, but never reads as fewer calls than the rows kept.
     calls: Math.max(num(o.calls), tools.reduce((n, t) => n + t.calls, 0)),
-  }
-}
-
-export const normalizeTrends = (stored: unknown): Trends => {
-  const o = isObject(stored) ? stored : {}
-  return {
-    samples: objects(o.samples).map((s): Sample => ({ at: num(s.at), ctxPct: numOrNull(s.ctxPct), costUsd: numOrNull(s.costUsd), isCompaction: bool(s.isCompaction) })),
-    pendingCompaction: bool(o.pendingCompaction),
   }
 }
 

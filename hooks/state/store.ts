@@ -2,13 +2,12 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface } from 'claude-code'
 
-import type { Activity, AgentCard, Architect, Layout, LogKind, LogLine, LogMark, Loop, Main, Moment, Roster, Speed, ToolNote, Trends, Turn, Usage, View } from '../../types'
+import type { Activity, AgentCard, Architect, Layout, LogKind, LogLine, LogMark, Loop, Main, Moment, Roster, Speed, ToolNote, Turn, Usage, View } from '../../types'
 import { recordCall } from '../domain/activity'
 import type { Call } from '../domain/activity'
 import { addCard, applyStep, finishCard, finishLoop, noteTool, stepLoop } from '../domain/agents'
 import { IDS_MAX, SEEN_MAX, endConsult, momentOf, startConsult } from '../domain/architect'
 import { appendLog } from '../domain/log'
-import { addSample, markCompaction, movesTrend } from '../domain/trends'
 import { afterCall } from '../domain/turn'
 import { usageFrom } from '../domain/vitals'
 import { redact } from '../format/redact'
@@ -17,7 +16,6 @@ import {
   DEFAULT_ARCHITECT,
   DEFAULT_MAIN,
   DEFAULT_ROSTER,
-  DEFAULT_TRENDS,
   DEFAULT_TURN,
   DEFAULT_USAGE,
   DEFAULT_VIEW,
@@ -29,7 +27,6 @@ import {
   normalizeLoops,
   normalizeMain,
   normalizeRoster,
-  normalizeTrends,
   normalizeTurn,
   normalizeUsage,
   normalizeView,
@@ -46,7 +43,6 @@ export const agents = atom({ plugin: 'st-code', key: 'agents' } as const, [])
 export const loops = atom({ plugin: 'st-code', key: 'loops' } as const, [])
 export const architect = atom({ plugin: 'st-code', key: 'architect' } as const, DEFAULT_ARCHITECT)
 export const activity = atom({ plugin: 'st-code', key: 'activity' } as const, DEFAULT_ACTIVITY)
-export const trends = atom({ plugin: 'st-code', key: 'trends' } as const, DEFAULT_TRENDS)
 export const log = atom({ plugin: 'st-code', key: 'log' } as const, [])
 export const view = atom({ plugin: 'st-code', key: 'view' } as const, DEFAULT_VIEW)
 export const roster = atom({ plugin: 'st-code', key: 'roster' } as const, DEFAULT_ROSTER)
@@ -59,7 +55,6 @@ export type Snapshot = {
   loops: Loop[]
   architect: Architect
   activity: Activity
-  trends: Trends
   log: LogLine[]
   view: View
   roster: Roster
@@ -67,7 +62,7 @@ export type Snapshot = {
 
 /** Every key read once, so a frame is drawn from one consistent set of values. */
 export async function loadSnapshot($: EngineInterface): Promise<Snapshot> {
-  const [m, u, t, a, l, ar, ac, tr, lg, v, ro] = await Promise.all([
+  const [m, u, t, a, l, ar, ac, lg, v, ro] = await Promise.all([
     read($, main),
     read($, usage),
     read($, turn),
@@ -75,7 +70,6 @@ export async function loadSnapshot($: EngineInterface): Promise<Snapshot> {
     read($, loops),
     read($, architect),
     read($, activity),
-    read($, trends),
     read($, log),
     read($, view),
     read($, roster),
@@ -88,7 +82,6 @@ export async function loadSnapshot($: EngineInterface): Promise<Snapshot> {
     loops: normalizeLoops(l),
     architect: normalizeArchitect(ar),
     activity: normalizeActivity(ac),
-    trends: normalizeTrends(tr),
     log: normalizeLog(lg),
     view: normalizeView(v),
     roster: normalizeRoster(ro),
@@ -107,7 +100,6 @@ export async function migrate($: EngineInterface): Promise<void> {
   await update($, loops, normalizeLoops)
   await update($, architect, normalizeArchitect)
   await update($, activity, normalizeActivity)
-  await update($, trends, normalizeTrends)
   await update($, log, normalizeLog)
   await update($, view, normalizeView)
   await update($, roster, normalizeRoster)
@@ -115,8 +107,8 @@ export async function migrate($: EngineInterface): Promise<void> {
 }
 
 /**
- * `/st-code reset` and `/clear`: the session is the same, so what it spent and the trend line
- * stay; the context gauge waits for the next measurement instead of showing the pre-clear fill.
+ * `/st-code reset` and `/clear`: the session is the same, so what it spent stays; the context
+ * gauge waits for the next measurement instead of showing the pre-clear fill.
  * The architect types offered stay too, as the agent listing is not sent again.
  */
 export async function resetAll($: EngineInterface): Promise<void> {
@@ -159,24 +151,6 @@ export async function takeUsageReading($: EngineInterface): Promise<void> {
 /** A `session.measure` reading, stored over the last one. */
 export async function applyMeasure($: EngineInterface, reading: Parameters<typeof usageFrom>[0]): Promise<void> {
   await update($, usage, x => usageFrom(reading, normalizeUsage(x)))
-}
-
-/**
- * The stored context and cost as one more point of the trend lines. A reading that has neither is
- * no point: the host reported nothing to draw. Nor is one that repeats the last point, which writes
- * nothing and so costs no redraw.
- */
-export async function takeSample($: EngineInterface): Promise<void> {
-  const [u, t, now] = await Promise.all([read($, usage), read($, trends), $.clock.now()])
-  const x = normalizeUsage(u)
-  const s = { at: now, ctxPct: x.pct, costUsd: x.costUsd }
-  if ((s.ctxPct === null && s.costUsd === null) || !movesTrend(normalizeTrends(t), s)) return
-  await update($, trends, tr => addSample(normalizeTrends(tr), s))
-}
-
-/** The next trend sample is the one after a compaction. */
-export async function markTrendCompaction($: EngineInterface): Promise<void> {
-  await update($, trends, t => markCompaction(normalizeTrends(t)))
 }
 
 /** One compaction of the main conversation, counted and timed. */

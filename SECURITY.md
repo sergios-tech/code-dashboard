@@ -40,13 +40,13 @@ The plugin keeps short summaries in session state, held by the host for the curr
 - prompts' first 70 characters
 - agent tasks and the start of their answers
 - the first line of architect advice
-- counts, timings and trend samples
+- counts and timings
 
 It **stores nothing across sessions**: it uses no persistent store and writes no files. `/clear` and
 `/st-code reset` empty most of the session state.
 
-Each stored list has a cap: 24 agents, 60 other loops, 60 log lines, 40 consults, 40 tools, 200
-files and 60 trend samples.
+Each stored list has a cap: 24 agents, 60 other loops, 60 log lines, 40 consults, 40 tools and 200
+files.
 
 Before anything is stored, credentials are masked as `•••`. That covers:
 

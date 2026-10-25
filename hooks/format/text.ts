@@ -93,41 +93,6 @@ export const gauge = (pct: number, width: number): { on: string; off: string } =
   return { on: '▰'.repeat(full), off: '▱'.repeat(w - full) }
 }
 
-const LEVELS = '▁▂▃▄▅▆▇█'
-
-/**
- * The reading on each of `width` cells. More readings than cells resample, so each cell takes the last
- * reading that falls in it; fewer are right-aligned under empty cells. A reading that is not a finite
- * number, and a cell no reading reaches, is null.
- */
-export const placeCells = (values: (number | null)[], width: number): (number | null)[] => {
-  const w = Math.max(0, Math.floor(width))
-  const list = Array.isArray(values) ? values.map(v => (typeof v === 'number' && Number.isFinite(v) ? v : null)) : []
-  const cells: (number | null)[] = new Array<number | null>(w).fill(null)
-  if (w === 0) return cells
-  if (list.length > w) list.forEach((v, j) => (cells[Math.floor((j * w) / list.length)] = v))
-  else list.forEach((v, j) => (cells[w - list.length + j] = v))
-  return cells
-}
-
-/**
- * A sparkline `width` cells wide. Each cell's level is `round(frac * 7)`, where `frac` places the value
- * between `range.min` and `range.max` (default: 0 to the largest value). The values sit on the cells as
- * `placeCells` puts them; a cell with no value draws a space.
- */
-export const sparkline = (values: (number | null)[], width: number, range?: { min: number; max: number }): string => {
-  const cells = placeCells(values, width)
-  const min = range?.min ?? 0
-  const max = range?.max ?? Math.max(0, ...(Array.isArray(values) ? values : []).filter((v): v is number => typeof v === 'number' && Number.isFinite(v)))
-  return cells
-    .map(v => {
-      if (v === null) return ' '
-      const frac = max > min ? Math.max(0, Math.min(1, (v - min) / (max - min))) : 0
-      return LEVELS.charAt(Math.round(frac * 7))
-    })
-    .join('')
-}
-
 /**
  * `s` broken at word boundaries into at most `maxRows` rows of at most `width` cells. A word longer than
  * a row is cut across rows. When words remain after the last allowed row, that row takes the words that

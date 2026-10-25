@@ -9,7 +9,6 @@ import {
   DEFAULT_ARCHITECT,
   DEFAULT_MAIN,
   DEFAULT_ROSTER,
-  DEFAULT_TRENDS,
   DEFAULT_TURN,
   DEFAULT_USAGE,
   DEFAULT_VIEW,
@@ -59,7 +58,6 @@ const FRESH: Snapshot = {
   loops: [],
   architect: DEFAULT_ARCHITECT,
   activity: DEFAULT_ACTIVITY,
-  trends: DEFAULT_TRENDS,
   log: [],
   view: DEFAULT_VIEW,
   roster: DEFAULT_ROSTER,
@@ -71,13 +69,13 @@ test('a fresh session draws on every surface and width, empty panels hidden', as
     const ui = await $.ui.mount({ ...pane(cols), surface })
     if (surface === 'terminal') {
       expect(await ui.find({ text: /SERGIO'S TECH · CODE/ })).toBeDefined(); expect(await ui.find({ text: /INFO/ })).toBeDefined()
-      expect(await ui.find({ text: /AGENTS|TRENDS|TOOLS & FILES|ARCHITECT/ })).toBeUndefined()
+      expect(await ui.find({ text: /AGENTS|TOOLS & FILES|ARCHITECT/ })).toBeUndefined()
       expect(await ui.find({ type: 'Text', text: /^ LOG $/ })).toBeDefined(); expect(await ui.find({ text: /TURN|loops/ })).toBeUndefined()
     } else {
       // Off the terminal the words are in the pictures, one `<text>` each.
       const all = (await ui.findAll({ type: 'Svg' })).map(s => String(s.props.source)).join('')
       for (const word of ["SERGIO'S", 'INFO', 'LOG']) expect(all).toContain(`>${word}<`)
-      expect(/>(AGENTS|TRENDS|TOOLS|ARCHITECT|TURN|loops)</.test(all)).toBe(false)
+      expect(/>(AGENTS|TOOLS|ARCHITECT|TURN|loops)</.test(all)).toBe(false)
     }
     await ui.unmount()
   }
@@ -121,11 +119,9 @@ test('inline, the pane is a summary of at most 8 rows', async ($, on) => {
   await clock.advance(1000)
   await $.turn.start({ text: 'fan out', turnId: 'T1' })
   await step($, undefined, 'claude-opus-5-5')
-  for (const d of ['one', 'two', 'three', 'four', 'five']) await $.agent.spawn(spawn('general-purpose', `task ${d}`))
+  for (const d of ['one', 'two', 'three', 'four', 'five', 'six']) await $.agent.spawn(spawn('general-purpose', `task ${d}`))
   await step($, 'm1')
   await $.turn.complete({ answer: 'ok', durationMs: 1, isAborted: false, turnId: 'T-m2', agentId: 'm2', reason: 'answer' })
-  // A first reading with cost alone leaves no gap at the start of the one-row sparkline.
-  await $.session.measure({ context: { window: 200_000 }, cost: { usd: 0.5 }, rateLimits: [], changed: ['cost'] })
   await $.session.measure(reading(20, 1)); await $.session.measure(reading(51, 3.12))
   await step($, 'loop-1')
   await $.turn.complete({ answer: 'done', durationMs: 72_000, isAborted: false, turnId: 'T1', reason: 'answer' })
@@ -137,9 +133,8 @@ test('inline, the pane is a summary of at most 8 rows', async ($, on) => {
     expect(rows).toHaveLength(8)
     for (const r of rows) expect(cellWidth(r) <= cols).toBe(true)
     expect(rows[0]?.trimEnd()).toBe(cols >= 64 ? '● OPUS 5.5 IDLE   ◐ ▰▰▰▰▱▱▱▱ 51%   $ 3.12' : '● OPUS 5.5 IDLE   ◐ 51%  $ 3.12')
-    expect(rows[1]).toMatch(/^◐ ctx +[▁-█ ]+ +51% *$/)
     // Running agents first, newest first; the finished one follows them.
-    expect(rows.slice(2, 7).map(r => r.slice(0, 12).trimEnd())).toEqual(['● task five', '● task four', '● task three', '● task one', '✓ task two'])
+    expect(rows.slice(1, 7).map(r => r.slice(0, 12).trimEnd())).toEqual(['● task six', '● task five', '● task four', '● task three', '● task one', '✓ task two'])
     expect(rows[7]).toMatch(/^loops 1 seen · 1 active +● *$/)
     // No frames, no header bar and no log.
     expect(rows.some(r => /[┌│└]/.test(r))).toBe(false); expect(await ui.find({ text: /LOG|INFO|SERGIO/ })).toBeUndefined()
@@ -147,7 +142,7 @@ test('inline, the pane is a summary of at most 8 rows', async ($, on) => {
     await ui.unmount()
   }
 })
-test('wide puts info, trends and tools left, agents and architect right, and the log underneath', async ($, on) => {
+test('wide puts info and tools left, agents and architect right, and the log underneath', async ($, on) => {
   const clock = engine(on)
   on('agent.spawn', () => ({ model: 'claude-sonnet-5-5', agentId: 'g1' }))
   on('tool.call', () => ok)
@@ -194,13 +189,13 @@ test('every atom holding garbage still draws the header and LOG (Review Focus 1)
     reads++
     return { value: { value: junk, version: 1 } } as never
   })
-  for (const value of [null, 7, 'x', [], { tools: 'no', samples: 3 }, [null, 3, 'y']]) {
+  for (const value of [null, 7, 'x', [], { tools: 'no' }, [null, 3, 'y']]) {
     junk = value
     for (const cols of [64, 120]) {
       reads = 0
       const ui = await $.ui.mount({ ...pane(cols), surface: 'terminal' })
       // One read per stored key: the whole snapshot came from junk.
-      expect(reads >= 11).toBe(true)
+      expect(reads >= 10).toBe(true)
       expect(await ui.find({ type: 'Text', text: /SERGIO'S TECH · CODE/ })).toBeDefined(); expect(await ui.find({ type: 'Text', text: /^ LOG $/ })).toBeDefined()
       expect(await ui.find({ text: /nothing yet/ })).toBeDefined(); expect(await ui.find({ text: /NaN|undefined|null|object/ })).toBeUndefined()
       for (const r of await rowsOf(ui)) expect(cellWidth(r) <= cols).toBe(true)
@@ -225,7 +220,7 @@ test('config hides panels and motion off stops the pulse', { options: { panels: 
     const ui = await $.ui.mount({ ...pane(cols), surface: 'terminal' })
     const rows = await rowsOf(ui)
     expect(rows.some(r => r.includes('┌ INFO'))).toBe(true); expect(rows.some(r => r.includes('┌ LOG'))).toBe(true)
-    for (const label of ['AGENTS', 'TRENDS', 'TOOLS & FILES']) expect(rows.some(r => r.includes(`┌ ${label}`))).toBe(false)
+    for (const label of ['AGENTS', 'TOOLS & FILES']) expect(rows.some(r => r.includes(`┌ ${label}`))).toBe(false)
     // Work runs, yet the header's dot is plain text: no pulse module, and nothing else here ticks.
     expect(await ui.find({ type: 'Client' })).toBeUndefined()
     expect((await ui.find({ type: 'Text', text: /^●$/ }))?.props.color).toBe(COLORS.green)

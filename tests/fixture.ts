@@ -1,5 +1,5 @@
 // A busy session for the panel tests: a working main loop, five subagents, an architect consult,
-// tool and file activity, forty readings over forty minutes and a log. Times count back from `now`.
+// tool and file activity and a log. Times count back from `now`.
 import {
   DEFAULT_ROSTER,
   DEFAULT_TURN,
@@ -10,7 +10,6 @@ import {
   normalizeLog,
   normalizeLoops,
   normalizeMain,
-  normalizeTrends,
   normalizeUsage,
 } from '../hooks/state/schema'
 import type { Snapshot } from '../hooks/state/store'
@@ -67,16 +66,6 @@ export const busy = (now: number = NOW): Snapshot => ({
       { path: 'hooks/view/header.tsx', reads: 2, edits: 1, byMain: true, lastAt: now - 60 * S },
       { path: 'README.md', reads: 2, edits: 0, byMain: false, lastAt: now - 130 * S },
     ],
-  }),
-  // Forty readings over forty minutes: context climbs to 58%, a compaction 20 minutes ago drops it to 3%, and it is back at 11%.
-  trends: normalizeTrends({
-    pendingCompaction: false,
-    samples: Array.from({ length: 40 }, (_, i) => ({
-      at: now - (40 - i) * M,
-      ctxPct: i < 20 ? 7 + Math.round(i * 2.7) : i === 20 ? 3 : 3 + Math.round(((i - 20) * 8) / 19),
-      costUsd: Math.round((0.03 + i * 0.0205 + 0.018 * Math.floor((i + 4) / 7)) * 100) / 100,
-      isCompaction: i === 20,
-    })),
   }),
   log: normalizeLog([
     { at: now - 178 * S, who: 'you', text: 'Review the pane against the README', agentId: null, kind: 'info', mark: null },

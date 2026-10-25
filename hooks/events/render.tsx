@@ -18,7 +18,6 @@ import { architectPanel } from '../view/panels/architect'
 import { infoPanel } from '../view/panels/info'
 import { logPanel } from '../view/panels/log'
 import { toolsPanel } from '../view/panels/tools'
-import { trendsPanel } from '../view/panels/trends'
 import { pictures } from '../view/picture'
 
 /** One panel's drawing, in the cells the view model gave it: its column's in the wide layout. */
@@ -28,7 +27,6 @@ const panel = (d: Draw, vm: ViewModel, p: Panel, expand: Expand): RenderElement 
   if (p === 'agents') return vm.agents ? agentsPanel(d, vm.agents, w, expand) : null
   if (p === 'architect') return vm.architect ? architectPanel(d, vm.architect, w) : null
   if (p === 'tools') return vm.tools ? toolsPanel(d, vm.tools, w) : null
-  if (p === 'trends') return vm.trends ? trendsPanel(d, vm.trends, w) : null
   return p === 'log' && vm.log ? logPanel(d, vm.log, w) : null
 }
 

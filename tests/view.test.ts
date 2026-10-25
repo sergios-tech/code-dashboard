@@ -18,16 +18,16 @@ const WORKING: ViewModel['header'] = { model: 'Opus 5.5', isRunning: true, isAct
 // ---------------------------------------------------------------- palette and layout math
 
 test('the palette holds the Signal tokens and their 256-colour fallbacks', () => {
-  expect(COLORS).toEqual({ fill: '#000000', text: '#d0d0d0', dim: '#9e9e9e', muted: '#4e4e4e', faint: '#303030', frame: '#d70000', brand: '#ff0000', orange: '#ff7f00', green: '#5fd75f', pulse: '#5f875f', gold: '#ffd700', architect: '#d7af00', error: '#ff5f5f' })
+  expect(COLORS).toEqual({ fill: '#000000', text: '#d0d0d0', dim: '#9e9e9e', faint: '#303030', frame: '#d70000', brand: '#ff0000', orange: '#ff7f00', green: '#5fd75f', pulse: '#5f875f', gold: '#ffd700', architect: '#d7af00', error: '#ff5f5f' })
   const fallback = Object.fromEntries(Object.entries(COLORS).map(([k, v]) => [k, to256(v)]))
-  expect(fallback).toEqual({ fill: '#000000', text: '#c6c6c6', dim: '#9e9e9e', muted: '#4e4e4e', faint: '#303030', frame: '#d70000', brand: '#ff0000', orange: '#ff8700', green: '#87d787', pulse: '#87af87', gold: '#ffd700', architect: '#d7af00', error: '#ff8787' })
+  expect(fallback).toEqual({ fill: '#000000', text: '#c6c6c6', dim: '#9e9e9e', faint: '#303030', frame: '#d70000', brand: '#ff0000', orange: '#ff8700', green: '#87d787', pulse: '#87af87', gold: '#ffd700', architect: '#d7af00', error: '#ff8787' })
 })
-test('every text token reads at 4.5:1 on black in both colour depths; muted, faint and frame never carry text', () => {
+test('every text token reads at 4.5:1 on black in both colour depths; faint and frame never carry text', () => {
   for (const k of TEXT_TOKENS) {
     expect(contrast(COLORS[k], '#000000') >= 4.5).toBe(true)
     expect(contrast(to256(COLORS[k]), '#000000') >= 4.5).toBe(true)
   }
-  for (const k of ['muted', 'faint', 'frame', 'fill'] as const) expect(TEXT_TOKENS.includes(k)).toBe(false)
+  for (const k of ['faint', 'frame', 'fill'] as const) expect(TEXT_TOKENS.includes(k)).toBe(false)
 })
 test('no token is blue', () => {
   for (const hex of Object.values(COLORS)) {
@@ -50,15 +50,15 @@ test('layout picks mini inline, wide from 110 docked, compact otherwise; overrid
   expect(pickLayout('auto', null, 'dock', 109)).toBe('compact'); expect(pickLayout('auto', 'compact', 'dock', 200)).toBe('compact')
   expect(clampWidth(28)).toBe(40); expect(clampWidth(220)).toBe(220)
 })
-test('the wide layout puts info, trends and tools left, agents and architect right', () => {
-  expect(WIDE_LEFT).toEqual(['info', 'trends', 'tools']); expect(WIDE_RIGHT).toEqual(['agents', 'architect'])
+test('the wide layout puts info and tools left, agents and architect right', () => {
+  expect(WIDE_LEFT).toEqual(['info', 'tools']); expect(WIDE_RIGHT).toEqual(['agents', 'architect'])
 })
 test('forced layouts: mini anywhere, wide only with room for two 40-column columns', () => {
   expect(pickLayout('mini', null, 'dock', 120)).toBe('mini'); expect(pickLayout('compact', 'auto', 'dock', 120)).toBe('wide')
   expect(pickLayout('wide', null, 'dock', 82)).toBe('wide'); expect(pickLayout('auto', 'wide', 'dock', 64)).toBe('compact')
   expect(clampWidth(Number.NaN)).toBe(40)
   expect(wideColumns(120)).toEqual({ left: 59, right: 59, gap: 2 }); expect(wideColumns(111)).toEqual({ left: 54, right: 55, gap: 2 })
-  expect([...WIDE_LEFT, ...WIDE_RIGHT].sort()).toEqual(['agents', 'architect', 'info', 'tools', 'trends'])
+  expect([...WIDE_LEFT, ...WIDE_RIGHT].sort()).toEqual(['agents', 'architect', 'info', 'tools'])
 })
 
 // ---------------------------------------------------------------- view model

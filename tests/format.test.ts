@@ -14,7 +14,6 @@ import {
   plural,
   prettyModel,
   shorten,
-  sparkline,
   wrapText,
 } from '../hooks/format/text'
 
@@ -46,13 +45,8 @@ test('rate-limit labels and reset countdowns', () => {
   expect(fmtResetIn(now + 25 * 60_000, now)).toBe('25m'); expect(fmtResetIn(now + 190 * 60_000, now)).toBe('3h10m')
   expect(fmtResetIn(now + (4 * 1440 + 120) * 60_000, now)).toBe('4d2h'); expect(fmtResetIn(now - 1, now)).toBe(''); expect(fmtResetIn(null, now)).toBe('')
 })
-test('gauges and sparklines', () => {
+test('gauges', () => {
   expect(gauge(51, 10)).toEqual({ on: '▰▰▰▰▰', off: '▱▱▱▱▱' }); expect(gauge(150, 4).on).toBe('▰▰▰▰')
-  expect(sparkline([0, 50, 100], 3, { min: 0, max: 100 })).toBe('▁▅█')
-  expect(sparkline([10, null, 30], 3, { min: 0, max: 100 })[1]).toBe(' ')
-  expect(sparkline([1, 2, 3, 4, 5, 6], 3)).toHaveLength(3)   // resampled to width: each cell takes the last value that falls in it
-  expect(sparkline([7], 5)).toHaveLength(5)                  // one value fills from the right; leading cells are spaces
-  expect(sparkline([], 4)).toBe('    ')
 })
 test('wrapText splits at word boundaries within the row budget', () => {
   expect(wrapText('one two three four', 9, 3)).toEqual(['one two', 'three', 'four'])

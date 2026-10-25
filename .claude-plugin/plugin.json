@@ -1,7 +1,7 @@
 {
   "name": "st-code",
   "version": "0.3.3",
-  "description": "Sergio's Tech Code dashboard: a live, read-only pane with INFO, agents, architect consults, tools and files, trends and a session log, all from real session events. Requires Claude Code 2.1.300 or newer.",
+  "description": "Sergio's Tech Code dashboard: a live, read-only pane with INFO, agents, architect consults, tools and files and a session log, all from real session events. Requires Claude Code 2.1.300 or newer.",
   "author": {
     "name": "Sergio Jovanotti",
     "url": "https://github.com/sergios-tech"
@@ -41,9 +41,9 @@
     },
     "panels": {
       "title": "Panels",
-      "description": "Comma-separated panels in display order (compact layout): info, trends, agents, architect, tools, log. Leave one out to hide it.",
+      "description": "Comma-separated panels in display order (compact layout): info, agents, architect, tools, log. Leave one out to hide it.",
       "type": "string",
-      "default": "info,trends,agents,architect,tools,log"
+      "default": "info,agents,architect,tools,log"
     },
     "layout": {
       "title": "Layout",

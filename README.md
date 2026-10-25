@@ -6,7 +6,7 @@
 
 **A live, read-only session dashboard for Claude Code.** It opens a pane beside the transcript that
 shows what the session is doing right now: the main model's INFO, subagents at work, architect
-consults, the busiest tools and files, how context and cost trend, and a session log. Every number comes from a real session event, anything inferred says so, and nothing leaves
+consults, the busiest tools and files, and a session log. Every number comes from a real session event, anything inferred says so, and nothing leaves
 your machine.
 
 <p align="center">
@@ -76,7 +76,6 @@ Panels with nothing to show take no room, so a fresh session shows the header, I
 | Panel | Shows | From |
 | --- | --- | --- |
 | **INFO** | Three groups split by dividers. Model: the effort gauge (`◆ effort ▮▮▮▮ xhigh`), `mode auto` and `req 7`. Usage: a context gauge with tokens/window and compactions (`↺1`), then each of the first two rate-limit windows on its own row with its reset countdown (`↻ 3h51m`). Spend: the session cost and the last main-loop request's `ttft` and `tok/s`. Gauges are green, gold from 80% and coral from 90%. `mode bypass` shows in coral. A group with no data is left out, and with none at all the panel reads `waiting for the first request`. | `turn.step`, `classic.UserPromptSubmit`, `session.measure`, `session.compact`, `$.session.usage()` |
-| **TRENDS** | A table of two rows, context fill and cumulative cost, each a sparkline across the session with the current figure and its change since the reading before (`+2`, `+$0.02`). The ctx cells take the level colours, so a session running hot shows where it crossed, and the cost line is drawn in a quiet grey. A gold `↺` marks the reading where a compaction landed, on both lines. The change column drops when the frame is under 50 columns inside. Appears from the second reading; when the host reports no cost, only the ctx line shows. | `session.measure` readings that change context or cost, the start-of-session reading, `session.compact` |
 | **AGENTS** | One row per agent, running agents first and the newest first among them. Each row has a status glyph, its hotkey digit and title, the model when it differs from the main one, a status bar and a clock. The bar is a 3-cell block that bounces along the track while the agent runs, and fills green, coral or grey once it is done, failed or stopped; it shows that an agent is alive, not how far along it is. A request cut at `max_tokens` shows as failed. Six rows show, hotkeys `1`–`6`, under a `+N earlier` row. The frame meta reads `N running · N total`. An opened agent shows inside the frame after a divider. The last row is `loops  2 seen · 1 active` with one dot per model loop that no agent claims (workflow agents, compactions, forks): `●` active, `✓` done, `○` idle. It shows only while AGENTS does. | `agent.spawn`, `turn.step`, `tool.call`, `turn.complete` |
 | **ARCHITECT** | `● advising` or `○ on call`. Consults on a one-row timeline (`◆` where one started, `━` while it ran). When the last one ran and how long it took. The inferred moment of the last consult. A `»` line with the first line of the advice. The frame is green while it advises. | `agent.offer`, `agent.spawn` of a matching type, matching server tools in `session.append`, `turn.complete`, the `SubagentHandback` call or hand-back turn |
 | **TOOLS & FILES** | A table of the busiest tools (4 rows, 6 in two columns): a glyph for the tool's family (`›` read, `✎` edit, `▸` run, `●` agent, `·` other), the name (an MCP tool as `server:tool`), calls, errors (`✗3`) and the average time per call under `avg*`. After a divider, the 5 paths touched most, each with reads and edits (`✎2`). Paths show their last two segments, and a file that only subagents touched is dimmed. | `tool.call`, `tool.check` |
@@ -92,7 +91,7 @@ call counts as a failed call (`✗`) in TOOLS & FILES and the log.
 | --- | --- |
 | `/st-code` (or `/st-code open`) | Opens the pane. |
 | `/st-code close` | Closes it. |
-| `/st-code reset` | Clears agents and loops, consults, tools and files, the denial count, the log and any `/st-code layout` choice. The model, permission mode, session cost, rate limits, compaction count and trend lines stay. The context gauge returns with the next reading. |
+| `/st-code reset` | Clears agents and loops, consults, tools and files, the denial count, the log and any `/st-code layout` choice. The model, permission mode, session cost, rate limits and compaction count stay. The context gauge returns with the next reading. |
 | `/st-code layout auto\|compact\|wide\|mini` | Picks the layout for this session, overriding the `layout` option. |
 
 `/clear` resets the pane the same way as `/st-code reset`.
@@ -112,9 +111,8 @@ agent's lines (`LOG · THIS AGENT`).
   66 columns wide, which draws one column.
 - **Main screen, or a terminal under 110 columns:** the pane sits inline above the prompt and, under
   `auto`, draws a summary of at most 8 rows on black, without frames. The rows are the state and a
-  digest of INFO's figures, the ctx trend (from two readings), up to five agents (six without the
-  trend row), running ones first, and a last row for the agents left out and the loops. It takes no
-  keys, so its agent rows carry no digit.
+  digest of INFO's figures, up to six agents, running ones first, and a last row for the agents left
+  out and the loops. It takes no keys, so its agent rows carry no digit.
 - **Desktop app and VS Code:** the same design, drawn as pictures. Each block (the header, each panel
   or the two columns together, and the log) is one SVG laid out cell for cell as the terminal would
   show it, on black. The header pulse and the AGENTS sweep animate on both, and both show each clock
@@ -165,7 +163,7 @@ What it keeps, in session state: a tool call as its name plus a command, a path 
 segments, a pattern, a URL or a description; your prompts' first 70 characters; agent tasks and the
 start of their answers; the first line of the architect's advice. Credentials are masked before
 anything is stored. The lists are capped: 24 agents, 60 other loops, 60 log lines, 40
-consults, 40 tools, 200 files and 60 trend samples.
+consults, 40 tools and 200 files.
 
 What it never does: it makes no network requests, runs no processes, reads and writes no files,
 calls no model and stores nothing across sessions. `claude plugin validate .` prints every hook it
@@ -194,9 +192,6 @@ registers and every host call it makes.
   because they would time something other than the tool: calls whose permission check asked for
   approval, denied calls and `Agent` calls, which run a subagent to its end. These calls still count
   toward calls and errors.
-- **Trends thinning.** Past 60 readings, the session's first reading stays and the rest pair up. Each
-  pair keeps the later reading, plus a `↺` if either had one. The lines still span the whole
-  session, but a short spike between two kept readings can drop out.
 
 ## Configure
 
@@ -208,15 +203,15 @@ malformed value falls back to its default.
 | `architectPattern` | `advisor\|architect` | Case-insensitive regex for architect agent types and server tools |
 | `matchDescriptions` | `false` | Also match agent descriptions |
 | `architectLabel` | `ARCHITECT` | Label for the architect role |
-| `panels` | `info,trends,agents,architect,tools,log` | Which panels show, in order (compact layout) |
+| `panels` | `info,agents,architect,tools,log` | Which panels show, in order (compact layout) |
 | `layout` | `auto` | `auto`, `compact`, `wide` or `mini` |
 | `motion` | `on` | `on` or `off` |
 | `moments` | `true` | Show the inferred consult moments |
 | `openOnStart` | `true` | Open the pane at session start, in terminals ≥ 144 columns |
 
 `motion: off` stops the header pulse and the AGENTS sweep, but the clocks keep ticking. The wide layout
-puts INFO, TRENDS and TOOLS & FILES in the left column and AGENTS and ARCHITECT in the right, with
-the LOG underneath. There, `panels` still hides panels and sets the order inside each column.
+puts INFO and TOOLS & FILES in the left column and AGENTS and ARCHITECT in the right, with the LOG
+underneath. There, `panels` still hides panels and sets the order inside each column.
 
 ## Troubleshooting
 

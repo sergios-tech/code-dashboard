@@ -35,7 +35,7 @@ export const wideColumns = (width: number): { left: number; right: number; gap: 
   return { left, right: width - GAP - left, gap: GAP }
 }
 
-export const WIDE_LEFT: Panel[] = ['info', 'trends', 'tools']
+export const WIDE_LEFT: Panel[] = ['info', 'tools']
 export const WIDE_RIGHT: Panel[] = ['agents', 'architect']
 
 const cells = (s: string): number => Array.from(s).length

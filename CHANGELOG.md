@@ -4,6 +4,15 @@ All notable changes to this project are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Removed
+
+- **TRENDS**: the panel and its context and cost sparklines are gone. The mini summary loses its
+  ctx trend row and shows up to six agents instead of five. Context, compactions and cost stay in
+  INFO and in the mini's first row. `trends` is no longer a `panels` name: a list that names it
+  shows the rest, and the wide layout's left column holds INFO and TOOLS & FILES.
+
 ## [0.3.3] - 2026-10-25
 
 ### Removed

@@ -1,6 +1,6 @@
 // The inline summary above the prompt: at most eight frameless rows on the black fill. The main
-// model's state and a digest of INFO's figures first, then the context trend, up to six agents with
-// their bars and clocks, and a last row for the agents left out and the other loops.
+// model's state and a digest of INFO's figures first, then up to six agents with their bars and
+// clocks, and a last row for the agents left out and the other loops.
 import type { RenderElement } from 'claude-code'
 
 import type { AgentCard, Limit } from '../../types'
@@ -12,7 +12,6 @@ import { stateDot } from './header'
 import type { MiniView } from './model'
 import { familyColor, levelColor } from './palette'
 import { LOOP_GLYPH, bar, loopTone } from './panels/agents'
-import { sparkPieces } from './panels/trends'
 import { agentTone } from './svg'
 
 type Piece = { text: string; color: string; bold?: boolean }
@@ -29,10 +28,6 @@ const TAG_FROM = 50
 const BAR_WIDE_FROM = 70
 /** An agent's clock, right-aligned: `m:ss` to `XhYY`. */
 const CLOCK_CELLS = 6
-/** The ctx trend row's `◐ ` and `ctx` padded to 7 before the cells, and the figure's 6 after. */
-const TREND_CHROME = 15
-const TREND_LABEL = 7
-const TREND_FIGURE = 6
 const CTX_GAUGE = 8
 const LIMIT_GAUGE = 6
 const LIMIT_LABEL = 7
@@ -40,7 +35,6 @@ const EFFORT_MAX = 12
 
 const widthOf = (row: Piece[]): number => row.reduce((n, p) => n + cellCount(p.text), 0)
 const pad = (s: string, n: number): string => s + ' '.repeat(Math.max(0, n - cellCount(s)))
-const lpad = (s: string, n: number): string => ' '.repeat(Math.max(0, n - cellCount(s))) + s
 
 /** The figure as printed: rounded, and 0 when the reading is not a number. */
 const figureOf = (pct: number): number => (Number.isFinite(pct) ? Math.round(pct) : 0)
@@ -73,8 +67,7 @@ const stateWords = (d: Draw, h: MiniView['header']): Piece[] => {
 /**
  * Row one: the state, then INFO's figures. The first of eight forms that fits the width, richest
  * first: the cooler limit goes first, then the architect words, then the gauges shrink to figures,
- * then effort, the hotter limit and ctx (which the trend row repeats). Spend stays longest and the
- * state never drops.
+ * then effort, the hotter limit and spend. Ctx stays longest and the state never drops.
  */
 const headRow = (d: Draw, m: MiniView, width: number): RenderElement => {
   const { Box } = d.els
@@ -107,7 +100,7 @@ const headRow = (d: Draw, m: MiniView, width: number): RenderElement => {
     [state, tight([effort, ctxFigure, hot ? limitFigure(hot) : [], spend])],
     [state, tight([ctxFigure, hot ? limitFigure(hot) : [], spend])],
     [state, tight([ctxFigure, spend])],
-    [state, m.trend ? spend : ctxFigure],
+    [state, ctxFigure],
     [state, []],
   ]
   const rows = forms.map(([head, digest]): Piece[] => (digest.length > 0 ? [...head, { text: '   ', color: C.dim }, ...digest] : head))
@@ -119,19 +112,6 @@ const headRow = (d: Draw, m: MiniView, width: number): RenderElement => {
       {textOf(d, 'mini-state', row)}
     </Box>
   )
-}
-
-/** `◐ ctx    ▁▂▃▅▇  51%`: the TRENDS ctx line in one row, from two readings. */
-const trendRow = (d: Draw, samples: NonNullable<MiniView['trend']>, width: number): RenderElement => {
-  const { C } = d
-  const values = samples.map(s => s.ctxPct)
-  const latest = [...values].reverse().find((v): v is number => v !== null)
-  return textOf(d, 'mini-trend', [
-    { text: '◐ ', color: C.orange },
-    { text: pad('ctx', TREND_LABEL), color: C.dim },
-    ...sparkPieces(d, samples, values, Math.max(1, width - TREND_CHROME), { min: 0, max: 100 }, levelColor),
-    { text: lpad(latest === undefined ? '' : `${figureOf(latest)}%`, TREND_FIGURE), color: C.text, bold: true },
-  ])
 }
 
 /** `● Count tests by file    Haiku    ▰▰▰▱▱▱▱▱▱▱▱▱▱▱  0:37`: the AGENTS row without its hotkey digit, the mini taking no keys. */
@@ -177,7 +157,6 @@ const tailRow = (d: Draw, m: MiniView, width: number): RenderElement | null => {
 export const miniPane = (d: Draw, m: MiniView, width: number, fillRows?: number): RenderElement => {
   const { Box } = d.els
   const rows: (RenderElement | null)[] = [headRow(d, m, width)]
-  if (m.trend) rows.push(trendRow(d, m.trend, width))
   rows.push(...m.agents.map(c => agentRow(d, c, m, width)))
   rows.push(tailRow(d, m, width))
   return (
