@@ -1,7 +1,7 @@
 {
   "name": "st-code-display",
   "displayName": "Sergio's Tech · Code Display",
-  "version": "0.5.5",
+  "version": "0.6.0",
   "description": "Sergio's Tech Code Display: a live, read-only pane with INFO, agents, architect consults, tools and files and a session log, all from real session events. Requires Claude Code 2.1.300 or newer.",
   "author": {
     "name": "Sergio Jovanotti",
