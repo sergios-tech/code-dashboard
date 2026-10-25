@@ -4,6 +4,30 @@ All notable changes to this project are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- **INFO**: the effort gauge's lit cells turn red at `xhigh` and `max`. The word stays green, and the
+  mini's effort summary is unchanged.
+
+### Changed
+
+- **INFO**: the frame meta reads `● working` in orange while the main loop runs. `○ idle` stays dim.
+- **Gauge colours**: the context gauge is green, orange from 30% and red from 50%. Every rate-limit
+  window (5h, 7d and any other) is green, orange from 80% and red from 90%. Each is judged by the
+  printed figure, and the mini's figures follow the same rules. Gold is no longer a level colour; the
+  `↺` compaction mark stays gold.
+- **LOG**: docked with a known height, it takes every row the other panels leave, with no cap, and
+  pads with blank rows so its frame ends on the pane's bottom edge. Inline, or when the height is
+  unknown, it keeps at most 8 lines (4 to 8 when unknown).
+
+### Fixed
+
+- **Docked picture pane**: on the desktop app and VS Code, the agents' time axis is now counted in the
+  pane's height, so a docked pane with agents no longer draws past its bottom edge. This was also
+  the case in 0.4.0.
+
 ## [0.4.0] - 2026-10-25
 
 ### Removed
