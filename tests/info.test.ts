@@ -44,6 +44,17 @@ test('INFO colours: icons orange, gauges by level, bypass coral, compactions gol
   const idle = infoPanel(draw({ now: NOW }), vmOf(FRESH, 66, 'dock', NOW).info, 66)
   expect(texts(idle).find(x => x.text === ' ○ idle ')?.color).toBe(COLORS.dim)
 })
+test('the effort gauge lights red on the top step (xhigh and max), green below it; the empty steps stay faint', () => {
+  const s = busy()
+  const lit = (effort: string) => {
+    const tree = infoPanel(draw({ now: NOW }), vmOf({ ...s, main: { ...s.main, effort } }, 66, 'dock', NOW).info, 66)
+    const effortWord = texts(tree).find(x => x.text === effort)
+    return { cells: texts(tree).filter(x => /^▮+$/.test(x.text)).map(x => x.color), empty: texts(tree).find(x => /^▯+$/.test(x.text))?.color, word: effortWord }
+  }
+  expect(lit('xhigh')).toMatchObject({ cells: [COLORS.error], empty: undefined, word: { color: COLORS.green, bold: true } })
+  expect(lit('max')).toMatchObject({ cells: [COLORS.error], empty: undefined, word: { color: COLORS.green, bold: true } })
+  expect(lit('high')).toMatchObject({ cells: [COLORS.green], empty: COLORS.faint, word: { color: COLORS.green, bold: true } })
+})
 test('a gauge clamps to its track, prints the rounded figure and takes its colour from it (Review Focus 3)', () => {
   const s = busy()
   const at = (pct: number) => {
