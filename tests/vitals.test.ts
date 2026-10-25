@@ -8,8 +8,6 @@ import { DEFAULT_TURN, DEFAULT_USAGE, normalizeTurn } from '../hooks/state/schem
 import { COLORS } from '../hooks/view/palette'
 import { cellWidth, engine, pane, rowsOf, spawn } from './kit'
 
-const at = (ms: number) => new Date(ms).toISOString()
-
 /** A model beneath the plugin that answers one request: 800 ms to its first words, 2 s more to stop after 120 tokens (the mocked clock moves as it streams). */
 const answering = (on: On, clock: ReturnType<typeof engine>) =>
   on('turn.step', async function* (_$, e) {
@@ -79,7 +77,7 @@ test('a window keeps its reset time in milliseconds; unusable times become unkno
 })
 test('a host reading stores what it reports and nothing it does not (Review Focus 4)', () => {
   const prev = { ...DEFAULT_USAGE, compactions: 2, lastCompactAt: 7, window: 100 }
-  const full = usageFrom({ context: { percent: 51, tokens: 102_000, window: 200_000 }, cost: { usd: 3.12 }, rateLimits: [{ kind: 'five_hour', percentUsed: 38, resetsAt: at(60_000) }] }, prev)
+  const full = usageFrom({ context: { percent: 51, tokens: 102_000, window: 200_000 }, cost: { usd: 3.12 }, rateLimits: [{ kind: 'five_hour', percentUsed: 38, resetsAt: '1970-01-01T00:01:00.000Z' }] }, prev)
   expect(full).toEqual({ pct: 51, tokens: 102_000, window: 200_000, costUsd: 3.12, limits: [{ kind: 'five_hour', pct: 38, resetsAt: 60_000 }], compactions: 2, lastCompactAt: 7 })
   const bare = usageFrom({ context: { percent: null, window: 200_000 }, rateLimits: [] }, prev)
   expect([bare.pct, bare.tokens, bare.costUsd, bare.limits]).toEqual([null, null, null, []])

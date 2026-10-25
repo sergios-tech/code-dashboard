@@ -15,7 +15,7 @@ import {
 import type { Snapshot } from '../hooks/state/schema'
 
 /** The fixed moment the sample session is drawn at. */
-export const NOW = Date.UTC(2026, 9, 23, 12, 0, 0)
+export const NOW = 1_792_756_800_000 // 2026-10-23T12:00:00Z
 
 /** A made-up secret built at run time (`prefix` plus a filler of one letter), so no file holds a literal in a credential's shape. */
 export const fake = (prefix = '', len = 16): string => prefix + 'Q'.repeat(len)

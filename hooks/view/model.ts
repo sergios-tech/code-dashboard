@@ -100,7 +100,7 @@ export type ArchitectView = {
   isAdvising: boolean
   /** The consults on one row as wide as the frame's inside. */
   timeline: string
-  /** `consulting since HH:MM:SS`, `last 2m ago · took 14s`, or `not consulted yet`. */
+  /** `consulting for 42s`, `last 2m ago · took 14s`, or `not consulted yet`. */
   since: string
   /** The moment of the last consult, lit among the three; null with the moments switched off. */
   moments: { lit: Moment | null } | null

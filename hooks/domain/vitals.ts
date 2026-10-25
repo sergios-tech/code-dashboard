@@ -1,6 +1,7 @@
 // The main model's vitals: how fast a request ran, the effort scale, and the usage figures a host
 // reports. Pure, so every host shape (no cost, no limits, no context percent) is tested without an engine.
 import type { Limit, Speed, Usage } from '../../types'
+import { parseIso } from '../format/text'
 
 /** Effort words on the four-step scale the gauge draws; `max` shares the top step with `xhigh`. */
 export const EFFORT_LEVEL: Record<string, number> = { low: 1, medium: 2, high: 3, xhigh: 4, max: 4 }
@@ -32,7 +33,7 @@ export const stepSpeed = (sentAt: number, firstAt: number | null, stopAt: number
 
 /** A rate-limit reading as the pane keeps it, its ISO reset time turned into milliseconds since the epoch. */
 export const limitOf = (r: { kind: string; percentUsed: number; resetsAt?: string }): Limit => {
-  const at = typeof r.resetsAt === 'string' && r.resetsAt !== '' ? Date.parse(r.resetsAt) : Number.NaN
+  const at = typeof r.resetsAt === 'string' && r.resetsAt !== '' ? parseIso(r.resetsAt) : Number.NaN
   return { kind: typeof r.kind === 'string' ? r.kind : '', pct: finite(r.percentUsed) ? r.percentUsed : 0, resetsAt: Number.isFinite(at) ? at : null }
 }
 

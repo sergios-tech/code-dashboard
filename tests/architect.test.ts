@@ -152,7 +152,7 @@ test('hand-backs and advice lines', () => {
 test('the panel says when the last consult ran and how long it took', () => {
   const a = startConsult(DEFAULT_ARCHITECT, { id: 'c1', at: 1000, moment: 'before a plan', via: 'advisor tool' })
   expect(consultLine(DEFAULT_ARCHITECT, 0)).toBe('not consulted yet')
-  expect(consultLine(a, 5000)).toMatch(/^consulting since \d\d:\d\d:\d\d$/)
+  expect(consultLine(a, 43_000)).toBe('consulting for 42s'); expect(consultLine(a, 1000 + 125_000)).toBe('consulting for 2m')
   const done = endConsult(a, 15_000, null)
   expect(consultLine(done, 135_000)).toBe('last 2m ago · took 14s'); expect(consultLine(done, 45_000)).toBe('last 30s ago · took 14s')
   expect(consultLine(done, 15_000 + 3_900_000)).toBe('last 1h05m ago · took 14s')
@@ -201,7 +201,7 @@ test('the server-side advisor is read from assistant rows: advising, then on cal
   const mid = await $.ui.mount({ ...pane(100), surface: 'terminal' })
   expect(await mid.find({ type: 'Text', text: /^ ARCHITECT $/ })).toBeDefined(); expect(await mid.find({ text: /^ consults 1 $/ })).toBeDefined()
   expect((await mid.findAll({ type: 'Text', text: /^● advising$/ })).some(t => t.props.color === COLORS.architect)).toBe(true)
-  expect(await mid.find({ type: 'Text', text: /^consulting since \d\d:\d\d:\d\d$/ })).toBeDefined()
+  expect(await mid.find({ type: 'Text', text: /^consulting for 0s$/ })).toBeDefined()
   expect((await mid.find({ type: 'Text', text: /^◆ before a plan$/ }))?.props.color).toBe(COLORS.architect)
   expect(await mid.find({ type: 'Text', text: /^◇ before done$/ })).toBeDefined(); expect(await mid.find({ type: 'Text', text: /^\(inferred\)$/ })).toBeDefined()
   expect(await mid.find({ type: 'Text', text: / WORKING · ARCHITECT ADVISING$/ })).toBeDefined()

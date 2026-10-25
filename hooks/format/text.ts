@@ -60,6 +60,32 @@ export const fmtTimer = (ms: number): string => {
 /** Local wall-clock time `HH:MM:SS`; `--:--:--` when the time is unknown (zero or less). */
 export const fmtClock = (ms: number): string => (ms > 0 ? new Date(ms).toTimeString().slice(0, 8) : '--:--:--')
 
+const ISO_TIME = /^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d):(\d\d)(?:\.(\d+))?(?:(Z)|([+-])(\d\d):(\d\d))$/
+
+/**
+ * An ISO 8601 time, `2026-10-23T12:00:00Z`, `…00.5+02:00`, as milliseconds since the epoch, worked out
+ * by plain arithmetic. The offset is required (`Z` or `±hh:mm`); NaN for anything else, or a field out of range.
+ */
+export const parseIso = (s: unknown): number => {
+  const m = typeof s === 'string' ? ISO_TIME.exec(s) : null
+  if (!m) return Number.NaN
+  const [year, month, day, hour, min, sec] = m.slice(1, 7).map(Number) as [number, number, number, number, number, number]
+  const ms = Number((m[7] ?? '').padEnd(3, '0').slice(0, 3))
+  const offH = Number(m[10] ?? 0)
+  const offM = Number(m[11] ?? 0)
+  const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)
+  const monthDays = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1] ?? 0
+  if (day < 1 || day > monthDays || hour > 23 || min > 59 || sec > 59 || offH > 23 || offM > 59) return Number.NaN
+  // Days since 1970-01-01 from the civil date, counting years from March so the leap day ends the year.
+  const y = month <= 2 ? year - 1 : year
+  const era = Math.floor(y / 400)
+  const yoe = y - era * 400
+  const doy = Math.floor((153 * (month + (month > 2 ? -3 : 9)) + 2) / 5) + day - 1
+  const days = era * 146_097 + yoe * 365 + Math.floor(yoe / 4) - Math.floor(yoe / 100) + doy - 719_468
+  const offset = (m[9] === '-' ? -1 : 1) * (offH * 60 + offM)
+  return ((days * 24 + hour) * 60 + min - offset) * 60_000 + sec * 1000 + ms
+}
+
 /** `1 error`, `2 errors`. */
 export const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`
 

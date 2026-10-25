@@ -6,7 +6,6 @@ import { infoPanel } from '../hooks/view/panels/info'
 import { FRESH, cellWidth, draw, drawRows, engine, pane, rowsOf, texts, vmOf } from './kit'
 import { NOW, busy } from './fixture'
 
-const at = (ms: number) => new Date(ms).toISOString()
 const info = (s: Snapshot, w: number) => drawRows(infoPanel(draw({ now: NOW }), vmOf(s, w, 'dock', NOW).info, w)).slice(1)
 
 test('INFO is a labelled table in three groups split by dividers', () => {
@@ -167,8 +166,8 @@ test('each rate-limit window shows its reset countdown where the frame has room'
   await $.session.measure({
     context: { window: 200_000 },
     rateLimits: [
-      { kind: 'five_hour', percentUsed: 19, resetsAt: at(3 * 3_600_000 + 10 * 60_000) },
-      { kind: 'seven_day', percentUsed: 3, resetsAt: at(4 * 86_400_000 + 2 * 3_600_000) },
+      { kind: 'five_hour', percentUsed: 19, resetsAt: '1970-01-01T03:10:00.000Z' },
+      { kind: 'seven_day', percentUsed: 3, resetsAt: '1970-01-05T02:00:00.000Z' },
       { kind: 'seven_day_opus', percentUsed: 9 },
     ],
     changed: ['rateLimits'],

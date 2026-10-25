@@ -4,6 +4,14 @@ All notable changes to this project are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+
+- **ARCHITECT line**: an open consult now reads how long it has run, `consulting for 42s` or
+  `consulting for 2m`, as the closed line already reads how long ago (`last 2m ago · took 14s`).
+  Before, it read the local clock time the consult opened at, `consulting since 14:02:11`.
+
 ## [0.5.5] - 2026-10-25
 
 ### Fixed

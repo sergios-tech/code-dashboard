@@ -6,7 +6,7 @@ import type { ApiContentBlock } from 'claude-code'
 import type { Architect, Moment, Turn } from '../../types'
 import type { Config } from '../config'
 import { redact } from '../format/redact'
-import { fmtClock, fmtDuration, shorten } from '../format/text'
+import { fmtDuration, shorten } from '../format/text'
 
 /** Consults kept; the oldest goes first. */
 export const CONSULTS_MAX = 40
@@ -67,10 +67,10 @@ export const consultTimeline = (a: Architect, now: number, width: number): strin
 /** Elapsed time as the panel says how long ago: `42s`, `2m`, `1h05m`. */
 const agoOf = (ms: number): string => (ms >= 60_000 && ms < 3_600_000 ? `${Math.floor(ms / 60_000)}m` : fmtDuration(ms))
 
-/** `consulting since 14:02:11` while one is open, `last 2m ago · took 14s` after, or `not consulted yet`. */
+/** `consulting for 42s` while one is open, `last 2m ago · took 14s` after, or `not consulted yet`. */
 export const consultLine = (a: Architect, now: number): string => {
   const open = [...a.consults].reverse().find(c => c.endAt === null)
-  if (open) return `consulting since ${fmtClock(open.at)}`
+  if (open) return `consulting for ${agoOf(now - open.at)}`
   const last = a.consults[a.consults.length - 1]
   if (!last) return 'not consulted yet'
   const end = last.endAt ?? last.at
