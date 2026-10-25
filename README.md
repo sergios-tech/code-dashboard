@@ -154,8 +154,9 @@ of gauges and bars never carry text. A state never relies on colour alone: `●`
 
 ## What it can reach
 
-The plugin only watches. Every hook passes its event on unchanged: it never denies, rewrites or
-blocks a tool call, a prompt or a subagent.
+The plugin only watches. Apart from its own command and its own pane, every hook passes its event on
+unchanged: it never denies, rewrites or blocks a tool call, a prompt or a subagent.
+[What each hook does](#what-each-hook-does) lists them one by one.
 
 | It sees | Through |
 | --- | --- |
@@ -178,6 +179,54 @@ Credentials are masked before anything is stored. The lists are capped: 24 agent
 What it never does: it makes no network requests, runs no processes, reads and writes no files,
 calls no model and stores nothing across sessions. `claude plugin validate .` prints every hook it
 registers and every host call it makes.
+
+## What each hook does
+
+The plugin hooks 15 events, with 16 hooks, in the order `claude plugin validate .` lists them
+(`tool.call` is hooked twice). Each row says when the hook runs, what it reads, and what it keeps.
+What it keeps goes into session state, capped and with credentials masked, as described in
+[What it can reach](#what-it-can-reach); the one exception is marked in its row. Nothing is kept
+outside the session.
+
+| Hook | Runs | Reads and keeps | Event |
+| --- | --- | --- | --- |
+| `session.start` | When a session starts, and again after `/reload-plugins`. | Registers `/st-code-display`, brings stored state up to the current schema, notes the session's start time and takes the host's first context, cost and rate-limit reading. With `openOnStart` it asks the host to open the pane. Keeps the start time and that reading. | Passed on unchanged. |
+| `session.end` | When a session ends. | Reads only the reason. After `/clear` it clears the pane as `/st-code-display reset` does. Keeps nothing. | Passed on unchanged. |
+| `command.run` | Only for `/st-code-display`. Other commands never reach it. | Reads the arguments: `open`, `close`, `reset` or `layout`. Opens or closes the pane, clears its state on `reset`, and keeps the layout you pick. | Answered: the command's own reply text. It is the only command the plugin answers. |
+| `classic.UserPromptSubmit` | When you submit a prompt. | Reads only the permission mode, not the prompt. Keeps the mode. | Passed on unchanged. |
+| `turn.start` | When the main loop or a subagent starts a turn. | In the main loop it reads the opening text and keeps its first 400 characters as a log line, marks the loop as running and starts a fresh tally for the turn. When the text is an architect's hand-back, it keeps the first line of the advice instead. A subagent's turn is left alone. | Passed on unchanged. |
+| `turn.step` | For each model request, as its response streams. | In the main loop it reads the model, the effort and the kind of each streamed chunk, never its content, and reads the clock up to three times. It keeps the model, the effort, the request count and, once the response ends, `ttft` and `tok/s`. For a subagent it reads the model, token usage and stop reason and keeps them on the agent's row, with a log line for `max_tokens`. | Every streamed chunk and the final result are passed through unchanged. |
+| `turn.complete` | When a turn ends. | In the main loop it marks the loop idle and clears the turn's tally. For a subagent it reads the end reason and the answer. It keeps the status, a log line and the first 400 characters of the answer. For an architect it keeps the first line of the advice. | Passed on unchanged. |
+| `agent.offer` | When the host lists an agent type the model may call. | Reads the type's name, and its description with `matchDescriptions`. Keeps the name of each type that matches `architectPattern`, the newest 20. | Passed on unchanged. |
+| `agent.spawn` | When a subagent is spawned. | Reads the type, name and description, and the id and model the host gave it. Keeps a row for the agent and a log line. For an architect it keeps only the id, as a consult. A refused spawn, and a workflow script's agent, is left alone here. | Passed on unchanged. |
+| `session.append` | When a message is added to the conversation. | Reads the main loop's replies, only for server-side advisor calls and their results. Keeps the ids it has seen and the consult's times. Other messages, and every subagent's, are ignored. | Passed on unchanged. |
+| `tool.call` for `SubagentHandback` | When a subagent hands its report back. | Reads the report only when the sender is a known architect. Keeps the first line as the advice, and a log line. | Passed on unchanged. Other calls pass this hook by. |
+| `tool.check` | On each call's permission check. | Reads the verdict and the call's id. Keeps the verdict in memory only, until the call ends, to tell an approval prompt or a refusal from a failed tool. It does not change the verdict. | The verdict is passed on unchanged. |
+| `tool.call` for every call | Around each tool call, in every loop. | Reads the clock before and after, the tool's name and input, and whether the call failed or was refused. Keeps the tool's name and a short description of its input, counts, errors and average time, the files touched, the subagent's last three calls and a log line for each edit, failure or refusal. | The call and its result are passed on unchanged. It never denies or rewrites a call. |
+| `session.measure` | When the host measures the session. | Reads the context, cost and rate-limit readings. Keeps the latest. | Passed on unchanged. |
+| `session.compact` | When the conversation is compacted. | Reads the trigger, and whether the compaction was vetoed. Keeps the count, the time and a log line. A vetoed compaction, a precompute and a subagent's compaction are not counted. | Passed on unchanged. |
+| `ui.render` | Each time the pane is drawn, for its own pane only. | Reads the stored state, the clock, and the pane's size and surface. Keeps which agent your digit key has opened. | Answered: the drawing of the plugin's own pane. |
+
+**No hook decides anything.**
+
+- `tool.check` passes the permission check on and only reads its verdict, to mark a refused call.
+- `tool.call` never denies or rewrites a call. It reads the result after the call has run.
+- `turn.step` passes every streamed chunk through unchanged.
+- The only answers the plugin gives are `/st-code-display`'s own reply text and the drawing of its
+  own pane.
+
+The host calls it makes, as `claude plugin validate .` prints them:
+
+| Call | Used for |
+| --- | --- |
+| `$.state.get`, `$.state.set` | Reading and writing the state above. It lasts for the session; the plugin keeps nothing across sessions. |
+| `$.clock.now` | The times of log lines and clocks, and the timing of a request or a tool call. |
+| `$.clock.after` | One timer, set when a model loop that no agent claims steps, to redraw the pane when that loop stops counting as running. |
+| `$.command.register` | Registering `/st-code-display` at session start. |
+| `$.session.usage` | The host's first context, cost and rate-limit reading at session start. |
+| `$.ui.open`, `$.ui.close` | Opening the pane at session start and on `/st-code-display`, and closing it on `/st-code-display close`. |
+| `$.ui.invalidate` | Asking the host to draw the pane again. |
+| `$.ui.resolve` | Getting the host's drawing elements for the pane. |
 
 ## What is inferred, not measured
 
